@@ -43,15 +43,17 @@ TUYỆT ĐỐI KHÔNG dùng tiếng Anh trộn lẫn vào tiếng Việt."""
 TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT, không được pha trộn tiếng Anh hoặc bất kỳ ngôn ngữ nào khác.
 Dựa trên toàn bộ lịch sử trò chuyện giữa người dùng và người hỏi đáp, hãy tổng hợp thành một "Bản Phác Thảo Cốt Truyện" mạch lạc. Giữ nguyên 100% ý muốn cốt lõi của tác giả đã thống nhất trong khung chat. Không tự ý bịa thêm chi tiết.
 
+YÊU CẦU TRỌNG TÂM: Mạch truyện phải được thiết kế XUYÊN SUỐT, logic chặt chẽ, đi thẳng vào các biến cố cốt truyện thay vì lan man hoa mỹ.
+
 Cấu trúc Bản Phác Thảo Cốt Truyện bắt buộc gồm:
 1. TIÊU ĐỀ CHÍNH THỨC: Chọn 1 tiêu đề hay nhất, sát với nội dung nhất.
 2. THỂ LOẠI VÀ KHÔNG KHÍ: Liệt kê các thể loại và cảm xúc chủ đạo.
-3. NHÂN VẬT CHÍNH: Tên gọi, tính cách, hoàn cảnh hiện tại.
+3. NHÂN VẬT CHÍNH: Tên gọi, tính cách, hoàn cảnh hiện tại (tập trung vào hành động và chiều sâu tâm lý, bớt tả ngoại hình hoa mỹ).
 4. BỐI CẢNH: Không gian và thời gian diễn ra câu chuyện.
-5. TIẾN TRÌNH CỐT TRUYỆN:
-   - Mở đầu: Câu chuyện bắt đầu thế nào.
-   - Diễn biến: Các sự kiện chính xảy ra.
-   - Cao trào: Điểm căng thẳng nhất.
+5. TIẾN TRÌNH CỐT TRUYỆN (Sườn logic nghiêm ngặt):
+   - Mở đầu: Câu chuyện bắt đầu thế nào. Khởi mào sự kiện.
+   - Diễn biến: Các sự kiện chính xảy ra, xung đột và hành động thực tế.
+   - Cao trào: Điểm căng thẳng nhất, bùng nổ logic, không dùng phép màu vô lý.
    - Kết thúc: Hướng giải quyết.
 
 YÊU CẦU:

@@ -3,99 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NarrAI - Tao Truyen Bang AI</title>
-    <link rel="stylesheet" href="style.css?v=2026090303">
+    <title>NarrAI Workspace - ISTARTUP2026</title>
+    <link rel="stylesheet" href="style.css?v=2026090401">
 </head>
-<body>
-    <div class="container">
-        <header class="main-header">
-            <div class="header-content">
-                <div>
-                    <h1>NarrAI MVP</h1>
-                    <p>Tạo truyện chữ bằng AI trong vài phút</p>
+<body class="workspace-mode">
+    <div class="workspace-layout">
+        <!-- Panel Trái: Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>NarrAI</h1>
+            </div>
+            <div class="sidebar-menu">
+                <button class="nav-btn active" onclick="location.reload()">➕ Viết truyện mới</button>
+                <button class="nav-btn" onclick="openHistory()">📚 Lịch sử truyện</button>
+            </div>
+            <div class="sidebar-footer">
+                <p>MVP for ISTARTUP2026</p>
+            </div>
+        </aside>
+
+        <!-- Panel Giữa: Main Editor -->
+        <main class="main-editor">
+            <!-- Setup Flow -->
+            <div id="setupView">
+                <section id="phase1" class="phase active">
+                    <h2>Bước 1: Khởi nguồn ý tưởng</h2>
+                    <div class="trending-section">
+                        <p class="label">🎨 Thể loại truyện (Chọn nhiều):</p>
+                        <div id="genresContainer" class="trending-container" style="margin-bottom: 15px;">
+                            <!-- JS will populate genres -->
+                        </div>
+
+                        <p class="label">🔥 Chủ đề thịnh hành (Mix nhiều chủ đề):</p>
+                        <div id="trendingContainer" class="trending-container">
+                            <!-- JS will populate trending topics -->
+                        </div>
+                    </div>
+
+                    <textarea id="initialPrompt" placeholder="Ví dụ: Một thế giới nơi phép thuật bị cấm đoán..."></textarea>
+                    <button onclick="generateQuestions()" class="primary-btn">Tiếp tục ➔</button>
+                </section>
+
+                <section id="phase2" class="phase">
+                    <h2>Bước 2: Phỏng vấn Cốt truyện với AI</h2>
+                    <div id="chatBox" class="chat-box"></div>
+                    <div class="chat-input-area">
+                        <textarea id="chatInput" placeholder="Nhập câu trả lời của bạn..." rows="2"></textarea>
+                        <button onclick="sendChatMessage()" class="send-btn">Gửi</button>
+                    </div>
+                    <button onclick="forceRefinePrompt()" class="skip-btn" style="margin-top: 15px;">Bỏ qua hỏi đáp, Chốt dàn ý luôn</button>
+                </section>
+
+                <section id="phase3" class="phase">
+                    <h2>Bước 3: Chốt cấu hình & Viết truyện</h2>
+                    <div class="length-selector">
+                        <label><input type="radio" name="length" value="short" checked> Truyện ngắn (500-800 từ)</label>
+                        <label><input type="radio" name="length" value="medium"> Tiểu thuyết vừa (1500-2500 từ)</label>
+                        <label><input type="radio" name="length" value="long"> Dài kỳ (3000-5000 từ)</label>
+                    </div>
+                    <button onclick="generateStory()" class="primary-btn">Bắt đầu Chấp bút ✍️</button>
+                </section>
+            </div>
+
+            <!-- Editor Flow (Hidden initially) -->
+            <div id="editorView" style="display: none;">
+                <div class="editor-header">
+                    <h2 id="storyTitle">Bản Thảo Đang Viết...</h2>
+                    <div class="editor-actions">
+                        <span id="wordCount">0 từ</span>
+                        <button onclick="downloadStory()" class="secondary-btn">📥 Tải EPUB/PDF</button>
+                    </div>
                 </div>
-                <button class="history-btn" onclick="openHistory()">📚 Lịch sử truyện</button>
-            </div>
-        </header>
-
-        <!-- History Modal -->
-        <div id="historyModal" class="modal" style="display:none;">
-            <div class="modal-content">
-                <span class="close" onclick="closeHistory()">&times;</span>
-                <h2>📚 Truyện đã tạo</h2>
-                <div id="historyList">Đang tải...</div>
-            </div>
-        </div>
-
-        <main>
-            <!-- Phase 1: Initial Prompt -->
-            <section id="phase1" class="phase active">
-                <h2>Buoc 1: Nhap y tuong truyen</h2>
+                <!-- Content Editable Area -->
+                <div id="storyOutput" class="story-canvas" contenteditable="true" spellcheck="false" placeholder="Câu chuyện sẽ xuất hiện ở đây. Bạn có thể tự gõ thêm bất cứ lúc nào..."></div>
                 
-                <div class="trending-section">
-                    <p style="margin-bottom: 10px; font-weight: bold; color: #555;">🏷️ Thể loại truyện (Chọn nhiều):</p>
-                    <div id="genresContainer" class="trending-container" style="margin-bottom: 15px;">
-                        <!-- JS will populate genres -->
-                    </div>
-
-                    <p style="margin-bottom: 10px; font-weight: bold; color: #555;">🔥 Chủ đề thịnh hành (Mix nhiều chủ đề):</p>
-                    <div id="trendingContainer" class="trending-container">
-                        <!-- JS will populate trending topics -->
-                    </div>
+                <!-- Floating Toolbar -->
+                <div id="floatingToolbar" class="floating-toolbar" style="display:none;">
+                    <button onclick="interactiveEdit('Hãy viết lại đoạn này cho hay và văn vẻ hơn')">✨ Viết lại</button>
+                    <button onclick="interactiveEdit('Hãy mở rộng đoạn này, miêu tả chi tiết bối cảnh và cảm xúc')">🔍 Mở rộng</button>
+                    <button onclick="interactiveEdit('Hãy tóm lược đoạn này cho súc tích, nhịp độ nhanh hơn')">✂️ Rút gọn</button>
+                    <button onclick="openAIChatForSelection()">🤖 Tùy chỉnh với AI</button>
                 </div>
-
-                <textarea id="initialPrompt" placeholder="Vi du: Mot co gai bi tan cong boi quai vat va duoc cuu boi mot chang trai bi an..."></textarea>
-                <button onclick="generateQuestions()">Tiep tuc →</button>
-            </section>
-
-            <!-- Phase 2: Q&A -->
-            <section id="phase2" class="phase">
-                <h2>Bước 2: Phát triển cốt truyện</h2>
-                <div id="chatBox" class="chat-box">
-                    <!-- Chat messages will be appended here -->
-                </div>
-                <div class="chat-input-area">
-                    <textarea id="chatInput" placeholder="Nhập câu trả lời của bạn vào đây..." rows="2"></textarea>
-                    <button onclick="sendChatMessage()" class="send-btn">Gửi</button>
-                </div>
-                <button onclick="forceRefinePrompt()" class="skip-btn" style="margin-top: 15px; background: #e0245e;">Bỏ qua hỏi đáp, Viết truyện luôn 🚀</button>
-            </section>
-
-            <!-- Phase 3: Story Generation -->
-            <section id="phase3" class="phase">
-                <h2>Buoc 3: Chon do dai truyen</h2>
-                <div class="length-selector">
-                    <label>
-                        <input type="radio" name="length" value="short" checked> Ngan (500-800 tu)
-                    </label>
-                    <label>
-                        <input type="radio" name="length" value="medium"> Trung binh (1500-2500 tu)
-                    </label>
-                    <label>
-                        <input type="radio" name="length" value="long"> Dai (3000-5000 tu)
-                    </label>
-                </div>
-                <button onclick="generateStory()">Tao Truyen →</button>
-            </section>
-
-            <!-- Phase 4: Story Output -->
-            <section id="phase4" class="phase">
-                <h2>Truyen Cua Ban</h2>
-                <div id="storyOutput" class="story-output"></div>
-                <div class="actions">
-                    <p id="wordCount"></p>
-                    <button onclick="copyStory()">📋 Sao chép</button>
-                    <button onclick="downloadStory()">📥 Tải xuống</button>
-                    <button onclick="resetForm()">🔄 Tạo truyện mới</button>
-                </div>
-            </section>
+            </div>
         </main>
 
-        <footer>
-            <p>NarrAI 2026 | Powered by Groq & Llama AI</p>
-        </footer>
+        <!-- Panel Phải: AI Co-pilot -->
+        <aside class="ai-panel">
+            <div class="ai-panel-header">
+                <h3>🤖 AI Co-pilot</h3>
+            </div>
+            <div class="ai-panel-body" id="aiCopilotBody">
+                <div class="ai-welcome" id="aiWelcomeMsg">
+                    <p>Chào mừng bạn đến với không gian làm việc chuyên nghiệp.</p>
+                    <p>💡 <b>Mẹo:</b> Trong quá trình viết, hãy bôi đen một đoạn văn chưa ưng ý trong Bản thảo. AI sẽ giúp bạn sửa lại nó ngay lập tức!</p>
+                </div>
+                
+                <!-- Khi bôi đen đoạn văn và chọn Tùy chỉnh -->
+                <div id="aiSelectionBox" style="display: none;" class="ai-card">
+                    <p class="ai-label">Đoạn văn đang chọn:</p>
+                    <div class="ai-quote" id="aiSelectionText"></div>
+                    <textarea id="aiCustomInstruction" placeholder="Ví dụ: Đổi giọng văn buồn bã hơn..."></textarea>
+                    <button onclick="submitCustomEdit()" class="ai-action-btn">Yêu cầu AI sửa 🚀</button>
+                </div>
+
+                <!-- Kết quả AI trả về -->
+                <div id="aiResultBox" style="display: none;" class="ai-card">
+                    <p class="ai-label">Kết quả từ AI:</p>
+                    <div class="ai-result-text" id="aiNewText"></div>
+                    <div class="ai-result-actions">
+                        <button onclick="acceptEdit()" class="ai-btn-success">✅ Thay thế</button>
+                        <button onclick="rejectEdit()" class="ai-btn-danger">❌ Hủy bỏ</button>
+                    </div>
+                </div>
+                
+                <div id="aiLoading" style="display: none;" class="ai-loading">
+                    AI đang suy nghĩ...
+                </div>
+            </div>
+        </aside>
     </div>
 
-    <script src="script.js?v=2026090304"></script>
+    <!-- History Modal -->
+    <div id="historyModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeHistory()">&times;</span>
+            <h2>📚 Lịch sử truyện</h2>
+            <div id="historyList">Đang tải...</div>
+        </div>
+    </div>
+
+    <script src="script.js?v=2026090401"></script>
 </body>
 </html>

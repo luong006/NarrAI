@@ -47,6 +47,10 @@ class GenerateStoryRequest(BaseModel):
     refined_prompt: str
     story_length: str = "medium"
 
+class EditTextRequest(BaseModel):
+    original_text: str
+    instruction: str
+
 # ============ ENDPOINTS ============
 
 @app.post("/api/chat-interview")
@@ -84,6 +88,25 @@ async def refine_prompt(request: ChatInterviewRequest):
         return {
             "status": "success",
             "refined_prompt": refined
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+@app.post("/api/edit-text")
+async def edit_text(request: EditTextRequest):
+    """
+    Agent 3: Interactive Editing
+    """
+    try:
+        from agents.editor_agent import EditorAgent
+        editor = EditorAgent()
+        revised = editor.edit_text(request.original_text, request.instruction)
+        return {
+            "status": "success",
+            "revised_text": revised
         }
     except Exception as e:
         return {
