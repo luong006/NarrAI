@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NarrAI - Tao Truyen Bang AI</title>
+    <link rel="stylesheet" href="style.css?v=2026090303">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <div class="header-content">
+                <div>
+                    <h1>NarrAI MVP</h1>
+                    <p>Tạo truyện chữ bằng AI trong vài phút</p>
+                </div>
+                <button class="history-btn" onclick="openHistory()">📚 Lịch sử truyện</button>
+            </div>
+        </header>
+
+        <!-- History Modal -->
+        <div id="historyModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeHistory()">&times;</span>
+                <h2>📚 Truyện đã tạo</h2>
+                <div id="historyList">Đang tải...</div>
+            </div>
+        </div>
+
+        <main>
+            <!-- Phase 1: Initial Prompt -->
+            <section id="phase1" class="phase active">
+                <h2>Buoc 1: Nhap y tuong truyen</h2>
+                
+                <div class="trending-section">
+                    <p style="margin-bottom: 10px; font-weight: bold; color: #555;">🏷️ Thể loại truyện (Chọn nhiều):</p>
+                    <div id="genresContainer" class="trending-container" style="margin-bottom: 15px;">
+                        <!-- JS will populate genres -->
+                    </div>
+
+                    <p style="margin-bottom: 10px; font-weight: bold; color: #555;">🔥 Chủ đề thịnh hành (Mix nhiều chủ đề):</p>
+                    <div id="trendingContainer" class="trending-container">
+                        <!-- JS will populate trending topics -->
+                    </div>
+                </div>
+
+                <textarea id="initialPrompt" placeholder="Vi du: Mot co gai bi tan cong boi quai vat va duoc cuu boi mot chang trai bi an..."></textarea>
+                <button onclick="generateQuestions()">Tiep tuc →</button>
+            </section>
+
+            <!-- Phase 2: Q&A -->
+            <section id="phase2" class="phase">
+                <h2>Bước 2: Phát triển cốt truyện</h2>
+                <div id="chatBox" class="chat-box">
+                    <!-- Chat messages will be appended here -->
+                </div>
+                <div class="chat-input-area">
+                    <textarea id="chatInput" placeholder="Nhập câu trả lời của bạn vào đây..." rows="2"></textarea>
+                    <button onclick="sendChatMessage()" class="send-btn">Gửi</button>
+                </div>
+                <button onclick="forceRefinePrompt()" class="skip-btn" style="margin-top: 15px; background: #e0245e;">Bỏ qua hỏi đáp, Viết truyện luôn 🚀</button>
+            </section>
+
+            <!-- Phase 3: Story Generation -->
+            <section id="phase3" class="phase">
+                <h2>Buoc 3: Chon do dai truyen</h2>
+                <div class="length-selector">
+                    <label>
+                        <input type="radio" name="length" value="short" checked> Ngan (500-800 tu)
+                    </label>
+                    <label>
+                        <input type="radio" name="length" value="medium"> Trung binh (1500-2500 tu)
+                    </label>
+                    <label>
+                        <input type="radio" name="length" value="long"> Dai (3000-5000 tu)
+                    </label>
+                </div>
+                <button onclick="generateStory()">Tao Truyen →</button>
+            </section>
+
+            <!-- Phase 4: Story Output -->
+            <section id="phase4" class="phase">
+                <h2>Truyen Cua Ban</h2>
+                <div id="storyOutput" class="story-output"></div>
+                <div class="actions">
+                    <p id="wordCount"></p>
+                    <button onclick="copyStory()">📋 Sao chép</button>
+                    <button onclick="downloadStory()">📥 Tải xuống</button>
+                    <button onclick="resetForm()">🔄 Tạo truyện mới</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>NarrAI 2026 | Powered by Groq & Llama AI</p>
+        </footer>
+    </div>
+
+    <script src="script.js?v=2026090304"></script>
+</body>
+</html>
