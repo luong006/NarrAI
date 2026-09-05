@@ -7,7 +7,45 @@
     <link rel="stylesheet" href="style.css?v=2026090403">
 </head>
 <body class="workspace-mode">
-    <div class="workspace-layout">
+
+    <!-- LANDING PAGE -->
+    <div id="landingContainer">
+        <nav class="landing-nav">
+            <div class="landing-logo">NarrAI <span>Pro</span></div>
+            <div class="landing-actions">
+                <button onclick="setLang('vi')" class="lang-btn-landing">VIE</button>
+                <button onclick="setLang('en')" class="lang-btn-landing">ENG</button>
+                <button onclick="openAuthModal()" class="landing-login-btn" data-i18n="login">Đăng nhập</button>
+            </div>
+        </nav>
+        
+        <header class="hero-section">
+            <h1 data-i18n="hero_title">Khởi Tạo Tác Phẩm Của Bạn Bằng Trí Tuệ Nhân Tạo</h1>
+            <p data-i18n="hero_sub">Nền tảng Co-creation Workspace hiện đại giúp bạn biến mọi ý tưởng điên rồ nhất thành cuốn tiểu thuyết hoàn chỉnh chỉ trong vài phút.</p>
+            <button onclick="openAuthModal()" class="hero-cta-btn" data-i18n="hero_cta">Bắt đầu sáng tác miễn phí</button>
+        </header>
+
+        <section class="features-section">
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h3 data-i18n="feat1_title">AI Plot Interview</h3>
+                <p data-i18n="feat1_desc">Trợ lý AI sẽ phỏng vấn bạn để khai thác và làm chặt chẽ cốt truyện trước khi đặt bút viết.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 data-i18n="feat2_title">Interactive Editing</h3>
+                <p data-i18n="feat2_desc">Bôi đen bất kỳ đoạn văn nào và yêu cầu AI viết lại, mở rộng hoặc tóm lược theo ý muốn.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌍</div>
+                <h3 data-i18n="feat3_title">Đa Ngôn Ngữ</h3>
+                <p data-i18n="feat3_desc">Hỗ trợ giao diện song ngữ (Anh - Việt) và AI am hiểu văn phong tác giả quốc tế.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- WORKSPACE APP (Hidden until logged in) -->
+    <div class="workspace-layout" id="appContainer" style="display: none;">
         <!-- Panel Trái: Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">

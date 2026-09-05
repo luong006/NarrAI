@@ -62,7 +62,16 @@ const i18nDict = {
         pacing: "Nhịp độ (Pacing)",
         val_short: "Ngắn", val_med: "Vừa", val_long: "Dài",
         val_logic: "Logic/Thực tế", val_bal: "Cân bằng", val_crazy: "Sáng tạo/Bất ngờ",
-        val_slow: "Chậm rãi, Miêu tả kỹ", val_fast: "Nhanh, Kịch tính"
+        val_slow: "Chậm rãi, Miêu tả kỹ", val_fast: "Nhanh, Kịch tính",
+        hero_title: "Khởi Tạo Tác Phẩm Của Bạn Bằng Trí Tuệ Nhân Tạo",
+        hero_sub: "Nền tảng Co-creation Workspace hiện đại giúp bạn biến mọi ý tưởng điên rồ nhất thành cuốn tiểu thuyết hoàn chỉnh chỉ trong vài phút.",
+        hero_cta: "Bắt đầu sáng tác miễn phí",
+        feat1_title: "AI Plot Interview",
+        feat1_desc: "Trợ lý AI sẽ phỏng vấn bạn để khai thác và làm chặt chẽ cốt truyện trước khi đặt bút viết.",
+        feat2_title: "Interactive Editing",
+        feat2_desc: "Bôi đen bất kỳ đoạn văn nào và yêu cầu AI viết lại, mở rộng hoặc tóm lược theo ý muốn.",
+        feat3_title: "Đa Ngôn Ngữ",
+        feat3_desc: "Hỗ trợ giao diện song ngữ (Anh - Việt) và AI am hiểu văn phong tác giả quốc tế."
     },
     en: {
         not_logged_in: "Not logged in",
@@ -117,7 +126,16 @@ const i18nDict = {
         pacing: "Pacing",
         val_short: "Short", val_med: "Medium", val_long: "Long",
         val_logic: "Logical/Realistic", val_bal: "Balanced", val_crazy: "Creative/Unexpected",
-        val_slow: "Slow, Descriptive", val_fast: "Fast, Action-packed"
+        val_slow: "Slow, Descriptive", val_fast: "Fast, Action-packed",
+        hero_title: "Generate Your Masterpiece With AI",
+        hero_sub: "A modern Co-creation Workspace that turns your wildest ideas into a complete novel in minutes.",
+        hero_cta: "Start writing for free",
+        feat1_title: "AI Plot Interview",
+        feat1_desc: "Our AI assistant will interview you to brainstorm and tighten the plot before writing.",
+        feat2_title: "Interactive Editing",
+        feat2_desc: "Highlight any paragraph and ask AI to rewrite, expand, or shorten it on the fly.",
+        feat3_title: "Multilingual",
+        feat3_desc: "Bilingual interface (EN-VI) and an AI that understands world-class authors' writing styles."
     }
 };
 
@@ -185,6 +203,10 @@ async function checkAuth() {
                 document.getElementById('welcomeUser').textContent = currentLang === 'vi' ? `Chào, ${data.username}` : `Hi, ${data.username}`;
                 document.getElementById('loginBtnSidebar').style.display = 'none';
                 document.getElementById('logoutBtnSidebar').style.display = 'block';
+                
+                // Show App, Hide Landing
+                document.getElementById('landingContainer').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
                 return;
             } else {
                 logout(); // invalid token
@@ -196,6 +218,10 @@ async function checkAuth() {
     document.getElementById('welcomeUser').textContent = i18nDict[currentLang]['not_logged_in'];
     document.getElementById('loginBtnSidebar').style.display = 'block';
     document.getElementById('logoutBtnSidebar').style.display = 'none';
+    
+    // Show Landing, Hide App
+    document.getElementById('landingContainer').style.display = 'block';
+    document.getElementById('appContainer').style.display = 'none';
 }
 
 function logout() {
