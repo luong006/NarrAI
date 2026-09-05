@@ -1,4 +1,4 @@
-const API_URL = "https://narrai-c1oc.onrender.com/api";
+const API_URL = "http://127.0.0.1:8000/api";
 
 let globalData = {
     initialPrompt: "",
