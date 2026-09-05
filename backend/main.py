@@ -249,6 +249,9 @@ class ComicRequest(BaseModel):
 
 @app.post("/api/comic/generate")
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user:
+        return {"status": "error", "message": "Bạn chưa đăng nhập."}
+        
     # 1. Parse text to JSON panels using LLM
     script_data = generate_comic_script(request.story_text)
     

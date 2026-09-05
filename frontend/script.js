@@ -878,11 +878,13 @@ async function adaptToComic() {
                 grid.appendChild(panelDiv);
             });
         } else {
-            alert('Error generating comic: ' + data.message);
+            alert('Lỗi tạo truyện tranh: ' + (data.message || data.detail || 'Lỗi hệ thống'));
+            backToEditor();
         }
     } catch(e) {
         loader.style.display = 'none';
-        alert('Lỗi kết nối khi tạo truyện tranh!');
+        alert('Lỗi kết nối hoặc Backend chưa cập nhật xong!');
+        backToEditor();
     }
 }
 
