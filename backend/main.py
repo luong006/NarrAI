@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 import json
 import os
@@ -19,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Lazy-load agents only when needed
+# Lazy-load agents
 qa_refiner = None
 story_generator = None
 
@@ -38,6 +39,31 @@ def get_story_generator():
     return story_generator
 
 import re
+from fastapi.responses import StreamingResponse
+from db.models import Story, User, engine
+from sqlalchemy.orm import sessionmaker, Session
+from auth import verify_password, get_password_hash, create_access_token, decode_access_token
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    if not token:
+        return None
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+    username: str = payload.get("sub")
+    user = db.query(User).filter(User.username == username).first()
+    return user
 
 # ============ PYDANTIC MODELS ============
 class ChatInterviewRequest(BaseModel):
@@ -51,80 +77,73 @@ class EditTextRequest(BaseModel):
     original_text: str
     instruction: str
 
-# ============ ENDPOINTS ============
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+# ============ AUTH ENDPOINTS ============
+
+@app.post("/api/register")
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.username == user.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
+    
+    hashed_password = get_password_hash(user.password)
+    new_user = User(username=user.username, password_hash=hashed_password)
+    db.add(new_user)
+    db.commit()
+    return {"status": "success", "message": "Đăng ký thành công"}
+
+@app.post("/api/login")
+def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Sai tên đăng nhập hoặc mật khẩu")
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer", "username": user.username}
+
+@app.get("/api/me")
+def read_users_me(current_user: User = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Chưa đăng nhập")
+    return {"username": current_user.username}
+
+# ============ CORE ENDPOINTS ============
 
 @app.post("/api/chat-interview")
 async def chat_interview(request: ChatInterviewRequest):
-    """
-    Agent 1 Phase 1 (Interactive): Generate the next interview question
-    """
     try:
         qa = get_qa_refiner()
         response = qa.chat_interview(request.chat_history)
-        
-        # Check if the AI wants to finish the interview
         is_ready = "[READY]" in response
         cleaned_response = response.replace("[READY]", "").strip()
-            
-        return {
-            "status": "success",
-            "message": cleaned_response,
-            "is_ready": is_ready
-        }
+        return {"status": "success", "message": cleaned_response, "is_ready": is_ready}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/refine-prompt")
 async def refine_prompt(request: ChatInterviewRequest):
-    """
-    Agent 1 Phase 2: Compress chat history into refined story brief
-    """
     try:
         qa = get_qa_refiner()
         refined = qa.refine_prompt(request.chat_history)
-        return {
-            "status": "success",
-            "refined_prompt": refined
-        }
+        return {"status": "success", "refined_prompt": refined}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/edit-text")
 async def edit_text(request: EditTextRequest):
-    """
-    Agent 3: Interactive Editing
-    """
     try:
         from agents.editor_agent import EditorAgent
         editor = EditorAgent()
         revised = editor.edit_text(request.original_text, request.instruction)
-        return {
-            "status": "success",
-            "revised_text": revised
-        }
+        return {"status": "success", "revised_text": revised}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
-
-from fastapi.responses import StreamingResponse
-from db.models import Story, engine
-from sqlalchemy.orm import sessionmaker
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/generate-story")
-async def generate_story(request: GenerateStoryRequest):
-    """
-    Agent 2: Generate complete story from refined prompt (Streaming)
-    """
+async def generate_story(request: GenerateStoryRequest, current_user: User = Depends(get_current_user)):
     try:
         gen = get_story_generator()
         
@@ -138,12 +157,12 @@ async def generate_story(request: GenerateStoryRequest):
                 yield f"\n\n[Lỗi kết nối sinh truyện: {str(e)}]"
                 return
                 
-            # After streaming finishes, save to database
             word_count = len(full_story.split())
-            if word_count > 10:
+            if word_count > 10 and current_user:
                 db = SessionLocal()
                 try:
                     new_story = Story(
+                        user_id=current_user.id,
                         refined_prompt=request.refined_prompt,
                         story_content=full_story,
                         word_count=word_count
@@ -151,19 +170,13 @@ async def generate_story(request: GenerateStoryRequest):
                     db.add(new_story)
                     db.commit()
                 except Exception as e:
-                    print(f"Database save error: {e}")
+                    print(f"DB Error: {e}")
                 finally:
                     db.close()
 
-        return StreamingResponse(
-            stream_and_save(),
-            media_type="text/plain"
-        )
+        return StreamingResponse(stream_and_save(), media_type="text/plain")
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 @app.get("/api/trending-topics")
 async def get_trending_topics():
@@ -176,13 +189,12 @@ async def get_trending_topics():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/stories")
-async def get_stories():
-    """
-    Lấy danh sách các truyện đã tạo gần đây từ Database
-    """
-    db = SessionLocal()
+async def get_stories(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user:
+        return {"status": "success", "stories": []}
+        
     try:
-        stories = db.query(Story).order_by(Story.created_at.desc()).limit(20).all()
+        stories = db.query(Story).filter(Story.user_id == current_user.id).order_by(Story.created_at.desc()).limit(20).all()
         result = []
         for s in stories:
             first_line = s.story_content.strip().split('\n')[0] if s.story_content else "Truyện chưa đặt tên"
@@ -199,19 +211,16 @@ async def get_stories():
         return {"status": "success", "stories": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-    finally:
-        db.close()
 
 @app.get("/api/stories/{story_id}")
-async def get_story_detail(story_id: int):
-    """
-    Lấy nội dung đầy đủ của một truyện theo ID
-    """
-    db = SessionLocal()
+async def get_story_detail(story_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user:
+        return {"status": "error", "message": "Yêu cầu đăng nhập"}
+        
     try:
-        story = db.query(Story).filter(Story.id == story_id).first()
+        story = db.query(Story).filter(Story.id == story_id, Story.user_id == current_user.id).first()
         if not story:
-            return {"status": "error", "message": "Không tìm thấy truyện"}
+            return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền xem"}
         return {
             "status": "success",
             "story": {
@@ -224,18 +233,10 @@ async def get_story_detail(story_id: int):
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
-    finally:
-        db.close()
 
 @app.get("/api/health")
 async def health():
-    api_key = os.environ.get("GROQ_API_KEY")
-    has_key = "***" if api_key else "NOT SET"
-    return {
-        "status": "ok",
-        "groq_api_key": has_key,
-        "message": "Backend is running!"
-    }
+    return {"status": "ok", "message": "Backend is running!"}
 
 if __name__ == "__main__":
     import uvicorn
