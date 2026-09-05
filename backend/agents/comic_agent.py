@@ -3,7 +3,7 @@ import os
 import json
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL = "llama3-70b-8192" # Use llama3 for better JSON formatting
+MODEL = "qwen/qwen3.8-27b" # Updated to a valid 2026 Groq model
 
 def generate_comic_script(story_text: str):
     prompt = f"""
