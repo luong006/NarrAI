@@ -832,3 +832,61 @@ function updatePacingLabel() {
     else if(val == 2) label.innerText = i18nDict[currentLang]['val_bal'];
     else label.innerText = i18nDict[currentLang]['val_fast'];
 }
+
+// =================== COMIC GENERATION ===================
+async function adaptToComic() {
+    const text = document.getElementById('storyOutput').innerText;
+    if (!text || text.length < 50) {
+        alert('Cần có một đoạn truyện đủ dài để chuyển thể.');
+        return;
+    }
+    
+    document.getElementById('editorView').style.display = 'none';
+    document.getElementById('comicView').style.display = 'block';
+    
+    const grid = document.getElementById('comicGrid');
+    grid.innerHTML = '';
+    const loader = document.getElementById('comicLoading');
+    loader.style.display = 'block';
+    
+    try {
+        const res = await fetch(${API_URL}/comic/generate, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ story_id: 1, story_text: text.substring(0, 2000) }) // just limit for demo
+        });
+        const data = await res.json();
+        loader.style.display = 'none';
+        
+        if (data.status === 'success') {
+            data.panels.forEach(p => {
+                const panelDiv = document.createElement('div');
+                panelDiv.className = comic-panel panel-;
+                
+                const img = document.createElement('img');
+                img.src = p.image_url;
+                img.alt = p.image_prompt;
+                panelDiv.appendChild(img);
+                
+                if (p.dialogue_text) {
+                    const bubble = document.createElement('div');
+                    bubble.className = 'speech-bubble';
+                    bubble.innerText = p.dialogue_text;
+                    panelDiv.appendChild(bubble);
+                }
+                
+                grid.appendChild(panelDiv);
+            });
+        } else {
+            alert('Error generating comic: ' + data.message);
+        }
+    } catch(e) {
+        loader.style.display = 'none';
+        alert('Lỗi kết nối khi tạo truyện tranh!');
+    }
+}
+
+function backToEditor() {
+    document.getElementById('comicView').style.display = 'none';
+    document.getElementById('editorView').style.display = 'block';
+}

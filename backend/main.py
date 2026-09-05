@@ -238,6 +238,52 @@ async def get_story_detail(story_id: int, current_user: User = Depends(get_curre
 async def health():
     return {"status": "ok", "message": "Backend is running!"}
 
+# ================= COMIC ENDPOINTS =================
+from agents.comic_agent import generate_comic_script
+from services.image_gen import generate_comic_panel_image
+from db.models import Comic, ComicPanel
+
+class ComicRequest(BaseModel):
+    story_id: int
+    story_text: str
+
+@app.post("/api/comic/generate")
+def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # 1. Parse text to JSON panels using LLM
+    script_data = generate_comic_script(request.story_text)
+    
+    # 2. Save to DB
+    comic = Comic(user_id=current_user.id, story_id=request.story_id, title="Comic Adaptation")
+    db.add(comic)
+    db.commit()
+    db.refresh(comic)
+    
+    # 3. Create panels and generate images
+    panels_response = []
+    for item in script_data:
+        # Generate image (using our mock Pollinations API for instant demo)
+        img_url = generate_comic_panel_image(item.get('image_prompt', 'comic manga scene'), seed=comic.id)
+        
+        panel = ComicPanel(
+            comic_id=comic.id,
+            panel_index=item.get('panel_index', 1),
+            image_prompt=item.get('image_prompt', ''),
+            dialogue_text=item.get('dialogue_text', ''),
+            layout_type=item.get('layout_type', 'square'),
+            image_url=img_url
+        )
+        db.add(panel)
+        db.commit()
+        
+        panels_response.append({
+            'panel_index': panel.panel_index,
+            'image_url': panel.image_url,
+            'dialogue_text': panel.dialogue_text,
+            'layout_type': panel.layout_type
+        })
+        
+    return {"status": "success", "comic_id": comic.id, "panels": panels_response}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

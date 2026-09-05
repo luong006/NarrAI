@@ -138,6 +138,7 @@
                     <h2 id="storyTitle" data-i18n="editor_title">Bản Thảo Đang Viết...</h2>
                     <div class="editor-actions">
                         <span id="wordCount">0 <span data-i18n="words">từ</span></span>
+                        <button onclick="adaptToComic()" class="hero-cta-btn" style="padding: 8px 15px; font-size: 0.9em; box-shadow: none;">🎨 Chuyển thể Truyện tranh</button>
                         <button onclick="downloadStory()" class="secondary-btn" data-i18n="download_btn">📥 Tải EPUB/PDF</button>
                     </div>
                 </div>
@@ -148,6 +149,18 @@
                     <button onclick="interactiveEdit('Hãy mở rộng đoạn này, miêu tả chi tiết bối cảnh và cảm xúc')" data-i18n="tool_expand">🔍 Mở rộng</button>
                     <button onclick="interactiveEdit('Hãy tóm lược đoạn này cho súc tích, nhịp độ nhanh hơn')" data-i18n="tool_shorten">✂️ Rút gọn</button>
                     <button onclick="openAIChatForSelection()" data-i18n="tool_ai">🤖 Tùy chỉnh với AI</button>
+                </div>
+            <!-- Comic Flow -->
+            <div id="comicView" style="display: none;">
+                <div class="editor-header">
+                    <h2>🎨 Truyện Tranh (AI Generated)</h2>
+                    <div class="editor-actions">
+                        <button onclick="backToEditor()" class="secondary-btn">🔙 Quay lại Bản chữ</button>
+                    </div>
+                </div>
+                <div id="comicCanvas" class="comic-canvas">
+                    <div class="ai-loading" id="comicLoading" style="display:none;">Đang phân rã kịch bản và vẽ tranh...</div>
+                    <div id="comicGrid" class="comic-grid"></div>
                 </div>
             </div>
         </main>
