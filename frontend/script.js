@@ -285,6 +285,32 @@ async function submitAuth() {
 }
 
 
+
+// =================== SWR CACHING ===================
+async function fetchWithSWR(cacheKey, url, options, renderCallback) {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            renderCallback(JSON.parse(cached));
+        } catch (e) {}
+    }
+    
+    try {
+        const response = await fetch(url, options);
+        if (response.ok) {
+            const data = await response.json();
+            if (JSON.stringify(data) !== cached) {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+                renderCallback(data);
+            }
+        } else {
+            renderCallback({ status: 'error', message: 'API Error' });
+        }
+    } catch (e) {
+        if (!cached) renderCallback({ status: 'error', message: 'Network Error' });
+    }
+}
+
 // UI Navigation
 function showPhase(phaseNumber) {
     document.querySelectorAll('.phase').forEach(el => el.classList.remove('active'));
@@ -693,68 +719,69 @@ function downloadStory() {
 }
 
 // Modal History
+function renderHistoryList(data) {
+    const list = document.getElementById('historyList');
+    if(data.status === 'success') {
+        if(data.stories.length === 0) {
+            list.innerHTML = `<p style="text-align:center; color:#777; margin-top:20px;">${currentLang === 'vi' ? 'Bạn chưa tạo truyện nào.' : 'No stories found.'}</p>`;
+            return;
+        }
+        list.innerHTML = '';
+        data.stories.forEach(s => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <div class="history-title">${s.title}</div>
+                <div class="history-meta">🕒 ${s.created_at} | 📝 ${s.word_count} ${i18nDict[currentLang]['words']}</div>
+                <div class="history-snippet">${s.snippet}</div>
+            `;
+            item.onclick = () => loadStory(s.id);
+            list.appendChild(item);
+        });
+    } else {
+        list.innerHTML = `<p style="color:red;">${data.message}</p>`;
+    }
+}
+
 async function openHistory() { 
     document.getElementById('historyModal').style.display = 'block'; 
     const list = document.getElementById('historyList');
     list.innerHTML = i18nDict[currentLang]['loading'];
-    try {
-        const res = await fetch(`${API_URL}/stories`, { headers: authHeaders() });
-        const data = await res.json();
-        if(data.status === 'success') {
-            if(data.stories.length === 0) {
-                list.innerHTML = `<p style="text-align:center; color:#777; margin-top:20px;">${currentLang === 'vi' ? 'Bạn chưa tạo truyện nào.' : 'No stories found.'}</p>`;
-                return;
-            }
-            list.innerHTML = '';
-            data.stories.forEach(s => {
-                const item = document.createElement('div');
-                item.className = 'history-item';
-                item.innerHTML = `
-                    <div class="history-title">${s.title}</div>
-                    <div class="history-meta">🕒 ${s.created_at} | 📝 ${s.word_count} ${i18nDict[currentLang]['words']}</div>
-                    <div class="history-snippet">${s.snippet}</div>
-                `;
-                item.onclick = () => loadStory(s.id);
-                list.appendChild(item);
-            });
-        } else {
-            list.innerHTML = `<p style="color:red;">${data.message}</p>`;
-        }
-    } catch(e) {
-        list.innerHTML = '<p style="color:red;">Lỗi tải lịch sử.</p>';
-    }
+    
+    // Apply SWR
+    fetchWithSWR('cache_stories', `${API_URL}/stories`, { headers: authHeaders() }, renderHistoryList);
 }
+
 function closeHistory() { document.getElementById('historyModal').style.display = 'none'; }
 window.onclick = function(event) { 
     if (event.target == document.getElementById('historyModal')) closeHistory(); 
     if (event.target == document.getElementById('authModal')) closeAuthModal(); 
 }
 
+function renderStoryDetail(data) {
+    const output = document.getElementById('storyOutput');
+    if(data.status === 'success') {
+        const formattedStory = data.story.story_content
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => `<p>${line}</p>`)
+            .join('');
+        output.innerHTML = formattedStory;
+        updateWordCount();
+    } else {
+        output.innerHTML = `<p style="color:red;">${data.message}</p>`;
+    }
+}
+
 async function loadStory(id) {
     closeHistory();
-    showPhase(4); // Wait, we don't have phase 4, we have editorView
     document.getElementById('setupView').style.display = 'none';
     document.getElementById('editorView').style.display = 'block';
     
     const output = document.getElementById('storyOutput');
     output.innerHTML = `<div class="ai-loading">${i18nDict[currentLang]['loading']}</div>`;
-    try {
-        const res = await fetch(`${API_URL}/stories/${id}`, { headers: authHeaders() });
-        const data = await res.json();
-        if(data.status === 'success') {
-            const formattedStory = data.story.story_content
-                .split('\n')
-                .filter(line => line.trim())
-                .map(line => `<p>${line}</p>`)
-                .join('');
-            output.innerHTML = formattedStory;
-            updateWordCount();
-        } else {
-            output.innerHTML = `<p style="color:red;">${data.message}</p>`;
-        }
-    } catch(e) {
-        output.innerHTML = '<p style="color:red;">Lỗi tải truyện.</p>';
-    }
+    
+    fetchWithSWR(`cache_story_${id}`, `${API_URL}/stories/${id}`, { headers: authHeaders() }, renderStoryDetail);
 }
 
 // SLIDERS LOGIC
