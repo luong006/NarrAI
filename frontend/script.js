@@ -850,7 +850,7 @@ async function adaptToComic() {
     loader.style.display = 'block';
     
     try {
-        const res = await fetch(${API_URL}/comic/generate, {
+        const res = await fetch(`${API_URL}/comic/generate`, {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({ story_id: 1, story_text: text.substring(0, 2000) }) // just limit for demo
@@ -861,7 +861,7 @@ async function adaptToComic() {
         if (data.status === 'success') {
             data.panels.forEach(p => {
                 const panelDiv = document.createElement('div');
-                panelDiv.className = comic-panel panel-;
+                panelDiv.className = `comic-panel panel-${p.layout_type}`;
                 
                 const img = document.createElement('img');
                 img.src = p.image_url;
