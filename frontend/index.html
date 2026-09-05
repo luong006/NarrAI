@@ -45,10 +45,15 @@
                     <h2 data-i18n="step1_title">Bước 1: Khởi nguồn ý tưởng</h2>
                     <div class="trending-section">
                         <p class="label" data-i18n="genres_label">🎨 Thể loại truyện (Chọn nhiều):</p>
-                        <div id="genresContainer" class="trending-container" style="margin-bottom: 15px;"></div>
+                        <input type="text" id="genreSearch" class="genre-search" data-i18n-placeholder="search_genre" placeholder="Tìm kiếm thể loại..." onkeyup="filterGenres()">
+                        <div id="genresContainer" class="trending-container" style="margin-bottom: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #E5E7EB; padding: 10px; border-radius: 8px;">
+                            <!-- JS will populate genres -->
+                        </div>
 
                         <p class="label" data-i18n="themes_label">🔥 Chủ đề thịnh hành (Mix nhiều chủ đề):</p>
-                        <div id="trendingContainer" class="trending-container"></div>
+                        <div id="trendingContainer" class="trending-container">
+                            <!-- JS will populate trending topics -->
+                        </div>
                     </div>
 
                     <textarea id="initialPrompt" data-i18n-placeholder="prompt_placeholder" placeholder="Ví dụ: Một thế giới nơi phép thuật bị cấm đoán..."></textarea>
@@ -67,12 +72,25 @@
 
                 <section id="phase3" class="phase">
                     <h2 data-i18n="step3_title">Bước 3: Chốt cấu hình & Viết truyện</h2>
-                    <div class="length-selector">
-                        <label><input type="radio" name="length" value="short" checked> <span data-i18n="len_short">Truyện ngắn (500-800 từ)</span></label>
-                        <label><input type="radio" name="length" value="medium"> <span data-i18n="len_medium">Tiểu thuyết vừa (1500-2500 từ)</span></label>
-                        <label><input type="radio" name="length" value="long"> <span data-i18n="len_long">Dài kỳ (3000-5000 từ)</span></label>
+                    
+                    <div class="pro-max-controls">
+                        <div class="control-group">
+                            <label><span data-i18n="story_length">Độ dài truyện</span>: <span id="lenLabel">Medium</span></label>
+                            <input type="range" id="lengthSlider" min="1" max="3" value="2" class="pro-slider" oninput="updateLenLabel()">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label><span data-i18n="creativity">Độ sáng tạo (Creativity)</span>: <span id="creativityLabel">Cân bằng</span></label>
+                            <input type="range" id="creativitySlider" min="1" max="3" value="2" class="pro-slider" oninput="updateCreativityLabel()">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label><span data-i18n="pacing">Nhịp độ (Pacing)</span>: <span id="pacingLabel">Vừa phải</span></label>
+                            <input type="range" id="pacingSlider" min="1" max="3" value="2" class="pro-slider" oninput="updatePacingLabel()">
+                        </div>
                     </div>
-                    <button onclick="generateStory()" class="primary-btn" data-i18n="start_writing_btn">Bắt đầu Chấp bút ✍️</button>
+
+                    <button onclick="generateStory()" class="primary-btn" data-i18n="start_writing_btn" style="margin-top: 20px;">Bắt đầu Chấp bút ✍️</button>
                 </section>
             </div>
 

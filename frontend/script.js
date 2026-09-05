@@ -55,7 +55,14 @@ const i18nDict = {
         has_account: "Đã có tài khoản?",
         login_now: "Đăng nhập ngay",
         register: "Đăng ký",
-        loading: "Đang tải..."
+        loading: "Đang tải...",
+        search_genre: "Tìm kiếm thể loại...",
+        story_length: "Độ dài truyện",
+        creativity: "Độ sáng tạo",
+        pacing: "Nhịp độ (Pacing)",
+        val_short: "Ngắn", val_med: "Vừa", val_long: "Dài",
+        val_logic: "Logic/Thực tế", val_bal: "Cân bằng", val_crazy: "Sáng tạo/Bất ngờ",
+        val_slow: "Chậm rãi, Miêu tả kỹ", val_fast: "Nhanh, Kịch tính"
     },
     en: {
         not_logged_in: "Not logged in",
@@ -103,7 +110,14 @@ const i18nDict = {
         has_account: "Already have an account?",
         login_now: "Login now",
         register: "Register",
-        loading: "Loading..."
+        loading: "Loading...",
+        search_genre: "Search genres...",
+        story_length: "Story Length",
+        creativity: "Creativity",
+        pacing: "Pacing",
+        val_short: "Short", val_med: "Medium", val_long: "Long",
+        val_logic: "Logical/Realistic", val_bal: "Balanced", val_crazy: "Creative/Unexpected",
+        val_slow: "Slow, Descriptive", val_fast: "Fast, Action-packed"
     }
 };
 
@@ -132,6 +146,23 @@ function setLang(lang) {
             el.setAttribute('placeholder', i18nDict[lang][key]);
         }
     });
+    
+    // Re-render dynamic content
+    if(typeof filterGenres === 'function') filterGenres();
+    if(typeof fetchTrendingTopics === 'function') fetchTrendingTopics();
+    
+    // Update sliders
+    if(typeof updateLenLabel === 'function') {
+        updateLenLabel();
+        updateCreativityLabel();
+        updatePacingLabel();
+    }
+    
+    // Also re-render history if it's open
+    const historyModal = document.getElementById('historyModal');
+    if (historyModal && historyModal.style.display === 'block') {
+        openHistory();
+    }
 }
 
 
@@ -371,7 +402,20 @@ async function forceRefinePrompt() {
 
 // =================== PHASE 3: GENERATE & EDITOR WORKSPACE ===================
 async function generateStory() {
-    globalData.selectedLength = document.querySelector('input[name="length"]:checked').value;
+    const lenVal = document.getElementById('lengthSlider').value;
+    globalData.selectedLength = lenVal == 1 ? 'short' : (lenVal == 2 ? 'medium' : 'long');
+    
+    const creativity = document.getElementById('creativitySlider').value;
+    const pacing = document.getElementById('pacingSlider').value;
+    
+    let extraPrompt = "";
+    if (creativity == 1) extraPrompt += " Hãy giữ cốt truyện cực kỳ logic, thực tế. ";
+    else if (creativity == 3) extraPrompt += " Hãy bùng nổ sáng tạo, thêm những tình tiết bất ngờ (plot twist) điên rồ. ";
+    
+    if (pacing == 1) extraPrompt += " Nhịp độ truyện chậm rãi, miêu tả nội tâm và bối cảnh thật chi tiết. ";
+    else if (pacing == 3) extraPrompt += " Nhịp độ truyện nhanh, dồn dập, tập trung vào hành động và hội thoại kịch tính. ";
+    
+    globalData.finalPromptForGeneration = globalData.refinedPrompt + "\n" + extraPrompt;
     
     document.getElementById('setupView').style.display = 'none';
     document.getElementById('editorView').style.display = 'block';
@@ -384,7 +428,7 @@ async function generateStory() {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({
-                refined_prompt: globalData.refinedPrompt,
+                refined_prompt: globalData.finalPromptForGeneration,
                 story_length: globalData.selectedLength
             })
         });
@@ -537,29 +581,83 @@ function rejectEdit() {
 let selectedTags = new Set();
 let selectedThemes = new Set();
 const allGenres = [
-    "Isekai (Xuyên không)", "Harem", "Tổng tài", "Ngôn tình", 
-    "Hệ thống", "Trùng sinh", "Nữ cường", "Đam mỹ", 
-    "Hài hước", "Chữa lành", "Khoa học viễn tưởng", "Kinh dị",
-    "Tiên hiệp", "Huyền huyễn", "Học đường", "Trinh thám"
+    // Nhóm 1: Tình cảm
+    { vi: "Ngôn tình", en: "Romance" }, { vi: "Đam mỹ", en: "Boys' Love (BL)" }, { vi: "Bách hợp", en: "Girls' Love (GL)" }, { vi: "Thanh xuân", en: "School Life" }, { vi: "Cưới trước yêu sau", en: "Arranged Marriage" },
+    // Nhóm 2: Kỳ ảo
+    { vi: "Tiên hiệp", en: "Xianxia" }, { vi: "Kiếm hiệp", en: "Wuxia" }, { vi: "Huyền huyễn", en: "Xuanhuan" }, { vi: "Kỳ ảo", en: "Fantasy" }, { vi: "Khoa học viễn tưởng", en: "Sci-Fi" }, { vi: "Xuyên không", en: "Isekai" }, { vi: "Trọng sinh", en: "Rebirth" }, { vi: "Hệ thống", en: "System" }, { vi: "Mạt thế", en: "Post-Apocalyptic" },
+    // Nhóm 3: Hành động
+    { vi: "Hành động", en: "Action" }, { vi: "Phiêu lưu", en: "Adventure" }, { vi: "Võng du", en: "LitRPG" },
+    // Nhóm 4: Bí ẩn
+    { vi: "Trinh thám", en: "Mystery" }, { vi: "Kinh dị", en: "Horror" }, { vi: "Giật gân", en: "Thriller" }, { vi: "Linh dị", en: "Supernatural" },
+    // Nhóm 5: Đời sống
+    { vi: "Đô thị", en: "Urban" }, { vi: "Điền văn", en: "Slice of Life" }, { vi: "Hài hước", en: "Comedy" }, { vi: "Bi kịch", en: "Tragedy" }, { vi: "Lịch sử", en: "Historical" }, { vi: "Cung đấu", en: "Palace Scheme" }
 ];
 
-function initGenres() {
+function initGenres(filterText = "") {
     const genresContainer = document.getElementById('genresContainer');
     if (!genresContainer) return;
     genresContainer.innerHTML = '';
     
     allGenres.forEach(genre => {
+        const textToDisplay = currentLang === 'vi' ? genre.vi : genre.en;
+        const searchBase = (genre.vi + " " + genre.en).toLowerCase();
+        
+        if (filterText && !searchBase.includes(filterText.toLowerCase())) {
+            return; // skip if doesn't match search
+        }
+        
         const tag = document.createElement('div');
         tag.className = 'trending-tag';
-        tag.textContent = genre;
+        if (selectedTags.has(genre.vi)) {
+            tag.classList.add('selected-tag');
+        }
+        tag.textContent = textToDisplay;
         tag.onclick = (e) => {
             e.preventDefault();
             tag.classList.toggle('selected-tag');
-            if (selectedTags.has(genre)) selectedTags.delete(genre);
-            else selectedTags.add(genre);
+            if (selectedTags.has(genre.vi)) selectedTags.delete(genre.vi);
+            else selectedTags.add(genre.vi);
         };
         genresContainer.appendChild(tag);
     });
+}
+
+function filterGenres() {
+    const searchVal = document.getElementById('genreSearch').value;
+    initGenres(searchVal);
+}
+
+async function fetchTrendingTopics() {
+    try {
+        // Fallback mock data in case API fails
+        const mockData = [
+            { title: { vi: "Anh hùng chuyển sinh", en: "Reborn Hero" } },
+            { title: { vi: "Thế giới ngầm", en: "Underworld" } },
+            { title: { vi: "Tình yêu cấm đoán", en: "Forbidden Love" } }
+        ];
+        
+        const trendingContainer = document.getElementById('trendingContainer');
+        if (!trendingContainer) return;
+        trendingContainer.innerHTML = '';
+        
+        // Use mock data for immediate UI response (as the json might not be bilingual natively)
+        mockData.forEach(topic => {
+            const textToDisplay = currentLang === 'vi' ? topic.title.vi : topic.title.en;
+            const tag = document.createElement('div');
+            tag.className = 'trending-tag';
+            if (selectedThemes.has(topic.title.vi)) tag.classList.add('selected-tag');
+            tag.textContent = textToDisplay;
+            tag.onclick = (e) => {
+                e.preventDefault();
+                tag.classList.toggle('selected-tag');
+                if (selectedThemes.has(topic.title.vi)) selectedThemes.delete(topic.title.vi);
+                else selectedThemes.add(topic.title.vi);
+            };
+            trendingContainer.appendChild(tag);
+        });
+    } catch (error) {
+        console.error(error);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -657,4 +755,27 @@ async function loadStory(id) {
     } catch(e) {
         output.innerHTML = '<p style="color:red;">Lỗi tải truyện.</p>';
     }
+}
+
+// SLIDERS LOGIC
+function updateLenLabel() {
+    const val = document.getElementById('lengthSlider').value;
+    const label = document.getElementById('lenLabel');
+    if(val == 1) label.innerText = i18nDict[currentLang]['val_short'];
+    else if(val == 2) label.innerText = i18nDict[currentLang]['val_med'];
+    else label.innerText = i18nDict[currentLang]['val_long'];
+}
+function updateCreativityLabel() {
+    const val = document.getElementById('creativitySlider').value;
+    const label = document.getElementById('creativityLabel');
+    if(val == 1) label.innerText = i18nDict[currentLang]['val_logic'];
+    else if(val == 2) label.innerText = i18nDict[currentLang]['val_bal'];
+    else label.innerText = i18nDict[currentLang]['val_crazy'];
+}
+function updatePacingLabel() {
+    const val = document.getElementById('pacingSlider').value;
+    const label = document.getElementById('pacingLabel');
+    if(val == 1) label.innerText = i18nDict[currentLang]['val_slow'];
+    else if(val == 2) label.innerText = i18nDict[currentLang]['val_bal'];
+    else label.innerText = i18nDict[currentLang]['val_fast'];
 }
