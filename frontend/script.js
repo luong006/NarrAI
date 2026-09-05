@@ -836,8 +836,8 @@ function updatePacingLabel() {
 // =================== COMIC GENERATION ===================
 async function adaptToComic() {
     const text = document.getElementById('storyOutput').innerText;
-    if (!text || text.length < 50) {
-        alert('Cần có một đoạn truyện đủ dài để chuyển thể.');
+    if (!text || text.length < 10) {
+        alert('Cần gõ ít nhất 10 ký tự vào trang giấy để AI có nội dung chuyển thể truyện tranh!');
         return;
     }
     

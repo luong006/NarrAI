@@ -32,11 +32,11 @@ JSON Output:
         # Try to parse JSON from response
         raw_output = response.choices[0].message.content
         
-        # Clean up in case LLM added markdown formatting
-        if "```json" in raw_output:
-            raw_output = raw_output.split("```json")[1].split("```")[0]
-        elif "```" in raw_output:
-            raw_output = raw_output.split("```")[1].split("```")[0]
+        import re
+        # Clean up in case LLM added markdown formatting or text preamble
+        match = re.search(r'\[.*\]', raw_output, re.DOTALL)
+        if match:
+            raw_output = match.group(0)
             
         script_data = json.loads(raw_output.strip())
         return script_data
