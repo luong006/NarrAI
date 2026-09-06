@@ -65,7 +65,8 @@ Quy tắc sáng tác BẮT BUỘC:
 8. VĂN PHONG (SHOW, DON'T TELL):
    - Tả qua hành động, đối thoại và cảm giác thay vì kể lể.
    - Đối thoại phải bộc lộ tính cách, không dùng để giải thích cốt truyện.
-   - Dùng chi tiết cụ thể thay vì tính từ chung chung."""
+   - Dùng chi tiết cụ thể thay vì tính từ chung chung.
+   - TUYỆT ĐỐI KHÔNG được in ra các nhãn kỹ thuật như "Cảnh Chủ Động", "Cảnh Phản Ứng", "Mục tiêu:", "Xung đột:", "Kết quả:", "Value Shift", "Cliffhanger". Đây là quy tắc NỘI BỘ để bạn tư duy, KHÔNG PHẢI định dạng đầu ra. Bạn phải viết VĂN XUÔI THUẦN TÚY như một cuốn tiểu thuyết thực sự, không có bất kỳ nhãn phân tích nào."""
 
         # Quy tắc bổ sung cho chế độ viết từng chương
         if cfg['chapter_mode']:
