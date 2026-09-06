@@ -986,8 +986,91 @@ async function sendAssistantMessage() {
 function addMessageToChat(role, text) {
     const history = document.getElementById('chatHistory');
     const msgDiv = document.createElement('div');
-    msgDiv.className = `chat-msg ${role}`;
+    msgDiv.className = role === 'user' ? 'chat-message chat-user' : 'chat-message chat-ai';
     msgDiv.innerText = text;
     history.appendChild(msgDiv);
     history.scrollTop = history.scrollHeight;
+}
+
+
+// =================== STORY ACTION BUTTONS ===================
+
+function continueWriting() {
+    const storyOutput = document.getElementById('storyOutput');
+    const currentStory = storyOutput.innerText;
+    if (!currentStory || currentStory.length < 10) {
+        alert('Chưa có nội dung truyện để viết tiếp!');
+        return;
+    }
+
+    // Show in chat
+    const chatHistory = document.getElementById('chatHistory');
+    chatHistory.innerHTML += '<div class="chat-message chat-user">✍️ Viết tiếp chương mới</div>';
+    chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:#d97706">AI đang viết tiếp chương mới (tối thiểu 4000 từ)...</div>';
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+            story_text: currentStory,
+            user_message: 'Hãy viết tiếp chương tiếp theo của câu chuyện. Chương mới phải dài TỐI THIỂU 4000 từ, khai triển đầy đủ, chi tiết, không được viết vắn tắt. Kết thúc chương bằng Cliffhanger mạnh mẽ.'
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        // Remove loading message
+        const msgs = chatHistory.querySelectorAll('.chat-message');
+        if (msgs.length > 0) msgs[msgs.length - 1].remove();
+
+        chatHistory.innerHTML += `<div class="chat-message chat-ai">${data.chat_reply || 'Đã viết xong!'}</div>`;
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        if (data.new_story_content) {
+            storyOutput.innerHTML += '<br><br>' + data.new_story_content.replace(/\n/g, '<br>');
+        }
+    })
+    .catch(err => {
+        chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối. Vui lòng thử lại!</div>';
+    });
+}
+
+function endStory() {
+    const storyOutput = document.getElementById('storyOutput');
+    const currentStory = storyOutput.innerText;
+    if (!currentStory || currentStory.length < 10) {
+        alert('Chưa có nội dung truyện để kết thúc!');
+        return;
+    }
+
+    if (!confirm('Bạn có chắc muốn kết thúc câu truyện? AI sẽ viết đoạn kết cho bạn.')) return;
+
+    const chatHistory = document.getElementById('chatHistory');
+    chatHistory.innerHTML += '<div class="chat-message chat-user">🔚 Kết thúc câu truyện</div>';
+    chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:#d97706">AI đang viết đoạn kết cho câu truyện...</div>';
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+            story_text: currentStory,
+            user_message: 'Hãy viết ĐOẠN KẾT THÚC cho câu chuyện này. Đoạn kết phải gói gọn tất cả các tuyến truyện đang mở, giải quyết xung đột chính, và mang lại cảm xúc trọn vẹn cho người đọc. Không được kết thúc đột ngột hay gãy mạch. Viết đủ dài và chi tiết (tối thiểu 2000 từ).'
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        const msgs = chatHistory.querySelectorAll('.chat-message');
+        if (msgs.length > 0) msgs[msgs.length - 1].remove();
+
+        chatHistory.innerHTML += `<div class="chat-message chat-ai">${data.chat_reply || 'Đã viết xong đoạn kết!'}</div>`;
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        if (data.new_story_content) {
+            storyOutput.innerHTML += '<br><br>' + data.new_story_content.replace(/\n/g, '<br>');
+        }
+    })
+    .catch(err => {
+        chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối. Vui lòng thử lại!</div>';
+    });
 }

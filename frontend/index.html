@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NarrAI Workspace - ISTARTUP2026</title>
-    <link rel="stylesheet" href="style.css?v=2026090611">
+    <link rel="stylesheet" href="style.css?v=2026090612">
 </head>
 <body class="workspace-mode">
 
@@ -194,15 +194,23 @@
                     </div>
                 </div>
 
-                <!-- NEW: Chat UI -->
-                <div class="chat-container">
-                    <div class="chat-history" id="chatHistory">
-                        <!-- Chat messages will appear here -->
-                    </div>
-                    <div class="chat-input-area">
-                        <textarea id="chatInputText" placeholder="Ra lệnh viết tiếp, bẻ lái cốt truyện..." rows="2"></textarea>
-                        <button onclick="sendAssistantMessage()" class="chat-send-btn">Gửi</button>
-                    </div>
+                <!-- Chat UI (giống Phase 1) -->
+                <div class="chat-box" id="chatHistory" style="max-height: 300px; overflow-y: auto; margin-bottom: 10px;">
+                    <!-- Chat messages will appear here -->
+                </div>
+                <div class="chat-input-area">
+                    <textarea id="chatInputText" placeholder="Ra lệnh cho AI: bẻ lái cốt truyện, thêm nhân vật..." rows="2"></textarea>
+                    <button onclick="sendAssistantMessage()" class="send-btn">Gửi</button>
+                </div>
+
+                <!-- Nút hành động nhanh -->
+                <div class="story-action-buttons" style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button onclick="continueWriting()" class="primary-btn" style="flex:1; font-size: 0.85em; padding: 10px;">
+                        ✍️ Viết tiếp chương mới
+                    </button>
+                    <button onclick="endStory()" class="skip-btn" style="flex:1; font-size: 0.85em; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        🔚 Kết thúc truyện
+                    </button>
                 </div>
                 
                 <div id="aiLoading" style="display: none;" class="ai-loading" data-i18n="ai_thinking">
@@ -239,6 +247,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=2026090611"></script>
+    <script src="script.js?v=2026090612"></script>
 </body>
 </html>
