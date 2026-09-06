@@ -814,9 +814,9 @@ async function loadStory(id) {
 function updateLenLabel() {
     const val = document.getElementById('lengthSlider').value;
     const label = document.getElementById('lenLabel');
-    if (val == 1) label.innerText = "Dưới 2000 từ (Chương ngắn)";
-    else if (val == 2) label.innerText = "2000 - 4000 từ (Chương tiêu chuẩn)";
-    else label.innerText = "Trên 4000 từ (Chương dài)";
+    if (val == 1) label.innerText = "Dưới 5000 từ (Chương tiêu chuẩn)";
+    else if (val == 2) label.innerText = "5000 - 6000 từ (Chương dài)";
+    else label.innerText = "Trên 10.000 từ (Tiểu thuyết)";
 }
 function updateCreativityLabel() {
     const val = document.getElementById('creativitySlider').value;
@@ -834,15 +834,27 @@ function updatePacingLabel() {
 }
 
 // =================== COMIC GENERATION ===================
+let lastComicText = "";
+let hasGeneratedComic = false;
+
 async function adaptToComic() {
     const text = document.getElementById('storyOutput').innerText;
     if (!text || text.length < 10) {
-        alert('Cần gõ ít nhất 10 ký tự vào trang giấy để AI có nội dung chuyển thể truyện tranh!');
+        alert('Cần gõ ít nhất 10 kí tự vào trang giấy để AI có nội dung chuyển thể truyện tranh!');
         return;
     }
     
     document.getElementById('editorView').style.display = 'none';
     document.getElementById('comicView').style.display = 'block';
+    
+    // Nếu nội dung không đổi và đã từng tạo ảnh -> dùng lại lưới ảnh cũ
+    if (hasGeneratedComic && text === lastComicText) {
+        return; // Bỏ qua việc gọi API lại
+    }
+    
+    // Cập nhật trạng thái
+    lastComicText = text;
+    hasGeneratedComic = true;
     
     const grid = document.getElementById('comicGrid');
     grid.innerHTML = '';
@@ -895,4 +907,75 @@ async function adaptToComic() {
 function backToEditor() {
     document.getElementById('comicView').style.display = 'none';
     document.getElementById('editorView').style.display = 'block';
+}
+
+// =================== INTERACTIVE CHAT UI ===================
+async function sendChatMessage() {
+    const input = document.getElementById('chatInputText');
+    const msg = input.value.trim();
+    if (!msg) return;
+    
+    // Add User Message
+    addMessageToChat('user', msg);
+    input.value = '';
+    
+    // Get current story state
+    const currentStory = document.getElementById('storyOutput').innerText;
+    
+    // Show AI Loading
+    const loader = document.getElementById('aiLoading');
+    loader.style.display = 'block';
+    
+    try {
+        const res = await fetch(\\/chat\, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ 
+                story_text: currentStory, 
+                user_message: msg 
+            })
+        });
+        
+        const data = await res.json();
+        loader.style.display = 'none';
+        
+        if (res.status === 401) { alert('Vui l�ng dang nh?p l?i.'); return; }
+        
+        if (data.status === 'success') {
+            // Add AI response to chat
+            addMessageToChat('ai', data.chat_reply);
+            
+            // Append new story content if provided
+            if (data.new_story_content) {
+                const editor = document.getElementById('storyOutput');
+                if (editor.innerText.trim() !== '') {
+                    editor.innerHTML += '<br><br>';
+                }
+                // Format the text and append
+                const formatted = data.new_story_content.replace(/\*\*(.*?)\*\*/g, '<b>\</b>').replace(/\n/g, '<br>');
+                editor.innerHTML += formatted;
+                
+                // Update word count
+                const wordCount = editor.innerText.trim().split(/\s+/).filter(w => w.length > 0).length;
+                document.getElementById('wordCount').innerHTML = \\ <span data-i18n="words">t?</span>\;
+                
+                // Scroll to bottom
+                editor.scrollTop = editor.scrollHeight;
+            }
+        } else {
+            addMessageToChat('ai', 'L?i: ' + (data.detail || 'Kh�ng th? k?t n?i.'));
+        }
+    } catch (err) {
+        loader.style.display = 'none';
+        addMessageToChat('ai', 'L?i m?ng ho?c m�y ch? kh�ng ph?n h?i.');
+    }
+}
+
+function addMessageToChat(role, text) {
+    const history = document.getElementById('chatHistory');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = \chat-msg \\;
+    msgDiv.innerText = text;
+    history.appendChild(msgDiv);
+    history.scrollTop = history.scrollHeight;
 }

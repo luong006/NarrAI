@@ -80,6 +80,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 class ChatInterviewRequest(BaseModel):
     chat_history: list
 
+class ChatRequest(BaseModel):
+    story_text: str
+    user_message: str
+
 class GenerateStoryRequest(BaseModel):
     refined_prompt: str
     story_length: str = "medium"
@@ -303,7 +307,29 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
         })
         
     return {"status": "success", "comic_id": comic.id, "panels": panels_response}
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+@app.post("/api/comic/generate")
+async def generate_comic_api(request: ComicRequest, current_user: User = Depends(get_current_user)):
+    if not current_user:
+        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+
+    from agents.comic_agent import ComicDirectorAgent
+    director = ComicDirectorAgent()
+    
+    # 1. Ask LLM to generate panels
+    script_data = director.generate_comic_script(request.story_text)
+    # ... logic continues ...
+
+@app.post("/api/chat")
+async def chat_with_assistant(request: ChatRequest, current_user: User = Depends(get_current_user)):
+    if not current_user:
+        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+    try:
+        gen = get_story_generator()
+        response = gen.handle_chat_instruction(request.story_text, request.user_message)
+        return {"status": "success", "chat_reply": response.get("chat_reply", ""), "new_story_content": response.get("new_story_content", "")}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

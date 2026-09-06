@@ -5,29 +5,39 @@ import json
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 MODEL = "qwen/qwen3.8-27b" # Updated to a valid 2026 Groq model
 
-def generate_comic_script(story_text: str):
-    prompt = f"""
-Bạn là một Đạo diễn Truyện tranh (Comic Director) tài năng. Nhiệm vụ của bạn là chuyển thể một chương tiểu thuyết thành kịch bản truyện tranh (Comic Script).
-Hãy phân rã TOÀN BỘ nội dung sau thành một tập truyện tranh dài (khoảng 10 đến 20 khung tranh - Panels) để truyền tải đầy đủ diễn biến của chương truyện.
+class ComicDirectorAgent:
+    def __init__(self):
+        pass
+
+    def generate_comic_script(self, story_text: str):
+        prompt = f"""Bạn là một Đạo diễn Truyện tranh (Comic Director) tài năng. Nhiệm vụ của bạn là chuyển thể một chương tiểu thuyết thành kịch bản truyện tranh (Comic Script).
+
+Quy tắc BẮT BUỘC:
+1. Tính nhất quán (Character Consistency): Bạn phải tóm tắt ngoại hình của các nhân vật chính (quần áo, tóc, màu sắc). TRONG MỌI KHUNG TRANH (`image_prompt`), bạn phải ĐÍNH KÈM lại mô tả ngoại hình này để AI vẽ ảnh không bị sai lệch nhân vật. Ví dụ: "A boy with messy black hair and a red jacket...".
+2. Số lượng: Phân rã TOÀN BỘ nội dung thành ÍT NHẤT 15 đến 20 khung tranh (Panels) để tạo thành một chương truyện tranh hoàn chỉnh. KHÔNG ĐƯỢC làm ít hơn 10 khung.
 
 ĐẦU RA PHẢI LÀ MỘT MẢNG JSON HỢP LỆ (VALID JSON ARRAY). Không trả về bất kỳ text nào khác ngoài JSON.
 Mỗi Object trong mảng gồm các trường:
 - "panel_index": số thứ tự (1, 2, 3...)
-- "image_prompt": Mô tả hình ảnh (bằng tiếng Anh, dùng để vẽ AI)
-- "dialogue_text": Lời thoại hoặc âm thanh hoặc mô tả ngắn (bằng tiếng Việt, để nhét vào bóng thoại)
+- "image_prompt": Mô tả hình ảnh siêu chi tiết bằng TIẾNG ANH (Bao gồm ngoại hình nhân vật + bối cảnh + góc máy).
+- "dialogue_text": Lời thoại hoặc âm thanh (bằng tiếng Việt).
 - "layout_type": "square", "wide", hoặc "tall"
 
 Nội dung tiểu thuyết:
 {story_text}
+JSON Output:"""
 
-JSON Output:
-"""
     try:
         response = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
             model=MODEL,
             temperature=0.7,
-            max_tokens=1500,
+            max_tokens=8192
         )
         # Try to parse JSON from response
         raw_output = response.choices[0].message.content

@@ -679,3 +679,14 @@ textarea:focus {
 .speech-bubble { position: absolute; bottom: 10px; left: 10px; right: 10px; background: white; border: 2px solid #111; border-radius: 15px; padding: 10px; font-family: 'Comic Sans MS', cursive, sans-serif; font-size: 0.9em; color: #111; box-shadow: 2px 2px 0px rgba(0,0,0,0.8); z-index: 10; }
 .panel-tall { grid-row: span 2; }
 .panel-wide { grid-column: span 2; }
+
+/* CHAT UI STYLES */
+.chat-container { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; display: flex; flex-direction: column; height: 350px; }
+.chat-history { flex: 1; overflow-y: auto; padding-right: 5px; margin-bottom: 10px; font-size: 0.9em; display: flex; flex-direction: column; gap: 10px; }
+.chat-msg { padding: 8px 12px; border-radius: 12px; max-width: 85%; word-wrap: break-word; }
+.chat-msg.user { background: var(--primary-color); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+.chat-msg.ai { background: #f0f0f0; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
+.chat-input-area { display: flex; gap: 5px; }
+.chat-input-area textarea { flex: 1; border: 1px solid #ccc; border-radius: 8px; padding: 8px; font-size: 0.9em; resize: none; }
+.chat-send-btn { background: var(--primary-color); color: white; border: none; border-radius: 8px; padding: 0 15px; cursor: pointer; font-weight: bold; }
+.chat-send-btn:hover { background: #1d4ed8; }
