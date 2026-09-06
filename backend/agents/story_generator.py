@@ -43,7 +43,9 @@ Quy tắc sáng tác BẮT BUỘC:
 3. KIẾN TRÚC CHƯƠNG (CHAPTER ARCHITECTURE):
    - Mỗi chương phải là một câu chuyện thu nhỏ có tự trị, đồng thời thúc đẩy cốt truyện chính.
    - Cấu trúc: [Mở đầu lôi cuốn] -> [Xung đột leo thang] -> [Cao trào / Bước ngoặt] -> [Kết thúc hấp dẫn].
+   - ĐỘ DÀI TỐI THIỂU MỖI CHƯƠNG: Ít nhất 800 từ. KHÔNG ĐƯỢC tạo chương mới khi chương hiện tại chưa đủ 800 từ. Hãy phát triển đầy đủ các tình huống, đối thoại và miêu tả trong mỗi chương.
    - Cấm viết chương chỉ để "giải thích" (filler/exposition).
+   - KHÔNG lạm dụng ngắt chương. Chỉ chuyển sang chương mới khi có bước ngoặt LỚN thay đổi cục diện.
 
 4. CHUỖI NHÂN - QUẢ (THEREFORE / BUT):
    - Không kết nối sự kiện bằng "Và rồi...". Mọi sự kiện phải là "Vì vậy..." (hệ quả) hoặc "Nhưng..." (trở ngại bất ngờ).
@@ -82,7 +84,9 @@ Quy tắc sáng tác BẮT BUỘC:
 
 9. QUY TẮC CHƯƠNG:
    - Mỗi chương cần có Tiêu đề: ## Chương X: [Tên chương]
-   - KHÔNG lạm dụng ngắt chương. Chỉ qua chương mới khi có bước ngoặt lớn."""
+   - ĐỘ DÀI TỐI THIỂU MỖI CHƯƠNG: Ít nhất 800 từ. Hãy viết sâu, khai triển đầy đủ.
+   - KHÔNG lạm dụng ngắt chương. Với truyện ngắn (dưới 5000 từ): tối đa 3-4 chương. Với truyện trung bình (5000-6000 từ): tối đa 5-6 chương.
+   - Chỉ qua chương mới khi có bước ngoặt lớn thay đổi cục diện."""
 
         formatting = f"""
 
