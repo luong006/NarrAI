@@ -79,38 +79,40 @@ Quy tắc định dạng:
         messages, max_tokens = self._build_prompt(refined_prompt, story_length)
         return self.llm.chat_stream(messages, temperature=0.8, max_tokens=max_tokens)
 
-    def handle_chat_instruction(self, current_story: str, user_message: str):
+        def handle_chat_instruction(self, current_story: str, user_message: str):
         import json
+        import re
         
-        system_prompt = f\"\"\"B?n l� Tr? l� AI d?ng s�ng t�c ti?u thuy?t xu?t ch�ng.
+        system_prompt = f"""Bạn là Trợ lý AI đồng sáng tác tiểu thuyết xuất chúng.
         
-Ngu?i d�ng dang vi?t m?t cu?n ti?u thuy?t. ��y l� n?i dung TRUY?N �� VI?T T? TRU?C:
+Người dùng đang viết một cuốn tiểu thuyết. Đây là nội dung TRUYỆN ĐÃ VIẾT TỪ TRƯỚC:
 ---
 {current_story[-5000:] if len(current_story) > 5000 else current_story}
 ---
 
-Ngu?i d�ng v?a ra l?nh: "{user_message}"
+Người dùng vừa ra lệnh: "{user_message}"
 
-Nhi?m v? c?a b?n:
-1. �?c l?nh c?a ngu?i d�ng. N?u h? y�u c?u "vi?t ti?p", "th�m nh�n v?t", "d?i hu?ng", h�y VI?T TI?P �O?N TRUY?N �� (tu�n th? van phong Show, don't tell v� c?u tr�c ti?u thuy?t chuy�n nghi?p).
-2. N?u h? ch? h?i d�p b�nh thu?ng, h�y tr? l?i.
+Nhiệm vụ của bạn:
+1. Đọc lệnh của người dùng. Nếu họ yêu cầu "viết tiếp", "thêm nhân vật", "đổi hướng", hãy VIẾT TIẾP ĐOẠN TRUYỆN ĐÓ (tuân thủ văn phong Show, don't tell và cấu trúc tiểu thuyết chuyên nghiệp).
+2. Nếu họ chỉ hỏi đáp bình thường, hãy trả lời.
 
-�?U RA B?T BU?C L� JSON c� d?nh d?ng:
+ĐẦU RA BẮT BUỘC LÀ JSON có định dạng:
 {{
-    "chat_reply": "C�u tr? l?i ng?n g?n, th�n thi?n g?i cho ngu?i d�ng (v� d?: D?, em d� vi?t ti?p chuong 2 v?i cao tr�o nhu anh y�u c?u r?i ?!)",
-    "new_story_content": "Ph?n truy?n ch? M?I �U?C VI?T TH�M (tuy?t d?i kh�ng l?p l?i do?n cu). N?u l?nh kh�ng y�u c?u vi?t th�m truy?n, d? chu?i r?ng."
-}}
-\"\"\"
+    "chat_reply": "Câu trả lời ngắn gọn, thân thiện gửi cho người dùng (ví dụ: Dạ, em đã viết tiếp chương 2 với cao trào như anh yêu cầu rồi ạ!)",
+    "new_story_content": "Phần truyện chữ MỚI ĐƯỢC VIẾT THÊM (tuyệt đối không lặp lại đoạn cũ). Nếu lệnh không yêu cầu viết thêm truyện, để chuỗi rỗng."
+}}"""
         try:
-            response = self.llm.generate(
-                prompt="H�y th?c hi?n y�u c?u v� tr? v? JSON.",
-                system_prompt=system_prompt,
-                max_tokens=4000,
-                temperature=0.7
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": "Hãy thực hiện yêu cầu và trả về JSON."}
+            ]
+            response = self.llm.chat(
+                messages=messages,
+                temperature=0.7,
+                max_tokens=4000
             )
             
             # Clean JSON if wrapped in markdown
-            import re
             json_match = re.search(r'\{.*\}', response.replace('\n', ' '), re.DOTALL)
             if json_match:
                 return json.loads(json_match.group(0))
@@ -118,6 +120,6 @@ Nhi?m v? c?a b?n:
         except Exception as e:
             print("Chat Error:", e)
             return {
-                "chat_reply": "Xin l?i, d� c� l?i x?y ra khi x? l� y�u c?u c?a b?n.",
+                "chat_reply": "Xin lỗi, đã có lỗi xảy ra khi xử lý yêu cầu của bạn.",
                 "new_story_content": ""
             }
