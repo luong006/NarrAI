@@ -910,7 +910,7 @@ function backToEditor() {
 }
 
 // =================== INTERACTIVE CHAT UI ===================
-async function sendChatMessage() {
+async function sendAssistantMessage() {
     const input = document.getElementById('chatInputText');
     const msg = input.value.trim();
     if (!msg) return;

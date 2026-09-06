@@ -39,7 +39,7 @@ def get_story_generator():
     return story_generator
 
 import re
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from db.models import Story, User, engine
 from sqlalchemy.orm import sessionmaker, Session
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token

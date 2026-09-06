@@ -79,7 +79,8 @@ Quy tắc định dạng:
         messages, max_tokens = self._build_prompt(refined_prompt, story_length)
         return self.llm.chat_stream(messages, temperature=0.8, max_tokens=max_tokens)
 
-        def handle_chat_instruction(self, current_story: str, user_message: str):
+
+    def handle_chat_instruction(self, current_story: str, user_message: str):
         import json
         import re
         
@@ -90,7 +91,7 @@ Người dùng đang viết một cuốn tiểu thuyết. Đây là nội dung T
 {current_story[-5000:] if len(current_story) > 5000 else current_story}
 ---
 
-Người dùng vừa ra lệnh: "{user_message}"
+Người dùng vừa ra lệnh: \"{user_message}\"
 
 Nhiệm vụ của bạn:
 1. Đọc lệnh của người dùng. Nếu họ yêu cầu "viết tiếp", "thêm nhân vật", "đổi hướng", hãy VIẾT TIẾP ĐOẠN TRUYỆN ĐÓ (tuân thủ văn phong Show, don't tell và cấu trúc tiểu thuyết chuyên nghiệp).
