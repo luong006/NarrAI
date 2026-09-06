@@ -264,15 +264,20 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
     # 3. Create panels and generate images
     panels_response = []
     for item in script_data:
+        # LLMs often invent slightly different keys, so we check alternatives
+        p_img_prompt = item.get('image_prompt') or item.get('description') or item.get('image_description') or 'comic manga scene'
+        p_dialogue = item.get('dialogue_text') or item.get('dialogue') or item.get('text') or ''
+        p_layout = item.get('layout_type') or item.get('layout') or 'square'
+        
         # Generate image (using our mock Pollinations API for instant demo)
-        img_url = generate_comic_panel_image(item.get('image_prompt', 'comic manga scene'), seed=comic.id)
+        img_url = generate_comic_panel_image(p_img_prompt, seed=comic.id)
         
         panel = ComicPanel(
             comic_id=comic.id,
             panel_index=item.get('panel_index', 1),
-            image_prompt=item.get('image_prompt', ''),
-            dialogue_text=item.get('dialogue_text', ''),
-            layout_type=item.get('layout_type', 'square'),
+            image_prompt=p_img_prompt,
+            dialogue_text=p_dialogue,
+            layout_type=p_layout,
             image_url=img_url
         )
         db.add(panel)
@@ -281,6 +286,7 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
         panels_response.append({
             'panel_index': panel.panel_index,
             'image_url': panel.image_url,
+            'image_prompt': panel.image_prompt,
             'dialogue_text': panel.dialogue_text,
             'layout_type': panel.layout_type
         })

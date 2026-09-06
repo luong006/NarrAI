@@ -9,7 +9,8 @@ def generate_comic_panel_image(prompt: str, seed: int = 42):
     # Simulate processing time
     time.sleep(1)
     
+    import urllib.parse
     # Return a cool placeholder image (using an API that generates images based on keywords)
     # We will use pollinations.ai for instant free AI image generation without API keys for demo!
-    safe_prompt = prompt.replace(" ", "%20")
+    safe_prompt = urllib.parse.quote(prompt.strip() or "comic manga scene")
     return f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={seed}"
