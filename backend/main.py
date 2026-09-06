@@ -53,16 +53,27 @@ def get_db():
     finally:
         db.close()
 
+# Cache for users to prevent DB hits on every request
+USER_CACHE = {}
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     if not token:
         return None
+        
+    if token in USER_CACHE:
+        return USER_CACHE[token]
+        
     payload = decode_access_token(token)
     if not payload:
         return None
     username: str = payload.get("sub")
     user = db.query(User).filter(User.username == username).first()
+    
+    if user:
+        USER_CACHE[token] = user
+        
     return user
 
 # ============ PYDANTIC MODELS ============

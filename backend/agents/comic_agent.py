@@ -7,12 +7,12 @@ MODEL = "qwen/qwen3.8-27b" # Updated to a valid 2026 Groq model
 
 def generate_comic_script(story_text: str):
     prompt = f"""
-Bạn là một Đạo diễn Truyện tranh (Comic Director) tài năng. Nhiệm vụ của bạn là chuyển thể một đoạn tiểu thuyết thành kịch bản truyện tranh (Comic Script).
-Hãy phân rã nội dung sau thành 4 khung tranh (Panels).
+Bạn là một Đạo diễn Truyện tranh (Comic Director) tài năng. Nhiệm vụ của bạn là chuyển thể một chương tiểu thuyết thành kịch bản truyện tranh (Comic Script).
+Hãy phân rã TOÀN BỘ nội dung sau thành một tập truyện tranh dài (khoảng 10 đến 20 khung tranh - Panels) để truyền tải đầy đủ diễn biến của chương truyện.
 
 ĐẦU RA PHẢI LÀ MỘT MẢNG JSON HỢP LỆ (VALID JSON ARRAY). Không trả về bất kỳ text nào khác ngoài JSON.
 Mỗi Object trong mảng gồm các trường:
-- "panel_index": số thứ tự (1, 2, 3, 4)
+- "panel_index": số thứ tự (1, 2, 3...)
 - "image_prompt": Mô tả hình ảnh (bằng tiếng Anh, dùng để vẽ AI)
 - "dialogue_text": Lời thoại hoặc âm thanh hoặc mô tả ngắn (bằng tiếng Việt, để nhét vào bóng thoại)
 - "layout_type": "square", "wide", hoặc "tall"

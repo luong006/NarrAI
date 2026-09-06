@@ -814,9 +814,9 @@ async function loadStory(id) {
 function updateLenLabel() {
     const val = document.getElementById('lengthSlider').value;
     const label = document.getElementById('lenLabel');
-    if(val == 1) label.innerText = i18nDict[currentLang]['val_short'];
-    else if(val == 2) label.innerText = i18nDict[currentLang]['val_med'];
-    else label.innerText = i18nDict[currentLang]['val_long'];
+    if (val == 1) label.innerText = "Dưới 2000 từ (Chương ngắn)";
+    else if (val == 2) label.innerText = "2000 - 4000 từ (Chương tiêu chuẩn)";
+    else label.innerText = "Trên 4000 từ (Chương dài)";
 }
 function updateCreativityLabel() {
     const val = document.getElementById('creativitySlider').value;
@@ -853,20 +853,24 @@ async function adaptToComic() {
         const res = await fetch(`${API_URL}/comic/generate`, {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify({ story_id: 1, story_text: text.substring(0, 2000) }) // just limit for demo
+            body: JSON.stringify({ story_id: 1, story_text: text.substring(0, 30000) })
         });
         const data = await res.json();
         loader.style.display = 'none';
         
         if (data.status === 'success') {
-            data.panels.forEach(p => {
+            data.panels.forEach((p, index) => {
                 const panelDiv = document.createElement('div');
                 panelDiv.className = `comic-panel panel-${p.layout_type}`;
                 
                 const img = document.createElement('img');
-                img.src = p.image_url;
-                img.alt = p.image_prompt;
+                img.alt = p.image_prompt || 'Comic Panel';
                 panelDiv.appendChild(img);
+                
+                // Stagger image loading by 1 second each to prevent Pollinations API from rate limiting (429 Too Many Requests)
+                setTimeout(() => {
+                    img.src = p.image_url;
+                }, index * 1000);
                 
                 if (p.dialogue_text) {
                     const bubble = document.createElement('div');

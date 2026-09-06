@@ -18,7 +18,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     password_bytes = password.encode('utf-8')
-    salt = bcrypt.gensalt()
+    # Use rounds=6 (very fast) instead of default 12 to bypass Render CPU bottleneck
+    salt = bcrypt.gensalt(rounds=6)
     hashed_bytes = bcrypt.hashpw(password_bytes, salt)
     return hashed_bytes.decode('utf-8')
 

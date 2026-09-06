@@ -10,16 +10,16 @@ class StoryGenerator:
         """
         config = {
             "short": {
-                "word_range": "500 - 800 từ",
-                "max_tokens": 1600
+                "word_range": "Dưới 2000 từ",
+                "max_tokens": 4000
             },
             "medium": {
-                "word_range": "1500 - 2500 từ",
-                "max_tokens": 3600
+                "word_range": "Từ 2000 đến 4000 từ",
+                "max_tokens": 6000
             },
             "long": {
-                "word_range": "3000 - 4500 từ",
-                "max_tokens": 5500
+                "word_range": "Trên 4000 từ",
+                "max_tokens": 8192
             }
         }
         return config.get(story_length, config["medium"])
@@ -34,6 +34,7 @@ Nhiệm vụ của bạn: Dựa vào "Bản Phác Thảo Cốt Truyện" đượ
 Quy tắc sáng tác BẮT BUỘC:
 1. ĐỘ DÀI: Khoảng {cfg['word_range']}. Hãy khai triển chi tiết từng tình huống, không viết vắn tắt.
 2. MẠCH TRUYỆN & CẤU TRÚC:
+   - Hãy chia câu chuyện thành các CHƯƠNG (Chapters) rõ ràng. Mỗi chương cần có Tiêu đề riêng (Ví dụ: Chương 1: Khởi đầu...).
    - Đảm bảo mạch truyện xuyên suốt, logic chặt chẽ từ đầu đến cuối. Sự phát triển tâm lý nhân vật và các biến cố phải hợp lý, không rời rạc.
    - Tập trung đi thẳng vào cốt truyện và hành động. BỚT ĐI TÍNH HOA MỸ, sáo rỗng. Không miêu tả lan man lạm dụng tính từ, mà dùng hành động và hội thoại để thúc đẩy cốt truyện.
 3. VĂN PHONG TÁC GIẢ LỚN:
