@@ -27,7 +27,7 @@ Nội dung tiểu thuyết:
 {story_text}
 JSON Output:"""
 
-    try:
+        try:
         response = client.chat.completions.create(
             messages=[
                 {
@@ -50,7 +50,7 @@ JSON Output:"""
             
         script_data = json.loads(raw_output.strip())
         return script_data
-    except Exception as e:
+        except Exception as e:
         print("Error parsing comic script:", e)
         # Fallback dummy script
         return [
