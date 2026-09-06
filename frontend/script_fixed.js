@@ -939,7 +939,7 @@ async function sendChatMessage() {
         const data = await res.json();
         loader.style.display = 'none';
         
-        if (res.status === 401) { alert('Vui lng dang nh?p l?i.'); return; }
+        if (res.status === 401) { alert('Vui lòng đăng nhập lại.'); return; }
         
         if (data.status === 'success') {
             // Add AI response to chat
@@ -963,18 +963,18 @@ async function sendChatMessage() {
                 editor.scrollTop = editor.scrollHeight;
             }
         } else {
-            addMessageToChat('ai', 'L?i: ' + (data.detail || 'Khng th? k?t n?i.'));
+            addMessageToChat('ai', 'Lỗi: ' + (data.detail || 'Không thể kết nối.'));
         }
     } catch (err) {
         loader.style.display = 'none';
-        addMessageToChat('ai', 'L?i m?ng ho?c my ch? khng ph?n h?i.');
+        addMessageToChat('ai', 'L?i m?ng ho?c m�y ch? kh�ng ph?n h?i.');
     }
 }
 
 function addMessageToChat(role, text) {
     const history = document.getElementById('chatHistory');
     const msgDiv = document.createElement('div');
-    msgDiv.className = `chat-msg ${role}`;
+    msgDiv.className = \chat-msg \\;
     msgDiv.innerText = text;
     history.appendChild(msgDiv);
     history.scrollTop = history.scrollHeight;
