@@ -2,7 +2,7 @@ from groq import Groq
 import os
 
 class GroqClient:
-    def __init__(self, model_name: str = "qwen/qwen3.8-27b"):
+    def __init__(self, model_name: str = "openai/gpt-oss-120b"):
         self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
         self.model = model_name
     

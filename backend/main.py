@@ -128,7 +128,7 @@ def read_users_me(current_user: User = Depends(get_current_user)):
 # ============ CORE ENDPOINTS ============
 
 @app.post("/api/chat-interview")
-async def chat_interview(request: ChatInterviewRequest):
+def chat_interview(request: ChatInterviewRequest):
     try:
         qa = get_qa_refiner()
         response = qa.chat_interview(request.chat_history)
@@ -139,12 +139,14 @@ async def chat_interview(request: ChatInterviewRequest):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/refine-prompt")
-async def refine_prompt(request: ChatInterviewRequest):
+def refine_prompt(request: ChatInterviewRequest):
     try:
         qa = get_qa_refiner()
         refined = qa.refine_prompt(request.chat_history)
         return {"status": "success", "refined_prompt": refined}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/edit-text")
@@ -158,7 +160,7 @@ async def edit_text(request: EditTextRequest):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/generate-story")
-async def generate_story(request: GenerateStoryRequest, current_user: User = Depends(get_current_user)):
+def generate_story(request: GenerateStoryRequest, current_user: User = Depends(get_current_user)):
     try:
         gen = get_story_generator()
         
