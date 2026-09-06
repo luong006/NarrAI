@@ -1,49 +1,59 @@
 from groq import Groq
 import os
 import json
+import re
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL = "qwen/qwen3.8-27b" # Updated to a valid 2026 Groq model
+MODEL = "qwen/qwen3.8-27b"
+
+COMIC_DIRECTOR_SYSTEM_PROMPT = """Bạn là một Đạo diễn Truyện tranh (Comic Director) chuyên nghiệp cấp cao.
+
+VAI TRÒ DUY NHẤT: Đọc hiểu nội dung tiểu thuyết tiếng Việt và chuyển thể thành kịch bản truyện tranh (Comic Script) dưới dạng JSON.
+
+QUY TẮC NGHIÊM NGẶT:
+1. TÍNH NHẤT QUÁN NHÂN VẬT (Character Consistency):
+   - Trước khi phân cảnh, bạn PHẢI xác định ngoại hình chi tiết của từng nhân vật chính (tóc, mắt, trang phục, đặc điểm nhận dạng).
+   - TRONG MỌI KHUNG TRANH có nhân vật, bạn PHẢI lặp lại mô tả ngoại hình đó trong image_prompt. Ví dụ: "A young woman with long black hair, wearing a white ao dai and red scarf..."
+   
+2. SỐ LƯỢNG PANEL: Phân rã TOÀN BỘ nội dung thành ÍT NHẤT 15 đến 20 khung tranh (Panels). KHÔNG ĐƯỢC ít hơn 10 khung.
+
+3. CHẤT LƯỢNG IMAGE PROMPT:
+   - Viết bằng TIẾNG ANH, siêu chi tiết.
+   - Luôn bao gồm: Ngoại hình nhân vật + Bối cảnh + Góc máy + Ánh sáng + Phong cách nghệ thuật.
+   - Thêm "manga style, high quality, detailed" vào cuối mỗi prompt.
+
+4. ĐẦU RA: CHỈ trả về MỘT MẢNG JSON HỢP LỆ. KHÔNG được viết bất kỳ text giải thích nào trước hoặc sau JSON.
+   Mỗi Object gồm:
+   - "panel_index": số thứ tự (1, 2, 3...)
+   - "image_prompt": mô tả ảnh tiếng Anh (có ngoại hình nhân vật)
+   - "dialogue_text": lời thoại tiếng Việt (ngắn gọn, dưới 50 từ)
+   - "layout_type": "square", "wide", hoặc "tall"
+"""
 
 class ComicDirectorAgent:
     def __init__(self):
         pass
 
     def generate_comic_script(self, story_text: str):
-        prompt = f"""Bạn là một Đạo diễn Truyện tranh (Comic Director) tài năng. Nhiệm vụ của bạn là chuyển thể một chương tiểu thuyết thành kịch bản truyện tranh (Comic Script).
-
-Quy tắc BẮT BUỘC:
-1. Tính nhất quán (Character Consistency): Bạn phải tóm tắt ngoại hình của các nhân vật chính (quần áo, tóc, màu sắc). TRONG MỌI KHUNG TRANH (`image_prompt`), bạn phải ĐÍNH KÈM lại mô tả ngoại hình này để AI vẽ ảnh không bị sai lệch nhân vật. Ví dụ: "A boy with messy black hair and a red jacket...".
-2. Số lượng: Phân rã TOÀN BỘ nội dung thành ÍT NHẤT 15 đến 20 khung tranh (Panels) để tạo thành một chương truyện tranh hoàn chỉnh. KHÔNG ĐƯỢC làm ít hơn 10 khung.
-
-ĐẦU RA PHẢI LÀ MỘT MẢNG JSON HỢP LỆ (VALID JSON ARRAY). Không trả về bất kỳ text nào khác ngoài JSON.
-Mỗi Object trong mảng gồm các trường:
-- "panel_index": số thứ tự (1, 2, 3...)
-- "image_prompt": Mô tả hình ảnh siêu chi tiết bằng TIẾNG ANH (Bao gồm ngoại hình nhân vật + bối cảnh + góc máy).
-- "dialogue_text": Lời thoại hoặc âm thanh (bằng tiếng Việt).
-- "layout_type": "square", "wide", hoặc "tall"
-
-Nội dung tiểu thuyết:
-{story_text}
-JSON Output:"""
-
         try:
             response = client.chat.completions.create(
                 messages=[
                     {
+                        "role": "system",
+                        "content": COMIC_DIRECTOR_SYSTEM_PROMPT
+                    },
+                    {
                         "role": "user",
-                        "content": prompt,
+                        "content": f"Hãy chuyển thể nội dung tiểu thuyết sau thành kịch bản truyện tranh JSON:\n\n{story_text}"
                     }
                 ],
                 model=MODEL,
                 temperature=0.7,
                 max_tokens=8192
             )
-            # Try to parse JSON from response
             raw_output = response.choices[0].message.content
             
-            import re
-            # Clean up in case LLM added markdown formatting or text preamble
+            # Clean up markdown formatting or text preamble
             match = re.search(r'\[.*\]', raw_output, re.DOTALL)
             if match:
                 raw_output = match.group(0)
@@ -52,10 +62,9 @@ JSON Output:"""
             return script_data
         except Exception as e:
             print("Error parsing comic script:", e)
-            # Fallback dummy script
             return [
-                {"panel_index": 1, "image_prompt": "A cinematic wide shot of a beautiful landscape, masterpiece", "dialogue_text": "Ngày xửa ngày xưa...", "layout_type": "wide"},
-                {"panel_index": 2, "image_prompt": "Close up of a mysterious character's eyes", "dialogue_text": "Có một bí mật...", "layout_type": "tall"},
-                {"panel_index": 3, "image_prompt": "An action scene with sword clash", "dialogue_text": "KENG!", "layout_type": "square"},
-                {"panel_index": 4, "image_prompt": "A character walking away into the sunset", "dialogue_text": "Cuộc hành trình bắt đầu.", "layout_type": "wide"}
+                {"panel_index": 1, "image_prompt": "A cinematic wide shot of a beautiful landscape, manga style, high quality", "dialogue_text": "Ngày xửa ngày xưa...", "layout_type": "wide"},
+                {"panel_index": 2, "image_prompt": "Close up of a mysterious character with dark eyes, manga style, detailed", "dialogue_text": "Có một bí mật...", "layout_type": "tall"},
+                {"panel_index": 3, "image_prompt": "An action scene with sword clash, dynamic angle, manga style", "dialogue_text": "KENG!", "layout_type": "square"},
+                {"panel_index": 4, "image_prompt": "A character walking away into the sunset, wide angle, manga style", "dialogue_text": "Cuộc hành trình bắt đầu.", "layout_type": "wide"}
             ]

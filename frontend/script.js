@@ -874,24 +874,36 @@ async function adaptToComic() {
             data.panels.forEach((p, index) => {
                 const panelDiv = document.createElement('div');
                 panelDiv.className = `comic-panel panel-${p.layout_type}`;
-                
-                const img = document.createElement('img');
-                img.alt = p.image_prompt || 'Comic Panel';
-                panelDiv.appendChild(img);
-                
-                // Stagger image loading by 1 second each to prevent Pollinations API from rate limiting (429 Too Many Requests)
-                setTimeout(() => {
-                    img.src = p.image_url;
-                }, index * 1000);
-                
+
+                // Skeleton placeholder
+                const skeleton = document.createElement('div');
+                skeleton.className = 'comic-panel-skeleton';
+                skeleton.innerHTML = '<span style="color:#999">Đang tải ảnh...</span>';
+                panelDiv.appendChild(skeleton);
+
+                // Text below image (webtoon style)
                 if (p.dialogue_text) {
                     const bubble = document.createElement('div');
                     bubble.className = 'speech-bubble';
                     bubble.innerText = p.dialogue_text;
                     panelDiv.appendChild(bubble);
                 }
-                
+
                 grid.appendChild(panelDiv);
+
+                // Lazy load image with stagger
+                setTimeout(() => {
+                    const img = document.createElement('img');
+                    img.alt = p.image_prompt || 'Comic Panel';
+                    img.onload = () => {
+                        skeleton.replaceWith(img);
+                        img.classList.add('loaded');
+                    };
+                    img.onerror = () => {
+                        skeleton.innerHTML = '<span style="color:#c00">Lỗi tải ảnh</span>';
+                    };
+                    img.src = p.image_url;
+                }, index * 800);
             });
         } else {
             alert('Lỗi tạo truyện tranh: ' + (data.message || data.detail || 'Lỗi hệ thống'));

@@ -675,8 +675,8 @@ textarea:focus {
 .comic-canvas { padding: 20px; height: calc(100vh - 150px); overflow-y: auto; background: #e5e7eb; }
 .comic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
 .comic-panel { background: white; border: 3px solid #111; border-radius: 4px; position: relative; overflow: hidden; min-height: 250px; box-shadow: 2px 2px 0px rgba(0,0,0,0.8); display: flex; flex-direction: column; }
-.comic-panel img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.speech-bubble { position: absolute; bottom: 10px; left: 10px; right: 10px; background: white; border: 2px solid #111; border-radius: 15px; padding: 10px; font-family: 'Comic Sans MS', cursive, sans-serif; font-size: 0.9em; color: #111; box-shadow: 2px 2px 0px rgba(0,0,0,0.8); z-index: 10; }
+.comic-panel img { width: 100%; max-height: 400px; object-fit: cover; display: block; }
+.speech-bubble { position: relative; background: #fffde7; border-top: 2px solid #111; padding: 12px 15px; font-family: 'Comic Sans MS', cursive, sans-serif; font-size: 0.9em; color: #111; max-height: 120px; overflow-y: auto; }
 .panel-tall { grid-row: span 2; }
 .panel-wide { grid-column: span 2; }
 
@@ -690,3 +690,8 @@ textarea:focus {
 .chat-input-area textarea { flex: 1; border: 1px solid #ccc; border-radius: 8px; padding: 8px; font-size: 0.9em; resize: none; }
 .chat-send-btn { background: var(--primary-color); color: white; border: none; border-radius: 8px; padding: 0 15px; cursor: pointer; font-weight: bold; }
 .chat-send-btn:hover { background: #1d4ed8; }
+
+.comic-panel-skeleton { background: #e0e0e0; min-height: 250px; display: flex; align-items: center; justify-content: center; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+.comic-panel img.loaded { animation: fadeIn 0.5s ease-in; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

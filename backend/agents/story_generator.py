@@ -5,21 +5,21 @@ class StoryGenerator:
         self.llm = GroqClient(model_name="openai/gpt-oss-120b")
     
     def _get_config(self, story_length: str):
-        """
-        Cấu hình số từ mục tiêu và max_tokens an toàn theo TPM của Groq
-        """
         config = {
             "short": {
                 "word_range": "Dưới 5000 từ",
-                "max_tokens": 8192
+                "max_tokens": 8192,
+                "chapter_mode": False
             },
             "medium": {
                 "word_range": "Từ 5000 đến 6000 từ",
-                "max_tokens": 8192
+                "max_tokens": 8192,
+                "chapter_mode": False
             },
             "long": {
-                "word_range": "Hơn 10000 từ (Cực kỳ dài và chi tiết)",
-                "max_tokens": 8192
+                "word_range": "2000 đến 3000 từ cho CHƯƠNG NÀY",
+                "max_tokens": 8192,
+                "chapter_mode": True
             }
         }
         return config.get(story_length, config["medium"])
@@ -27,29 +27,63 @@ class StoryGenerator:
     def _build_prompt(self, refined_prompt: str, story_length: str):
         cfg = self._get_config(story_length)
         
-        system_prompt = f"""Bạn là một tiểu thuyết gia xuất chúng tầm cỡ quốc tế, chuyên sáng tác truyện bằng tiếng Việt.
+        # Quy tắc chung cho mọi độ dài
+        base_rules = f"""Bạn là một tiểu thuyết gia xuất chúng tầm cỡ quốc tế, chuyên sáng tác truyện bằng tiếng Việt.
 TUYỆT ĐỐI CHỈ VIẾT BẰNG TIẾNG VIỆT, không được pha trộn tiếng Anh hoặc ký tự ngoại ngữ nào khác.
-Nhiệm vụ của bạn: Dựa vào "Bản Phác Thảo Cốt Truyện" được cung cấp, hãy viết một câu chuyện hoàn chỉnh, bám sát tuyệt đối vào cốt truyện đã yêu cầu. Không được đổi tên nhân vật hay chệch hướng khỏi cốt truyện gốc.
+Nhiệm vụ của bạn: Dựa vào "Bản Phác Thảo Cốt Truyện" được cung cấp, hãy viết câu chuyện bám sát tuyệt đối vào cốt truyện đã yêu cầu. Không được đổi tên nhân vật hay chệch hướng khỏi cốt truyện gốc.
 
 Quy tắc sáng tác BẮT BUỘC:
 1. ĐỘ DÀI: Khoảng {cfg['word_range']}. Hãy khai triển chi tiết từng tình huống, không viết vắn tắt.
-2. KIẾN TRÚC TIỂU THUYẾT VÀ CHƯƠNG (CỐT LÕI):
-   - Mọi chương truyện (Chapter) bắt buộc phải là một câu chuyện thu nhỏ có tự trị, đồng thời thúc đẩy cốt truyện chính.
-   - Cấu trúc mỗi chương: [Mở đầu lôi cuốn / Mục tiêu tức thời] -> [Xung đột leo thang / Trở ngại] -> [Cao trào / Bước ngoặt] -> [Biến thiên trạng thái / Kết thúc hấp dẫn].
-   - Cấm viết các chương chỉ để "giải thích" (filler/exposition). Nếu chương không làm thay đổi cục diện, tuyệt đối không viết.
-3. CHUỖI NHÂN - QUẢ (THEREFORE / BUT):
-   - Không bao giờ kết nối các sự kiện bằng "Và rồi..." (And then). Mọi sự kiện phải là kết quả của "Vì vậy..." (hệ quả hành động) hoặc "Nhưng..." (trở ngại bất ngờ).
-   - Cao trào của Chương N phải trực tiếp tạo ra tình thế tiến thoái lưỡng nan cho Chương N+1.
-4. ĐỘNG CƠ KÉP (CẢNH CHỦ ĐỘNG & PHẢN ỨNG):
+
+2. CẤU TRÚC 3 HỒI (THREE-ACT STRUCTURE):
+   - Hồi 1 (Setup ~25%): Giới thiệu nhân vật, bối cảnh, và Sự kiện Kích hoạt (Inciting Incident) buộc nhân vật phải hành động.
+   - Hồi 2 (Confrontation ~50%): Xung đột leo thang liên tục, nhân vật đối mặt thử thách ngày càng khốc liệt. Điểm giữa (Midpoint) lật ngược tình thế.
+   - Hồi 3 (Resolution ~25%): Cao trào tột cùng và giải quyết xung đột.
+
+3. KIẾN TRÚC CHƯƠNG (CHAPTER ARCHITECTURE):
+   - Mỗi chương phải là một câu chuyện thu nhỏ có tự trị, đồng thời thúc đẩy cốt truyện chính.
+   - Cấu trúc: [Mở đầu lôi cuốn] -> [Xung đột leo thang] -> [Cao trào / Bước ngoặt] -> [Kết thúc hấp dẫn].
+   - Cấm viết chương chỉ để "giải thích" (filler/exposition).
+
+4. CHUỖI NHÂN - QUẢ (THEREFORE / BUT):
+   - Không kết nối sự kiện bằng "Và rồi...". Mọi sự kiện phải là "Vì vậy..." (hệ quả) hoặc "Nhưng..." (trở ngại bất ngờ).
+   - Cao trào Chương N phải trực tiếp tạo tình thế cho Chương N+1.
+
+5. ĐỘNG CƠ KÉP (SCENE & SEQUEL):
    - Cảnh chủ động: Nhân vật có mục tiêu -> Gặp xung đột -> Thất bại/Trả giá.
-   - Cảnh phản ứng: Nhân vật sốc/đau đớn -> Đứng giữa 2 lựa chọn tồi tệ -> Quyết định mới -> Mục tiêu mới.
-   - Luân phiên 2 loại cảnh này để kiểm soát nhịp độ và chiều sâu cảm xúc.
-5. SỰ BIẾN THIÊN TRẠNG THÁI (VALUE SHIFT):
-   - Cuối mỗi chương, trạng thái cảm xúc hoặc hoàn cảnh của nhân vật BẮT BUỘC phải thay đổi (Từ Tích cực sang Tiêu cực, hoặc ngược lại). 
-   - Đào sâu sự mâu thuẫn giữa WANTS (Thứ nhân vật muốn) và NEEDS (Thứ nhân vật thực sự cần để trưởng thành).
-6. MỞ ĐẦU VÀ KẾT THÚC CHƯƠNG:
-   - Mở đầu: Bắt đầu ngay giữa hành động (In medias res). Neo giữ người đọc bằng các giác quan cụ thể (mùi, vị, âm thanh) ngay trong 2 đoạn đầu.
-   - Kết thúc: Không bao giờ kết thúc êm đềm. Luôn kết chương bằng: Một mối đe dọa mới, Một câu hỏi chưa lời đáp, hoặc Lật ngược tình thế gây sốc (Cliffhanger).
+   - Cảnh phản ứng: Nhân vật sốc -> Đứng giữa 2 lựa chọn tồi tệ -> Quyết định mới.
+   - Luân phiên 2 loại cảnh để kiểm soát nhịp độ.
+
+6. BIẾN THIÊN TRẠNG THÁI (VALUE SHIFT):
+   - Cuối mỗi chương, trạng thái nhân vật BẮT BUỘC thay đổi (Tích cực <-> Tiêu cực).
+   - Đào sâu mâu thuẫn WANTS (muốn) vs NEEDS (cần để trưởng thành).
+
+7. MỞ ĐẦU VÀ KẾT THÚC CHƯƠNG:
+   - Mở: Bắt đầu ngay giữa hành động (In medias res). Neo người đọc bằng giác quan cụ thể ngay 2 đoạn đầu.
+   - Kết: Luôn kết bằng Cliffhanger - mối đe dọa mới, câu hỏi chưa lời đáp, hoặc lật ngược tình thế.
+
+8. VĂN PHONG (SHOW, DON'T TELL):
+   - Tả qua hành động, đối thoại và cảm giác thay vì kể lể.
+   - Đối thoại phải bộc lộ tính cách, không dùng để giải thích cốt truyện.
+   - Dùng chi tiết cụ thể thay vì tính từ chung chung."""
+
+        # Quy tắc bổ sung cho chế độ viết từng chương
+        if cfg['chapter_mode']:
+            chapter_rules = """
+
+9. CHẾ ĐỘ VIẾT TỪNG CHƯƠNG (QUAN TRỌNG):
+   - Bạn CHỈ ĐƯỢC VIẾT DUY NHẤT 1 CHƯƠNG trong lần này (khoảng 2000-3000 từ).
+   - Chương phải có tiêu đề rõ ràng: ## Chương X: [Tên chương]
+   - KẾT THÚC chương bằng một Cliffhanger mạnh mẽ để người đọc phải đọc tiếp.
+   - KHÔNG được viết thêm chương nào khác. Dừng lại sau khi hoàn thành 1 chương."""
+        else:
+            chapter_rules = """
+
+9. QUY TẮC CHƯƠNG:
+   - Mỗi chương cần có Tiêu đề: ## Chương X: [Tên chương]
+   - KHÔNG lạm dụng ngắt chương. Chỉ qua chương mới khi có bước ngoặt lớn."""
+
+        formatting = f"""
 
 Bản Phác Thảo Cốt Truyện:
 {refined_prompt}
@@ -59,48 +93,44 @@ Quy tắc định dạng:
 - Bắt đầu NGAY LẬP TỨC bằng: **[TÊN TIÊU ĐỀ TRUYỆN]** ở dòng đầu tiên.
 - TUYỆT ĐỐI KHÔNG thêm lời mở đầu hay kết thúc mang tính trò chuyện."""
 
+        system_prompt = base_rules + chapter_rules + formatting
+
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"BẢN PHÁC THẢO CỐT TRUYỆN YÊU CẦU:\n{refined_prompt}\n\nHãy bắt đầu viết câu chuyện hoàn chỉnh bằng Tiếng Việt ngay bây giờ:"}
+            {"role": "user", "content": f"BẢN PHÁC THẢO CỐT TRUYỆN YÊU CẦU:\n{refined_prompt}\n\nHãy bắt đầu viết ngay bây giờ:"}
         ]
         return messages, cfg["max_tokens"]
 
     def generate_story(self, refined_prompt: str, story_length: str = "medium") -> str:
-        """
-        Agent 2: Tạo truyện chữ hoàn chỉnh (đồng bộ)
-        """
         messages, max_tokens = self._build_prompt(refined_prompt, story_length)
         return self.llm.chat(messages, temperature=0.8, max_tokens=max_tokens)
 
     def generate_story_stream(self, refined_prompt: str, story_length: str = "medium"):
-        """
-        Agent 2: Tạo truyện chữ hoàn chỉnh (Streaming thời gian thực)
-        """
         messages, max_tokens = self._build_prompt(refined_prompt, story_length)
         return self.llm.chat_stream(messages, temperature=0.8, max_tokens=max_tokens)
-
 
     def handle_chat_instruction(self, current_story: str, user_message: str):
         import json
         import re
         
         system_prompt = f"""Bạn là Trợ lý AI đồng sáng tác tiểu thuyết xuất chúng.
-        
-Người dùng đang viết một cuốn tiểu thuyết. Đây là nội dung TRUYỆN ĐÃ VIẾT TỪ TRƯỚC:
+
+NHIỆM VỤ: Đọc lệnh của người dùng và thực hiện chính xác.
+- Nếu họ yêu cầu "viết tiếp", "thêm nhân vật", "đổi hướng": VIẾT TIẾP ĐOẠN TRUYỆN MỚI (tuân thủ văn phong Show don't tell, cấu trúc tiểu thuyết chuyên nghiệp, kết thúc bằng Cliffhanger).
+- Nếu họ yêu cầu "kết thúc truyện": Viết một đoạn kết thúc mạch lạc, gói gọn các tuyến truyện mà không gãy mạch.
+- Nếu họ chỉ hỏi đáp bình thường: Trả lời thân thiện.
+
+TRUYỆN ĐÃ VIẾT TỪ TRƯỚC (5000 ký tự cuối):
 ---
 {current_story[-5000:] if len(current_story) > 5000 else current_story}
 ---
 
-Người dùng vừa ra lệnh: \"{user_message}\"
+LỆNH CỦA NGƯỜI DÙNG: "{user_message}"
 
-Nhiệm vụ của bạn:
-1. Đọc lệnh của người dùng. Nếu họ yêu cầu "viết tiếp", "thêm nhân vật", "đổi hướng", hãy VIẾT TIẾP ĐOẠN TRUYỆN ĐÓ (tuân thủ văn phong Show, don't tell và cấu trúc tiểu thuyết chuyên nghiệp).
-2. Nếu họ chỉ hỏi đáp bình thường, hãy trả lời.
-
-ĐẦU RA BẮT BUỘC LÀ JSON có định dạng:
+ĐẦU RA BẮT BUỘC LÀ JSON:
 {{
-    "chat_reply": "Câu trả lời ngắn gọn, thân thiện gửi cho người dùng (ví dụ: Dạ, em đã viết tiếp chương 2 với cao trào như anh yêu cầu rồi ạ!)",
-    "new_story_content": "Phần truyện chữ MỚI ĐƯỢC VIẾT THÊM (tuyệt đối không lặp lại đoạn cũ). Nếu lệnh không yêu cầu viết thêm truyện, để chuỗi rỗng."
+    "chat_reply": "Câu trả lời ngắn gọn gửi cho người dùng",
+    "new_story_content": "Phần truyện MỚI VIẾT THÊM. Nếu không cần viết thêm, để chuỗi rỗng."
 }}"""
         try:
             messages = [
@@ -113,7 +143,6 @@ Nhiệm vụ của bạn:
                 max_tokens=4000
             )
             
-            # Clean JSON if wrapped in markdown
             json_match = re.search(r'\{.*\}', response.replace('\n', ' '), re.DOTALL)
             if json_match:
                 return json.loads(json_match.group(0))
