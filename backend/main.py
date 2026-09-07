@@ -325,9 +325,18 @@ async def chat_with_assistant(request: ChatRequest, current_user: User = Depends
 # ===== STORY MEMORY SYSTEM =====
 from agents.story_memory import StoryBible, StoryMemory
 from agents.memory_extractor import MemoryExtractor
+from agents.copilot_agent import CopilotAgent
 
 # In-memory session store for story memories
 STORY_SESSIONS = {}
+
+copilot = None
+def get_copilot():
+    global copilot
+    if copilot is None:
+        copilot = CopilotAgent()
+    return copilot
+
 
 memory_extractor = None
 def get_memory_extractor():
@@ -347,6 +356,27 @@ class ChapterRequest(BaseModel):
 class EndStoryRequest(BaseModel):
     session_id: str
 
+class CopilotEventRequest(BaseModel):
+    session_id: str
+    event_type: str
+    event_data: str
+
+@app.post("/api/copilot-event")
+def copilot_event(request: CopilotEventRequest):
+    memory = STORY_SESSIONS.get(request.session_id)
+    
+    agent = get_copilot()
+    # Copilot process the event and decides the action
+    result = agent.process_event(request.event_type, request.event_data, memory)
+    
+    print(f"--- MASTER CONTROLLER THOUGHT ---")
+    print(result.get('thought', 'No thought'))
+    print(f"ACTION: {result.get('action')}")
+    print(f"PARAMS: {result.get('action_params')}")
+    print(f"---------------------------------")
+    
+    return {"status": "success", "data": result}
+    
 @app.post("/api/init-story")
 def init_story(request: InitStoryRequest, current_user: User = Depends(get_current_user)):
     try:

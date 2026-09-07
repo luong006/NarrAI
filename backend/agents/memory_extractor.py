@@ -1,3 +1,4 @@
+import os
 """
 Memory Extractor Agent — Trích xuất và cập nhật bộ nhớ truyện sau mỗi chương.
 Dùng model nhẹ qwen/qwen3.8-27b để tiết kiệm token và tốc độ.
@@ -10,7 +11,7 @@ from agents.story_memory import StoryBible, StoryMemory
 
 class MemoryExtractor:
     def __init__(self):
-        self.llm = GroqClient(model_name="qwen/qwen3.8-27b")
+        self.llm = GroqClient(model_name="qwen/qwen3.8-27b", api_key=os.environ.get("GROQ_API_KEY_BIBLE"))
 
     def extract_bible(self, refined_prompt: str) -> StoryBible:
         system_prompt = """Ban la chuyen gia phan tich cot truyen. Doc ban phac thao cot truyen va trich xuat thong tin thanh JSON.

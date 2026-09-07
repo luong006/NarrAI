@@ -500,6 +500,7 @@ async function generateStory() {
             if (done) break;
             
             const chunk = decoder.decode(value, { stream: true });
+            stopLatencySensor();
             fullStory += chunk;
             
             const formattedStory = fullStory
@@ -533,6 +534,70 @@ function updateWordCount() {
     const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     const label = i18nDict[currentLang]['words'];
     document.getElementById('wordCount').textContent = `${count} ${label}`;
+}
+
+
+// =================== SYSTEM SENSORS ===================
+async function sendSystemAlert(eventType, eventData) {
+    if (!globalData.sessionId) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/copilot-event`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                session_id: globalData.sessionId,
+                event_type: eventType,
+                event_data: eventData
+            })
+        });
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+            const action = data.data.action;
+            const params = data.data.action_params || {};
+            
+            if (action === 'reply_user') {
+                const chatHistory = document.getElementById('chatHistory');
+                if (chatHistory) {
+                    chatHistory.innerHTML += `<div class="chat-message chat-ai" style="color: #64748b;"><i>[Hệ thống] ${params.message}</i></div>`;
+                    chatHistory.scrollTop = chatHistory.scrollHeight;
+                }
+            } else if (action === 'heal_image') {
+                healImagePanel(params.panel_id, params.new_prompt);
+            }
+        }
+    } catch (e) {
+        console.error('Loi gui system alert:', e);
+    }
+}
+
+async function healImagePanel(panelId, newPrompt) {
+    const chatHistory = document.getElementById('chatHistory');
+    if (chatHistory) {
+        chatHistory.innerHTML += `<div class="chat-message chat-ai" style="color: #64748b;"><i>[Hệ thống] Đang vẽ lại khung tranh số ${panelId}...</i></div>`;
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+    
+    const panelImg = document.getElementById('panel-img-' + panelId);
+    if (!panelImg) return;
+    
+    // Thu ve lai bang Pollinations voi seed ngau nhien
+    const seed = Math.floor(Math.random() * 10000);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(newPrompt)}?width=1024&height=1024&nologo=true&seed=${seed}`;
+    panelImg.src = url;
+}
+
+// Global Latency Timer
+let latencyTimer = null;
+function startLatencySensor(operation) {
+    clearTimeout(latencyTimer);
+    latencyTimer = setTimeout(() => {
+        sendSystemAlert('SYS_LATENCY', `Toi dang doi ${operation} qua 15s ma chua thay phan hoi.`);
+    }, 15000);
+}
+function stopLatencySensor() {
+    clearTimeout(latencyTimer);
 }
 
 // =================== INTERACTIVE EDITING ===================
@@ -1040,16 +1105,34 @@ async function continueWriting() {
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
             let newChapter = '';
+            
+            // Luu lai noi dung cu truoc khi stream chuong moi
+            const originalHTML = storyOutput.innerHTML;
+            // Them mot the div tam thoi de chua noi dung stream
+            const streamContainerId = 'stream-' + Date.now();
+            storyOutput.innerHTML = originalHTML + `<div id="${streamContainerId}"></div>`;
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 const chunk = decoder.decode(value, { stream: true });
+            stopLatencySensor();
                 newChapter += chunk;
-                // Live update the story output
+                
+                // Live update
                 const formatted = newChapter.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
-                storyOutput.innerHTML = storyOutput.innerHTML.replace(/<p>Dang viet tiep...<\/p>$/, '') + formatted;
+                const container = document.getElementById(streamContainerId);
+                if (container) {
+                    container.innerHTML = formatted;
+                }
                 updateWordCount();
+            }
+            
+            // Xoa the div tam thoi va gop noi dung vao chinh
+            const container = document.getElementById(streamContainerId);
+            if (container) {
+                const finalContent = container.innerHTML;
+                storyOutput.innerHTML = originalHTML + '<br><br>' + finalContent;
             }
 
             // Remove loading message in chat
@@ -1114,15 +1197,29 @@ async function endStory() {
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
             let ending = '';
+            const originalHTML = storyOutput.innerHTML;
+            const streamContainerId = 'stream-end-' + Date.now();
+            storyOutput.innerHTML = originalHTML + `<div id="${streamContainerId}"></div>`;
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 const chunk = decoder.decode(value, { stream: true });
+            stopLatencySensor();
                 ending += chunk;
+                
                 const formatted = ending.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
-                storyOutput.innerHTML = storyOutput.innerHTML.replace(/<p>Dang viet ket...<\/p>$/, '') + formatted;
+                const container = document.getElementById(streamContainerId);
+                if (container) {
+                    container.innerHTML = formatted;
+                }
                 updateWordCount();
+            }
+            
+            const container = document.getElementById(streamContainerId);
+            if (container) {
+                const finalContent = container.innerHTML;
+                storyOutput.innerHTML = originalHTML + '<br><br>' + finalContent;
             }
 
             const msgs = chatHistory.querySelectorAll('.chat-message');

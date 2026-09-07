@@ -1,9 +1,10 @@
+import os
 from llm.groq_client import GroqClient
 import json
 
 class QARefiner:
     def __init__(self):
-        self.llm = GroqClient(model_name="qwen/qwen3.8-27b")
+        self.llm = GroqClient(model_name="qwen/qwen3.8-27b", api_key=os.environ.get("GROQ_API_KEY_BIBLE"))
     
     def chat_interview(self, chat_history: list) -> str:
         """
