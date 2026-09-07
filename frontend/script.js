@@ -421,6 +421,8 @@ async function sendChatMessage() {
             chatBox.scrollTop = chatBox.scrollHeight;
             
             if (data.is_ready) forceRefinePrompt();
+        } else {
+            chatBox.innerHTML += `<div class="chat-message chat-ai" style="color:red">Lỗi từ máy chủ: ${data.message}</div>`;
         }
     } catch (error) {
         document.getElementById('chatLoading').textContent = "Lỗi kết nối.";
@@ -581,6 +583,9 @@ async function healImagePanel(panelId, newPrompt) {
     
     const panelImg = document.getElementById('panel-img-' + panelId);
     if (!panelImg) return;
+    
+    // Xoa onerror de tranh vong lap vo han neu server anh bi sap hoan toan
+    panelImg.onerror = null;
     
     // Thu ve lai bang Pollinations voi seed ngau nhien
     const seed = Math.floor(Math.random() * 10000);
