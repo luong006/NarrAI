@@ -4,6 +4,7 @@ let globalData = {
     initialPrompt: "",
     chatHistory: [],
     refinedPrompt: "",
+    sessionId: null,
     selectedLength: "medium"
 };
 
@@ -476,7 +477,9 @@ async function generateStory() {
     output.innerHTML = `<i>${currentLang==='vi'?'Đang khởi tạo bản thảo...':'Generating draft...'}</i><br><br>`;
     
     try {
-        const response = await fetch(`${API_URL}/generate-story`, {
+        // Use init-story for long stories (memory system), generate-story for short/medium
+        const apiEndpoint = globalData.selectedLength === 'long' ? 'init-story' : 'generate-story';
+        const response = await fetch(`${API_URL}/${apiEndpoint}`, {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({
@@ -507,6 +510,18 @@ async function generateStory() {
             
             output.innerHTML = formattedStory;
             updateWordCount();
+        }
+        // Extract session_id if present (from init-story)
+        const sessionMatch = fullStory.match(/\[SESSION_ID:([^\]]+)\]/);
+        if (sessionMatch) {
+            globalData.sessionId = sessionMatch[1];
+            // Remove session marker from displayed text
+            output.innerHTML = output.innerHTML.replace(/\[SESSION_ID:[^\]]+\]/, '');
+            // Show chapter action buttons
+            const chatHistory = document.getElementById('chatHistory');
+            if (chatHistory) {
+                chatHistory.innerHTML += '<div class="chat-message chat-ai">Chuong 1 da hoan tat! Ban co the an "Viet tiep chuong moi" de AI viet tiep, hoac "Ket thuc truyen" de AI viet doan ket.</div>';
+            }
         }
     } catch (error) {
         output.innerHTML += `<p style="color: red;">Lỗi: ${error.message}</p>`;
@@ -995,82 +1010,150 @@ function addMessageToChat(role, text) {
 
 // =================== STORY ACTION BUTTONS ===================
 
-function continueWriting() {
+async function continueWriting() {
     const storyOutput = document.getElementById('storyOutput');
-    const currentStory = storyOutput.innerText;
-    if (!currentStory || currentStory.length < 10) {
-        alert('Chưa có nội dung truyện để viết tiếp!');
+    const chatHistory = document.getElementById('chatHistory');
+
+    if (!storyOutput.innerText || storyOutput.innerText.length < 10) {
+        alert('Chua co noi dung truyen de viet tiep!');
         return;
     }
 
-    // Show in chat
-    const chatHistory = document.getElementById('chatHistory');
-    chatHistory.innerHTML += '<div class="chat-message chat-user">✍️ Viết tiếp chương mới</div>';
-    chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:#d97706">AI đang viết tiếp chương mới (tối thiểu 4000 từ)...</div>';
+    chatHistory.innerHTML += '<div class="chat-message chat-user">Viet tiep chuong moi</div>';
+    chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:#d97706">AI dang viet chuong moi...</div>';
     chatHistory.scrollTop = chatHistory.scrollHeight;
 
-    fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-            story_text: currentStory,
-            user_message: 'Hãy viết tiếp chương tiếp theo của câu chuyện. Chương mới phải dài TỐI THIỂU 4000 từ, khai triển đầy đủ, chi tiết, không được viết vắn tắt. Kết thúc chương bằng Cliffhanger mạnh mẽ.'
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        // Remove loading message
-        const msgs = chatHistory.querySelectorAll('.chat-message');
-        if (msgs.length > 0) msgs[msgs.length - 1].remove();
+    // Use memory-based endpoint if session exists, fallback to /api/chat
+    if (globalData.sessionId) {
+        try {
+            const response = await fetch(`${API_URL}/generate-chapter`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    session_id: globalData.sessionId,
+                    user_instruction: ''
+                })
+            });
 
-        chatHistory.innerHTML += `<div class="chat-message chat-ai">${data.chat_reply || 'Đã viết xong!'}</div>`;
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+            if (!response.ok) throw new Error('Server error');
 
-        if (data.new_story_content) {
-            storyOutput.innerHTML += '<br><br>' + data.new_story_content.replace(/\n/g, '<br>');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let newChapter = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                newChapter += chunk;
+                // Live update the story output
+                const formatted = newChapter.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+                storyOutput.innerHTML = storyOutput.innerHTML.replace(/<p>Dang viet tiep...<\/p>$/, '') + formatted;
+                updateWordCount();
+            }
+
+            // Remove loading message in chat
+            const msgs = chatHistory.querySelectorAll('.chat-message');
+            if (msgs.length > 0) msgs[msgs.length - 1].remove();
+            chatHistory.innerHTML += '<div class="chat-message chat-ai">Da viet xong chuong moi! Ban co the tiep tuc hoac ket thuc truyen.</div>';
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        } catch (err) {
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi. Vui long thu lai!</div>';
         }
-    })
-    .catch(err => {
-        chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối. Vui lòng thử lại!</div>';
-    });
+    } else {
+        // Fallback: use legacy /api/chat
+        try {
+            const res = await fetch(`${API_URL}/chat`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    story_text: storyOutput.innerText,
+                    user_message: 'Hay viet tiep chuong tiep theo. Toi thieu 2000 tu. Ket thuc bang Cliffhanger.'
+                })
+            });
+            const data = await res.json();
+            const msgs = chatHistory.querySelectorAll('.chat-message');
+            if (msgs.length > 0) msgs[msgs.length - 1].remove();
+            chatHistory.innerHTML += `<div class="chat-message chat-ai">${data.chat_reply || 'Da viet xong!'}</div>`;
+            if (data.new_story_content) {
+                storyOutput.innerHTML += '<br><br>' + data.new_story_content.replace(/\n/g, '<br>');
+            }
+            updateWordCount();
+        } catch (err) {
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi.</div>';
+        }
+    }
 }
 
-function endStory() {
+async function endStory() {
     const storyOutput = document.getElementById('storyOutput');
-    const currentStory = storyOutput.innerText;
-    if (!currentStory || currentStory.length < 10) {
-        alert('Chưa có nội dung truyện để kết thúc!');
+    const chatHistory = document.getElementById('chatHistory');
+
+    if (!storyOutput.innerText || storyOutput.innerText.length < 10) {
+        alert('Chua co noi dung truyen de ket thuc!');
         return;
     }
 
-    if (!confirm('Bạn có chắc muốn kết thúc câu truyện? AI sẽ viết đoạn kết cho bạn.')) return;
+    if (!confirm('Ban co chac muon ket thuc cau truyen? AI se viet doan ket cho ban.')) return;
 
-    const chatHistory = document.getElementById('chatHistory');
-    chatHistory.innerHTML += '<div class="chat-message chat-user">🔚 Kết thúc câu truyện</div>';
-    chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:#d97706">AI đang viết đoạn kết cho câu truyện...</div>';
+    chatHistory.innerHTML += '<div class="chat-message chat-user">Ket thuc cau truyen</div>';
+    chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:#d97706">AI dang viet doan ket...</div>';
     chatHistory.scrollTop = chatHistory.scrollHeight;
 
-    fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-            story_text: currentStory,
-            user_message: 'Hãy viết ĐOẠN KẾT THÚC cho câu chuyện này. Đoạn kết phải gói gọn tất cả các tuyến truyện đang mở, giải quyết xung đột chính, và mang lại cảm xúc trọn vẹn cho người đọc. Không được kết thúc đột ngột hay gãy mạch. Viết đủ dài và chi tiết (tối thiểu 2000 từ).'
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        const msgs = chatHistory.querySelectorAll('.chat-message');
-        if (msgs.length > 0) msgs[msgs.length - 1].remove();
+    if (globalData.sessionId) {
+        try {
+            const response = await fetch(`${API_URL}/end-story`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ session_id: globalData.sessionId })
+            });
 
-        chatHistory.innerHTML += `<div class="chat-message chat-ai">${data.chat_reply || 'Đã viết xong đoạn kết!'}</div>`;
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+            if (!response.ok) throw new Error('Server error');
 
-        if (data.new_story_content) {
-            storyOutput.innerHTML += '<br><br>' + data.new_story_content.replace(/\n/g, '<br>');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let ending = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                ending += chunk;
+                const formatted = ending.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+                storyOutput.innerHTML = storyOutput.innerHTML.replace(/<p>Dang viet ket...<\/p>$/, '') + formatted;
+                updateWordCount();
+            }
+
+            const msgs = chatHistory.querySelectorAll('.chat-message');
+            if (msgs.length > 0) msgs[msgs.length - 1].remove();
+            chatHistory.innerHTML += '<div class="chat-message chat-ai">Cau truyen da ket thuc! Ban co the tai xuong hoac chinh sua them.</div>';
+            globalData.sessionId = null;
+
+        } catch (err) {
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi.</div>';
         }
-    })
-    .catch(err => {
-        chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối. Vui lòng thử lại!</div>';
-    });
+    } else {
+        // Fallback
+        try {
+            const res = await fetch(`${API_URL}/chat`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    story_text: storyOutput.innerText,
+                    user_message: 'Hay viet DOAN KET THUC. Goi gon tat ca tuyen truyen, giai quyet xung dot chinh. Toi thieu 2000 tu.'
+                })
+            });
+            const data = await res.json();
+            const msgs = chatHistory.querySelectorAll('.chat-message');
+            if (msgs.length > 0) msgs[msgs.length - 1].remove();
+            chatHistory.innerHTML += `<div class="chat-message chat-ai">${data.chat_reply || 'Da viet xong!'}</div>`;
+            if (data.new_story_content) {
+                storyOutput.innerHTML += '<br><br>' + data.new_story_content.replace(/\n/g, '<br>');
+            }
+            updateWordCount();
+        } catch (err) {
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi.</div>';
+        }
+    }
 }

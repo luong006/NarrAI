@@ -322,6 +322,185 @@ async def chat_with_assistant(request: ChatRequest, current_user: User = Depends
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ===== STORY MEMORY SYSTEM =====
+from agents.story_memory import StoryBible, StoryMemory
+from agents.memory_extractor import MemoryExtractor
+
+# In-memory session store for story memories
+STORY_SESSIONS = {}
+
+memory_extractor = None
+def get_memory_extractor():
+    global memory_extractor
+    if memory_extractor is None:
+        memory_extractor = MemoryExtractor()
+    return memory_extractor
+
+class InitStoryRequest(BaseModel):
+    refined_prompt: str
+    story_length: str = "long"
+
+class ChapterRequest(BaseModel):
+    session_id: str
+    user_instruction: str = ""
+
+class EndStoryRequest(BaseModel):
+    session_id: str
+
+@app.post("/api/init-story")
+def init_story(request: InitStoryRequest, current_user: User = Depends(get_current_user)):
+    try:
+        extractor = get_memory_extractor()
+        gen = get_story_generator()
+
+        # Step 1: Extract Story Bible from refined_prompt
+        bible = extractor.extract_bible(request.refined_prompt)
+
+        # Step 2: Create Memory with Bible
+        memory = StoryMemory(story_bible=bible)
+        session_id = memory.session_id
+
+        # Step 3: Generate Chapter 1 (streaming)
+        def stream_chapter_1():
+            chapter_text = ""
+            try:
+                for chunk in gen.generate_chapter_stream(memory):
+                    chapter_text += chunk
+                    yield chunk
+            except Exception as e:
+                yield f"\n\n[Loi sinh truyen: {str(e)}]"
+                return
+
+            # Step 4: Update memory with chapter 1
+            memory.append_chapter(chapter_text)
+            try:
+                extractor.extract_memory(chapter_text, memory)
+            except Exception as e:
+                print(f"Memory extraction error: {e}")
+
+            # Store session
+            STORY_SESSIONS[session_id] = memory
+
+            # Save to DB
+            word_count = len(chapter_text.split())
+            if word_count > 10 and current_user:
+                db = SessionLocal()
+                try:
+                    new_story = Story(
+                        user_id=current_user.id,
+                        refined_prompt=request.refined_prompt,
+                        story_content=chapter_text,
+                        word_count=word_count
+                    )
+                    db.add(new_story)
+                    db.commit()
+                except Exception as e:
+                    print(f"DB Error: {e}")
+                finally:
+                    db.close()
+
+            # Yield session_id at the end as a special marker
+            yield f"\n\n[SESSION_ID:{session_id}]"
+
+        return StreamingResponse(stream_chapter_1(), media_type="text/plain")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/generate-chapter")
+def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_current_user)):
+    try:
+        memory = STORY_SESSIONS.get(request.session_id)
+        if not memory:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Session khong ton tai hoac da het han."})
+
+        gen = get_story_generator()
+        extractor = get_memory_extractor()
+
+        def stream_next_chapter():
+            chapter_text = ""
+            try:
+                for chunk in gen.generate_chapter_stream(memory, request.user_instruction):
+                    chapter_text += chunk
+                    yield chunk
+            except Exception as e:
+                yield f"\n\n[Loi sinh truyen: {str(e)}]"
+                return
+
+            # Update memory
+            memory.append_chapter(chapter_text)
+            try:
+                extractor.extract_memory(chapter_text, memory)
+            except Exception as e:
+                print(f"Memory extraction error: {e}")
+
+            # Update session
+            STORY_SESSIONS[request.session_id] = memory
+
+            # Update story in DB
+            if current_user:
+                db = SessionLocal()
+                try:
+                    story = db.query(Story).filter(Story.user_id == current_user.id).order_by(Story.id.desc()).first()
+                    if story:
+                        story.story_content = memory.full_text
+                        story.word_count = len(memory.full_text.split())
+                        db.commit()
+                except Exception as e:
+                    print(f"DB Error: {e}")
+                finally:
+                    db.close()
+
+        return StreamingResponse(stream_next_chapter(), media_type="text/plain")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/end-story")
+def end_story(request: EndStoryRequest, current_user: User = Depends(get_current_user)):
+    try:
+        memory = STORY_SESSIONS.get(request.session_id)
+        if not memory:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Session khong ton tai."})
+
+        gen = get_story_generator()
+
+        def stream_ending():
+            ending_text = ""
+            try:
+                for chunk in gen.generate_ending_stream(memory):
+                    ending_text += chunk
+                    yield chunk
+            except Exception as e:
+                yield f"\n\n[Loi: {str(e)}]"
+                return
+
+            memory.append_chapter(ending_text)
+
+            # Final DB save
+            if current_user:
+                db = SessionLocal()
+                try:
+                    story = db.query(Story).filter(Story.user_id == current_user.id).order_by(Story.id.desc()).first()
+                    if story:
+                        story.story_content = memory.full_text
+                        story.word_count = len(memory.full_text.split())
+                        db.commit()
+                except Exception as e:
+                    print(f"DB Error: {e}")
+                finally:
+                    db.close()
+
+            # Clean up session
+            del STORY_SESSIONS[request.session_id]
+
+        return StreamingResponse(stream_ending(), media_type="text/plain")
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
