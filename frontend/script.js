@@ -568,7 +568,7 @@ async function sendSystemAlert(eventType, eventData) {
             }
         }
     } catch (e) {
-        console.error('Loi gui system alert:', e);
+        console.error('Lỗi gửi system alert:', e);
     }
 }
 
@@ -1055,11 +1055,11 @@ async function sendAssistantMessage() {
                 editor.scrollTop = editor.scrollHeight;
             }
         } else {
-            addMessageToChat('ai', 'L?i: ' + (data.detail || 'Khng th? k?t n?i.'));
+            addMessageToChat('ai', 'Lỗi: ' + (data.detail || 'Khng th? k?t n?i.'));
         }
     } catch (err) {
         loader.style.display = 'none';
-        addMessageToChat('ai', 'L?i m?ng ho?c my ch? khng ph?n h?i.');
+        addMessageToChat('ai', 'Lỗi mạng hoặc máy chủ không phản hồi.');
     }
 }
 
@@ -1142,7 +1142,7 @@ async function continueWriting() {
             chatHistory.scrollTop = chatHistory.scrollHeight;
 
         } catch (err) {
-            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi. Vui long thu lai!</div>';
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối. Vui lòng thử lại!</div>';
         }
     } else {
         // Fallback: use legacy /api/chat
@@ -1164,7 +1164,7 @@ async function continueWriting() {
             }
             updateWordCount();
         } catch (err) {
-            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi.</div>';
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối.</div>';
         }
     }
 }
@@ -1228,7 +1228,7 @@ async function endStory() {
             globalData.sessionId = null;
 
         } catch (err) {
-            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi.</div>';
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối.</div>';
         }
     } else {
         // Fallback
@@ -1250,7 +1250,7 @@ async function endStory() {
             }
             updateWordCount();
         } catch (err) {
-            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Loi ket noi.</div>';
+            chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối.</div>';
         }
     }
 }
