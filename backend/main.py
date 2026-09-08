@@ -380,6 +380,9 @@ def get_story_session(session_id: str, current_user: User):
     finally:
         db.close()
 
+def memory_json(memory: StoryMemory) -> str:
+    return json.dumps(memory.to_dict(), ensure_ascii=False)
+
 copilot = None
 def get_copilot():
     global copilot
@@ -449,9 +452,7 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
             try:
                 story = db.query(Story).filter(Story.session_id == request.session_id).first()
                 if story:
-                    import json
-                    from dataclasses import asdict
-                    story.memory_data = json.dumps(asdict(memory), ensure_ascii=False)
+                    story.memory_data = memory_json(memory)
                     db.commit()
             except Exception as e:
                 pass
@@ -511,8 +512,8 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
                         refined_prompt=request.refined_prompt,
                         story_content=chapter_text,
                         word_count=word_count,
-                        bible_data=json.dumps(asdict(memory.story_bible), ensure_ascii=False) if memory.story_bible else None,
-                        memory_data=json.dumps(asdict(memory), ensure_ascii=False)
+                        bible_data=json.dumps(memory.story_bible.to_dict(), ensure_ascii=False) if memory.story_bible else None,
+                        memory_data=memory_json(memory)
                     )
                     db.add(new_story)
                     db.commit()
@@ -581,9 +582,7 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
                     if story:
                         story.story_content = memory.get_full_story()
                         story.word_count = len(story.story_content.split())
-                        import json
-                        from dataclasses import asdict
-                        story.memory_data = json.dumps(asdict(memory), ensure_ascii=False)
+                        story.memory_data = memory_json(memory)
                         db.commit()
                 except Exception as e:
                     print(f"DB Error: {e}")
@@ -638,9 +637,7 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
                     if story:
                         story.story_content = memory.get_full_story()
                         story.word_count = len(story.story_content.split())
-                        import json
-                        from dataclasses import asdict
-                        story.memory_data = json.dumps(asdict(memory), ensure_ascii=False)
+                        story.memory_data = memory_json(memory)
                         db.commit()
                 except Exception as e:
                     print(f"DB Error: {e}")

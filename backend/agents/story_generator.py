@@ -82,8 +82,11 @@ Quy tac dinh dang:
         short_context = memory.get_short_context(max_chars=6000)
         next_chapter = memory.current_chapter + 1
 
-        system_prompt = f"""Ban la mot tieu thuyet gia xuat chung tam co quoc te, chuyen sang tac truyen bang tieng Viet.
-TUYET DOI CHI VIET BANG TIENG VIET.
+        system_prompt = f"""Ban la tac gia dang truc tiep viet mot chuong tieu thuyet bang tieng Viet.
+    NHIEM VU CUA BAN LA VIET VAN XUOI NGAY BAY GIO, khong phan tich va khong hoi lai nguoi dung.
+    TUYET DOI KHONG viet loi xin loi, khong nhac lai chi dan, khong noi rang ban chi duoc viet mot chuong,
+    khong mo ta nhiem vu cua ban, va khong tra loi theo dang tro chuyen.
+    TUYET DOI CHI VIET BANG TIENG VIET.
 
 {bible_block}
 
@@ -91,7 +94,7 @@ TUYET DOI CHI VIET BANG TIENG VIET.
 
 {WRITING_RULES}
 
-NHIEM VU HIEN TAI: Viet CHUONG {next_chapter} cua cau chuyen.
+NHIEM VU HIEN TAI: Viet CHUONG {next_chapter} cua cau chuyen, bat dau ngay bang tieu de va van xuoi.
 - Chi viet DUY NHAT 1 chuong, dai 2000-3000 tu.
 - Bat dau bang: ## Chuong {next_chapter}: [Ten chuong]
 - Phai tiep noi tu nhien voi noi dung da viet truoc do.
@@ -103,9 +106,9 @@ NHIEM VU HIEN TAI: Viet CHUONG {next_chapter} cua cau chuyen.
         if user_instruction:
             system_prompt += f"\n\nYEU CAU DAC BIET TU TAC GIA: {user_instruction}"
 
-        user_msg = "Hay viet chuong tiep theo ngay bay gio."
+        user_msg = f"Hay viet CHUONG {next_chapter} ngay bay gio. Dong dau tien phai la: ## Chuong {next_chapter}: [Ten chuong]. Sau do viet ngay van xuoi, khong giai thich."
         if short_context:
-            user_msg = f"NOI DUNG GAN NHAT DA VIET:\n---\n{short_context[-3000:]}\n---\n\nHay viet chuong {next_chapter} tiep noi tu nhien:"
+            user_msg = f"NOI DUNG GAN NHAT DA VIET:\n---\n{short_context[-3000:]}\n---\n\nHay viet CHUONG {next_chapter} tiep noi tu nhien. Dong dau tien phai la: ## Chuong {next_chapter}: [Ten chuong]. Khong giai thich, chi viet van xuoi:"
 
         messages = [
             {"role": "system", "content": system_prompt},
