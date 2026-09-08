@@ -11,6 +11,12 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
 app = FastAPI(title="NarrAI MVP")
 
+REQUIRED_API_KEYS = {
+    "GROQ_API_KEY": "Story Generator and Editor",
+    "GROQ_API_KEY_BIBLE": "QA Refiner and Memory Extractor",
+    "GROQ_API_KEY_COPILOT": "Master Controller / Copilot",
+}
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -166,6 +172,7 @@ def generate_story(request: GenerateStoryRequest, current_user: User = Depends(g
         
         async def stream_and_save():
             full_story = ""
+            saved_story_id = None
             try:
                 for chunk in gen.generate_story_stream(request.refined_prompt, request.story_length):
                     full_story += chunk
@@ -186,10 +193,15 @@ def generate_story(request: GenerateStoryRequest, current_user: User = Depends(g
                     )
                     db.add(new_story)
                     db.commit()
+                    db.refresh(new_story)
+                    saved_story_id = new_story.id
                 except Exception as e:
                     print(f"DB Error: {e}")
                 finally:
                     db.close()
+
+            if saved_story_id:
+                yield f"\n\n[STORY_ID:{saved_story_id}]"
 
         return StreamingResponse(stream_and_save(), media_type="text/plain")
     except Exception as e:
@@ -242,9 +254,12 @@ async def get_story_detail(story_id: int, current_user: User = Depends(get_curre
             "status": "success",
             "story": {
                 "id": story.id,
+                "session_id": story.session_id,
                 "refined_prompt": story.refined_prompt,
                 "story_content": story.story_content,
                 "word_count": story.word_count,
+                "bible_data": story.bible_data,
+                "memory_data": story.memory_data,
                 "created_at": story.created_at.strftime("%H:%M %d/%m/%Y") if story.created_at else ""
             }
         }
@@ -253,7 +268,12 @@ async def get_story_detail(story_id: int, current_user: User = Depends(get_curre
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "message": "Backend is running!"}
+    missing = [name for name in REQUIRED_API_KEYS if not os.environ.get(name)]
+    return {
+        "status": "ok" if not missing else "degraded",
+        "message": "Backend is running!",
+        "missing_keys": missing,
+    }
 
 # ================= COMIC ENDPOINTS =================
 from services.image_gen import generate_comic_panel_image
@@ -267,6 +287,13 @@ class ComicRequest(BaseModel):
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user:
         return {"status": "error", "message": "Bạn chưa đăng nhập."}
+
+    story = db.query(Story).filter(
+        Story.id == request.story_id,
+        Story.user_id == current_user.id,
+    ).first()
+    if not story:
+        return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền truy cập."}
         
     # 1. Parse text to JSON panels using LLM
     from agents.comic_agent import ComicDirectorAgent
@@ -330,6 +357,29 @@ from agents.copilot_agent import CopilotAgent
 # In-memory session store for story memories
 STORY_SESSIONS = {}
 
+def get_story_session(session_id: str, current_user: User):
+    memory = STORY_SESSIONS.get(session_id)
+    if memory or not current_user:
+        return memory
+
+    db = SessionLocal()
+    try:
+        story = db.query(Story).filter(
+            Story.session_id == session_id,
+            Story.user_id == current_user.id,
+        ).first()
+        if not story or not story.memory_data:
+            return None
+
+        memory = StoryMemory.from_dict(json.loads(story.memory_data))
+        STORY_SESSIONS[session_id] = memory
+        return memory
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        print(f"Session restore error: {e}")
+        return None
+    finally:
+        db.close()
+
 copilot = None
 def get_copilot():
     global copilot
@@ -364,7 +414,20 @@ class CopilotEventRequest(BaseModel):
 @app.post("/api/copilot-event")
 def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get_current_user)):
     try:
-        memory = STORY_SESSIONS.get(request.session_id)
+        memory = get_story_session(request.session_id, current_user)
+
+        if not current_user:
+            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
+        db = SessionLocal()
+        try:
+            story = db.query(Story).filter(
+                Story.session_id == request.session_id,
+                Story.user_id == current_user.id,
+            ).first()
+            if not story:
+                return JSONResponse(status_code=404, content={"status": "error", "message": "Không tìm thấy phiên truyện hoặc không có quyền truy cập."})
+        finally:
+            db.close()
         
         agent = get_copilot()
         # Copilot process the event and decides the action
@@ -470,9 +533,22 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
 @app.post("/api/generate-chapter")
 def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_current_user)):
     try:
-        memory = STORY_SESSIONS.get(request.session_id)
+        memory = get_story_session(request.session_id, current_user)
         if not memory:
             return JSONResponse(status_code=404, content={"status": "error", "message": "Session khong ton tai hoac da het han."})
+
+        if not current_user:
+            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
+        db = SessionLocal()
+        try:
+            story = db.query(Story).filter(
+                Story.session_id == request.session_id,
+                Story.user_id == current_user.id,
+            ).first()
+            if not story:
+                return JSONResponse(status_code=404, content={"status": "error", "message": "Không tìm thấy phiên truyện hoặc không có quyền truy cập."})
+        finally:
+            db.close()
 
         gen = get_story_generator()
         extractor = get_memory_extractor()
@@ -523,9 +599,22 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
 @app.post("/api/end-story")
 def end_story(request: EndStoryRequest, current_user: User = Depends(get_current_user)):
     try:
-        memory = STORY_SESSIONS.get(request.session_id)
+        memory = get_story_session(request.session_id, current_user)
         if not memory:
             return JSONResponse(status_code=404, content={"status": "error", "message": "Session khong ton tai."})
+
+        if not current_user:
+            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
+        db = SessionLocal()
+        try:
+            story = db.query(Story).filter(
+                Story.session_id == request.session_id,
+                Story.user_id == current_user.id,
+            ).first()
+            if not story:
+                return JSONResponse(status_code=404, content={"status": "error", "message": "Không tìm thấy phiên truyện hoặc không có quyền truy cập."})
+        finally:
+            db.close()
 
         gen = get_story_generator()
 
@@ -568,4 +657,4 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))

@@ -3,7 +3,6 @@ import os
 import json
 import re
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 MODEL = "qwen/qwen3.8-27b"
 
 COMIC_DIRECTOR_SYSTEM_PROMPT = """Bạn là một Đạo diễn Truyện tranh (Comic Director) chuyên nghiệp cấp cao.
@@ -32,11 +31,14 @@ QUY TẮC NGHIÊM NGẶT:
 
 class ComicDirectorAgent:
     def __init__(self):
-        pass
+        api_key = os.environ.get("GROQ_API_KEY_COMIC") or os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("Thiếu GROQ_API_KEY_COMIC hoặc GROQ_API_KEY")
+        self.client = Groq(api_key=api_key)
 
     def generate_comic_script(self, story_text: str):
         try:
-            response = client.chat.completions.create(
+            response = self.client.chat.completions.create(
                 messages=[
                     {
                         "role": "system",

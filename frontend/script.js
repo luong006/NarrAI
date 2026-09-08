@@ -5,6 +5,7 @@ let globalData = {
     chatHistory: [],
     refinedPrompt: "",
     sessionId: null,
+    storyId: null,
     selectedLength: "medium"
 };
 
@@ -526,6 +527,11 @@ async function generateStory() {
                 chatHistory.innerHTML += '<div class="chat-message chat-ai">Chuong 1 da hoan tat! Ban co the an "Viet tiep chuong moi" de AI viet tiep, hoac "Ket thuc truyen" de AI viet doan ket.</div>';
             }
         }
+        const storyMatch = fullStory.match(/\[STORY_ID:(\d+)\]/);
+        if (storyMatch) {
+            globalData.storyId = Number(storyMatch[1]);
+            output.innerHTML = output.innerHTML.replace(/\[STORY_ID:\d+\]/, '');
+        }
     } catch (error) {
         output.innerHTML += `<p style="color: red;">Lỗi: ${error.message}</p>`;
     }
@@ -955,10 +961,13 @@ async function adaptToComic() {
     loader.style.display = 'block';
     
     try {
+        if (!globalData.storyId) {
+            throw new Error('Chưa có mã bản thảo để chuyển thể truyện tranh. Hãy tạo và lưu truyện trước.');
+        }
         const res = await fetch(`${API_URL}/comic/generate`, {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify({ story_id: 1, story_text: text.substring(0, 30000) })
+            body: JSON.stringify({ story_id: globalData.storyId, story_text: text.substring(0, 30000) })
         });
         const data = await res.json();
         loader.style.display = 'none';
