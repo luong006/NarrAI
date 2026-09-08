@@ -2,8 +2,12 @@ from groq import Groq
 import os
 
 class GroqClient:
-    def __init__(self, model_name: str = "openai/gpt-oss-120b"):
-        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    def __init__(self, model_name: str = "openai/gpt-oss-120b", api_key: str = None):
+        self.api_key = api_key or os.environ.get("GROQ_API_KEY")
+        if not self.api_key:
+            raise ValueError("Thiếu GROQ_API_KEY")
+            
+        self.client = Groq(api_key=self.api_key)
         self.model = model_name
     
     def chat(self, messages, temperature=0.7, max_tokens=2000, response_format=None):

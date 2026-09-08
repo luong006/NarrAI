@@ -1016,38 +1016,47 @@ async function sendAssistantMessage() {
     addMessageToChat('user', msg);
     input.value = '';
     
-    // Get current story state
-    const currentStory = document.getElementById('storyOutput').innerText;
-    
     // Show AI Loading
     const loader = document.getElementById('aiLoading');
     loader.style.display = 'block';
     
     try {
-        const res = await fetch(`${API_URL}/chat`, {
+        const res = await fetch(`${API_URL}/copilot-event`, {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({ 
-                story_text: currentStory, 
-                user_message: msg 
+                session_id: globalData.sessionId || 'temp',
+                event_type: 'USER_CHAT', 
+                event_data: msg 
             })
         });
         
         const data = await res.json();
         loader.style.display = 'none';
         
-        if (res.status === 401) { alert('Vui lng dang nh?p l?i.'); return; }
-        
         if (data.status === 'success') {
-            // Add AI response to chat
-            addMessageToChat('ai', data.chat_reply);
-            
-            // Append new story content if provided
-            if (data.new_story_content) {
-                const editor = document.getElementById('storyOutput');
-                if (editor.innerText.trim() !== '') {
-                    editor.innerHTML += '<br><br>';
-                }
+            const action = data.data.action;
+            const params = data.data.action_params || {};
+
+            if (action === 'reply_user') {
+                addMessageToChat('ai', params.message || '...');
+            } else if (action === 'command_writer') {
+                if (params.message) addMessageToChat('ai', params.message);
+                await continueWritingWithInstruction(params.instruction);
+            } else if (action === 'reject_and_rewrite') {
+                addMessageToChat('ai', 'Trợ lý: Đang yêu cầu viết lại vì bản nháp không đạt yêu cầu: ' + (params.critique || ''));
+                await continueWritingWithInstruction(params.fix_instruction);
+            } else {
+                addMessageToChat('ai', 'Đã xử lý xong tác vụ: ' + action);
+            }
+        } else {
+            addMessageToChat('ai', 'Lỗi: ' + data.message);
+        }
+    } catch (err) {
+        loader.style.display = 'none';
+        addMessageToChat('ai', 'Lỗi kết nối máy chủ Copilot.');
+    }
+}
                 // Format the text and append
                 const formatted = data.new_story_content.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
                 editor.innerHTML += formatted;

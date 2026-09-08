@@ -363,19 +363,27 @@ class CopilotEventRequest(BaseModel):
 
 @app.post("/api/copilot-event")
 def copilot_event(request: CopilotEventRequest):
-    memory = STORY_SESSIONS.get(request.session_id)
-    
-    agent = get_copilot()
-    # Copilot process the event and decides the action
-    result = agent.process_event(request.event_type, request.event_data, memory)
-    
-    print(f"--- MASTER CONTROLLER THOUGHT ---")
-    print(result.get('thought', 'No thought'))
-    print(f"ACTION: {result.get('action')}")
-    print(f"PARAMS: {result.get('action_params')}")
-    print(f"---------------------------------")
-    
-    return {"status": "success", "data": result}
+    try:
+        memory = STORY_SESSIONS.get(request.session_id)
+        
+        agent = get_copilot()
+        # Copilot process the event and decides the action
+        result = agent.process_event(request.event_type, request.event_data, memory)
+        
+        # Safe print for Windows
+        try:
+            print(f"--- MASTER CONTROLLER THOUGHT ---")
+            print(str(result.get('thought', 'No thought')).encode('utf-8', 'replace').decode('utf-8'))
+            print(f"ACTION: {result.get('action')}")
+            print(f"---------------------------------")
+        except:
+            pass
+            
+        return {"status": "success", "data": result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
     
 @app.post("/api/init-story")
 def init_story(request: InitStoryRequest, current_user: User = Depends(get_current_user)):
