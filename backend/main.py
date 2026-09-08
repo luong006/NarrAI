@@ -17,6 +17,12 @@ REQUIRED_API_KEYS = {
     "GROQ_API_KEY_COPILOT": "Master Controller / Copilot",
 }
 
+def safe_generation_error(error, operation="sinh truyện"):
+    message = str(error)
+    if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
+        return f"Yêu cầu {operation} vượt giới hạn token hiện tại. Hãy chọn nội dung ngắn hơn hoặc thử lại sau."
+    return f"Không thể {operation} lúc này. Vui lòng thử lại sau."
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -89,6 +95,7 @@ class ChatInterviewRequest(BaseModel):
 class ChatRequest(BaseModel):
     story_text: str
     user_message: str
+    story_id: int | None = None
 
 class GenerateStoryRequest(BaseModel):
     refined_prompt: str
@@ -178,10 +185,7 @@ def generate_story(request: GenerateStoryRequest, current_user: User = Depends(g
                     full_story += chunk
                     yield chunk
             except Exception as e:
-                message = str(e)
-                if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
-                    message = "Yêu cầu viết truyện vượt giới hạn gói Groq hiện tại. Hãy chọn độ dài ngắn hơn hoặc thử lại sau."
-                yield f"\n\n[Lỗi sinh truyện: {message}]"
+                yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e)}]"
                 return
                 
             word_count = len(full_story.split())
@@ -348,6 +352,20 @@ async def chat_with_assistant(request: ChatRequest, current_user: User = Depends
     try:
         gen = get_story_generator()
         response = gen.handle_chat_instruction(request.story_text, request.user_message)
+        if request.story_id:
+            db = SessionLocal()
+            try:
+                story = db.query(Story).filter(
+                    Story.id == request.story_id,
+                    Story.user_id == current_user.id,
+                ).first()
+                if story and response.get("new_story_content"):
+                    addition = response["new_story_content"]
+                    story.story_content = f"{story.story_content}\n\n{addition}" if story.story_content else addition
+                    story.word_count = len(story.story_content.split())
+                    db.commit()
+            finally:
+                db.close()
         return {"status": "success", "chat_reply": response.get("chat_reply", ""), "new_story_content": response.get("new_story_content", "")}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -416,6 +434,7 @@ class CopilotEventRequest(BaseModel):
     session_id: str
     event_type: str
     event_data: str
+    story_id: int | None = None
 
 @app.post("/api/copilot-event")
 def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get_current_user)):
@@ -426,12 +445,16 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
             return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
         db = SessionLocal()
         try:
-            story = db.query(Story).filter(
-                Story.session_id == request.session_id,
-                Story.user_id == current_user.id,
-            ).first()
+            story_query = db.query(Story).filter(Story.user_id == current_user.id)
+            if request.story_id:
+                story_query = story_query.filter(Story.id == request.story_id)
+            else:
+                story_query = story_query.filter(Story.session_id == request.session_id)
+            story = story_query.first()
             if not story:
                 return JSONResponse(status_code=404, content={"status": "error", "message": "Không tìm thấy phiên truyện hoặc không có quyền truy cập."})
+            if memory is None and story.memory_data:
+                memory = StoryMemory.from_dict(json.loads(story.memory_data))
         finally:
             db.close()
         
@@ -453,7 +476,12 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
         if memory and current_user:
             db = SessionLocal()
             try:
-                story = db.query(Story).filter(Story.session_id == request.session_id).first()
+                story_query = db.query(Story).filter(Story.user_id == current_user.id)
+                if request.story_id:
+                    story_query = story_query.filter(Story.id == request.story_id)
+                else:
+                    story_query = story_query.filter(Story.session_id == request.session_id)
+                story = story_query.first()
                 if story:
                     story.memory_data = memory_json(memory)
                     db.commit()
@@ -490,10 +518,7 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
-                message = str(e)
-                if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
-                    message = "Yêu cầu viết chương vượt giới hạn gói Groq hiện tại. Hãy thử lại với nội dung ngắn hơn."
-                yield f"\n\n[Loi sinh truyen: {message}]"
+                yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e, 'sinh chương')}]"
                 return
 
             # Step 4: Update memory with chapter 1
@@ -572,7 +597,7 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
-                yield f"\n\n[Loi sinh truyen: {str(e)}]"
+                yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e, 'sinh chương')}]"
                 return
 
             # Update memory
@@ -635,10 +660,7 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
                     ending_text += chunk
                     yield chunk
             except Exception as e:
-                message = str(e)
-                if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
-                    message = "Yêu cầu viết đoạn kết vượt giới hạn gói Groq hiện tại. Hãy thử lại sau."
-                yield f"\n\n[Loi: {message}]"
+                yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e, 'viết đoạn kết')}]"
                 return
 
             memory.append_chapter(ending_text)

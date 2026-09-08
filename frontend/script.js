@@ -472,6 +472,9 @@ async function generateStory() {
     else if (pacing == 3) extraPrompt += " Nhịp độ truyện nhanh, dồn dập, tập trung vào hành động và hội thoại kịch tính. ";
     
     globalData.finalPromptForGeneration = globalData.refinedPrompt + "\n" + extraPrompt;
+    // A new draft must never reuse a long-story session from a previous draft.
+    globalData.sessionId = null;
+    globalData.storyId = null;
     
     document.getElementById('setupView').style.display = 'none';
     document.getElementById('editorView').style.display = 'block';
@@ -506,7 +509,7 @@ async function generateStory() {
             stopLatencySensor();
             fullStory += chunk;
             
-            const formattedStory = fullStory
+            const formattedStory = cleanStreamText(fullStory)
                 .split('\n')
                 .filter(line => line.trim())
                 .map(line => `<p>${line}</p>`)
@@ -518,7 +521,7 @@ async function generateStory() {
 
         const generationError = getStreamError(fullStory);
         if (generationError) {
-            output.textContent = generationError[1];
+            output.textContent = generationError;
             output.style.color = '#b91c1c';
             return;
         }
@@ -541,7 +544,8 @@ async function generateStory() {
             output.innerHTML = output.innerHTML.replace(/\[STORY_ID:\d+\]/, '');
         }
     } catch (error) {
-        output.innerHTML += `<p style="color: red;">Lỗi: ${error.message}</p>`;
+        output.textContent = 'Không thể sinh truyện lúc này. Vui lòng thử lại sau.';
+        output.style.color = '#b91c1c';
     }
 }
 
@@ -553,8 +557,14 @@ function updateWordCount() {
 }
 
 function getStreamError(text) {
-    const match = text.match(/\[(?:Lỗi sinh truyện|Loi sinh truyen|Lỗi):\s*([\s\S]*?)\]/i);
+    const match = text.match(/\[(?:GENERATION_ERROR|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):\s*([\s\S]*?)\]/i);
     return match ? match[1].trim() : null;
+}
+
+function cleanStreamText(text) {
+    return text
+        .replace(/\[(?:GENERATION_ERROR|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):[\s\S]*$/i, '')
+        .replace(/\[(?:SESSION_ID|STORY_ID):[^\]]*\]/g, '');
 }
 
 
@@ -891,6 +901,8 @@ window.onclick = function(event) {
 function renderStoryDetail(data) {
     const output = document.getElementById('storyOutput');
     if(data.status === 'success') {
+        globalData.sessionId = null;
+        globalData.storyId = null;
         const formattedStory = (data.story.story_content || '')
             .split('\n')
             .filter(line => line.trim())
@@ -903,6 +915,7 @@ function renderStoryDetail(data) {
         if (data.story.session_id) {
             globalData.sessionId = data.story.session_id;
         }
+        globalData.storyId = data.story.id || null;
         if (data.story.refined_prompt) {
             globalData.refinedPrompt = data.story.refined_prompt;
         }
@@ -1072,20 +1085,27 @@ async function sendAssistantMessage() {
     loader.style.display = 'block';
     
     try {
+        const storyContext = document.getElementById('storyOutput').innerText.slice(-6000);
         const res = await fetch(`${API_URL}/copilot-event`, {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({ 
                 session_id: globalData.sessionId || 'temp',
+                story_id: globalData.storyId || null,
                 event_type: 'USER_CHAT', 
-                event_data: msg 
+                event_data: JSON.stringify({
+                    user_message: msg,
+                    current_story: storyContext
+                })
             })
         });
         
         const data = await res.json();
         loader.style.display = 'none';
         
-        if (data.status === 'success') {
+        if (!res.ok || data.status !== 'success') {
+            addMessageToChat('ai', `Lỗi Copilot: ${data.message || data.detail || 'Không thể xử lý yêu cầu.'}`);
+        } else {
             const action = data.data.action;
             const params = data.data.action_params || {};
 
@@ -1096,12 +1116,10 @@ async function sendAssistantMessage() {
                 await continueWritingWithInstruction(params.instruction);
             } else if (action === 'reject_and_rewrite') {
                 addMessageToChat('ai', 'Trợ lý: Đang yêu cầu viết lại vì bản nháp không đạt yêu cầu: ' + (params.critique || ''));
-                await continueWritingWithInstruction(params.fix_instruction);
+                await continueWritingWithInstruction(params.fix_instruction || params.instruction || params.critique);
             } else {
                 addMessageToChat('ai', 'Đã xử lý xong tác vụ: ' + action);
             }
-        } else {
-            addMessageToChat('ai', 'Lỗi: ' + data.message);
         }
     } catch (err) {
         loader.style.display = 'none';
@@ -1120,7 +1138,7 @@ async function sendAssistantMessage() {
 
 // =================== STORY ACTION BUTTONS ===================
 
-async function continueWriting() {
+async function continueWriting(userInstruction = '') {
     const storyOutput = document.getElementById('storyOutput');
     const chatHistory = document.getElementById('chatHistory');
 
@@ -1141,7 +1159,7 @@ async function continueWriting() {
                 headers: authHeaders(),
                 body: JSON.stringify({
                     session_id: globalData.sessionId,
-                    user_instruction: ''
+                    user_instruction: userInstruction
                 })
             });
 
@@ -1165,7 +1183,7 @@ async function continueWriting() {
                 newChapter += chunk;
                 
                 // Live update
-                const formatted = newChapter.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+                const formatted = cleanStreamText(newChapter).split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
                 const container = document.getElementById(streamContainerId);
                 if (container) {
                     container.innerHTML = formatted;
@@ -1175,6 +1193,10 @@ async function continueWriting() {
 
             const generationError = getStreamError(newChapter);
             if (generationError) {
+                const streamContainer = document.getElementById(streamContainerId);
+                if (streamContainer) streamContainer.remove();
+                const loadingMessage = chatHistory.querySelectorAll('.chat-message');
+                if (loadingMessage.length > 0) loadingMessage[loadingMessage.length - 1].remove();
                 const errorMessage = document.createElement('div');
                 errorMessage.className = 'chat-message chat-ai';
                 errorMessage.style.color = 'red';
@@ -1207,7 +1229,8 @@ async function continueWriting() {
                 headers: authHeaders(),
                 body: JSON.stringify({
                     story_text: storyOutput.innerText,
-                    user_message: 'Hay viet tiep chuong tiep theo. Toi thieu 2000 tu. Ket thuc bang Cliffhanger.'
+                    story_id: globalData.storyId,
+                    user_message: userInstruction || 'Hay viet tiep chuong tiep theo. Toi thieu 2000 tu. Ket thuc bang Cliffhanger.'
                 })
             });
             const data = await res.json();
@@ -1222,6 +1245,10 @@ async function continueWriting() {
             chatHistory.innerHTML += '<div class="chat-message chat-ai" style="color:red">Lỗi kết nối.</div>';
         }
     }
+}
+
+async function continueWritingWithInstruction(instruction) {
+    await continueWriting(instruction || 'Hay dieu chinh va viet tiep theo yeu cau cua tac gia.');
 }
 
 async function endStory() {
@@ -1263,7 +1290,7 @@ async function endStory() {
             stopLatencySensor();
                 ending += chunk;
                 
-                const formatted = ending.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+                const formatted = cleanStreamText(ending).split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
                 const container = document.getElementById(streamContainerId);
                 if (container) {
                     container.innerHTML = formatted;
@@ -1273,6 +1300,10 @@ async function endStory() {
 
             const generationError = getStreamError(ending);
             if (generationError) {
+                const streamContainer = document.getElementById(streamContainerId);
+                if (streamContainer) streamContainer.remove();
+                const loadingMessage = chatHistory.querySelectorAll('.chat-message');
+                if (loadingMessage.length > 0) loadingMessage[loadingMessage.length - 1].remove();
                 const errorMessage = document.createElement('div');
                 errorMessage.className = 'chat-message chat-ai';
                 errorMessage.style.color = 'red';
