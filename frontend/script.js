@@ -1065,27 +1065,7 @@ async function sendAssistantMessage() {
         addMessageToChat('ai', 'Lỗi kết nối máy chủ Copilot.');
     }
 }
-                // Format the text and append
-                const formatted = data.new_story_content.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
-                editor.innerHTML += formatted;
-                
-                // Update word count
-                const wordCount = editor.innerText.trim().split(/\s+/).filter(w => w.length > 0).length;
-                document.getElementById('wordCount').innerHTML = `${wordCount} <span data-i18n="words">từ</span>`;
-                
-                // Scroll to bottom
-                editor.scrollTop = editor.scrollHeight;
-            }
-        } else {
-            addMessageToChat('ai', 'Lỗi: ' + (data.detail || 'Khng th? k?t n?i.'));
-        }
-    } catch (err) {
-        loader.style.display = 'none';
-        addMessageToChat('ai', 'Lỗi mạng hoặc máy chủ không phản hồi.');
-    }
-}
-
-function addMessageToChat(role, text) {
+                function addMessageToChat(role, text) {
     const history = document.getElementById('chatHistory');
     const msgDiv = document.createElement('div');
     msgDiv.className = role === 'user' ? 'chat-message chat-user' : 'chat-message chat-ai';
