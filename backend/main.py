@@ -178,7 +178,10 @@ def generate_story(request: GenerateStoryRequest, current_user: User = Depends(g
                     full_story += chunk
                     yield chunk
             except Exception as e:
-                yield f"\n\n[Lỗi kết nối sinh truyện: {str(e)}]"
+                message = str(e)
+                if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
+                    message = "Yêu cầu viết truyện vượt giới hạn gói Groq hiện tại. Hãy chọn độ dài ngắn hơn hoặc thử lại sau."
+                yield f"\n\n[Lỗi sinh truyện: {message}]"
                 return
                 
             word_count = len(full_story.split())
@@ -481,12 +484,16 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
         # Step 3: Generate Chapter 1 (streaming)
         def stream_chapter_1():
             chapter_text = ""
+            saved_story_id = None
             try:
                 for chunk in gen.generate_chapter_stream(memory):
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
-                yield f"\n\n[Loi sinh truyen: {str(e)}]"
+                message = str(e)
+                if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
+                    message = "Yêu cầu viết chương vượt giới hạn gói Groq hiện tại. Hãy thử lại với nội dung ngắn hơn."
+                yield f"\n\n[Loi sinh truyen: {message}]"
                 return
 
             # Step 4: Update memory with chapter 1
@@ -517,6 +524,8 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
                     )
                     db.add(new_story)
                     db.commit()
+                    db.refresh(new_story)
+                    saved_story_id = new_story.id
                 except Exception as e:
                     print(f"DB Error: {e}")
                 finally:
@@ -524,6 +533,8 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
 
             # Yield session_id at the end as a special marker
             yield f"\n\n[SESSION_ID:{session_id}]"
+            if saved_story_id:
+                yield f"\n\n[STORY_ID:{saved_story_id}]"
 
         return StreamingResponse(stream_chapter_1(), media_type="text/plain")
     except Exception as e:
@@ -624,7 +635,10 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
                     ending_text += chunk
                     yield chunk
             except Exception as e:
-                yield f"\n\n[Loi: {str(e)}]"
+                message = str(e)
+                if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
+                    message = "Yêu cầu viết đoạn kết vượt giới hạn gói Groq hiện tại. Hãy thử lại sau."
+                yield f"\n\n[Loi: {message}]"
                 return
 
             memory.append_chapter(ending_text)

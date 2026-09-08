@@ -515,6 +515,14 @@ async function generateStory() {
             output.innerHTML = formattedStory;
             updateWordCount();
         }
+
+        const generationError = getStreamError(fullStory);
+        if (generationError) {
+            output.textContent = generationError[1];
+            output.style.color = '#b91c1c';
+            return;
+        }
+
         // Extract session_id if present (from init-story)
         const sessionMatch = fullStory.match(/\[SESSION_ID:([^\]]+)\]/);
         if (sessionMatch) {
@@ -542,6 +550,11 @@ function updateWordCount() {
     const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     const label = i18nDict[currentLang]['words'];
     document.getElementById('wordCount').textContent = `${count} ${label}`;
+}
+
+function getStreamError(text) {
+    const match = text.match(/\[(?:Lỗi sinh truyện|Loi sinh truyen|Lỗi):\s*([\s\S]*?)\]/i);
+    return match ? match[1].trim() : null;
 }
 
 
@@ -969,10 +982,23 @@ async function adaptToComic() {
             headers: authHeaders(),
             body: JSON.stringify({ story_id: globalData.storyId, story_text: text.substring(0, 30000) })
         });
+        if (!res.ok) {
+            let errorMessage = `Comic API lỗi (${res.status})`;
+            try {
+                const errorData = await res.json();
+                errorMessage = errorData.message || errorData.detail || errorMessage;
+            } catch (_) {
+                // Keep the HTTP status when the backend response is not JSON.
+            }
+            throw new Error(errorMessage);
+        }
         const data = await res.json();
         loader.style.display = 'none';
         
         if (data.status === 'success') {
+            if (!Array.isArray(data.panels) || data.panels.length === 0) {
+                throw new Error('Comic Agent không tạo được khung tranh.');
+            }
             data.panels.forEach((p, index) => {
                 const panelDiv = document.createElement('div');
                 panelDiv.className = `comic-panel panel-${p.layout_type}`;
@@ -1001,9 +1027,17 @@ async function adaptToComic() {
                         skeleton.replaceWith(img);
                         img.classList.add('loaded');
                     };
-                    img.onerror = () => {
-                        skeleton.innerHTML = '<span style="color:#c00">Lỗi tải ảnh</span>';
-                    };
+                        let retryCount = 0;
+                        img.onerror = () => {
+                            if (retryCount < 1) {
+                                retryCount += 1;
+                                const retrySeed = Math.floor(Math.random() * 100000);
+                                const separator = p.image_url.includes('?') ? '&' : '?';
+                                img.src = `${p.image_url}${separator}retry=${retrySeed}`;
+                                return;
+                            }
+                            skeleton.innerHTML = '<span style="color:#c00; text-align:center; padding:20px">Không tải được ảnh từ Pollinations.<br><small>Hãy thử lại sau.</small></span>';
+                        };
                     img.src = p.image_url;
                 }, index * 800);
             });
@@ -1013,7 +1047,7 @@ async function adaptToComic() {
         }
     } catch(e) {
         loader.style.display = 'none';
-        alert('Lỗi kết nối hoặc Backend chưa cập nhật xong!');
+        alert(`Không thể tạo truyện tranh: ${e.message}`);
         backToEditor();
     }
 }
@@ -1138,6 +1172,16 @@ async function continueWriting() {
                 }
                 updateWordCount();
             }
+
+            const generationError = getStreamError(newChapter);
+            if (generationError) {
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'chat-message chat-ai';
+                errorMessage.style.color = 'red';
+                errorMessage.textContent = generationError;
+                chatHistory.appendChild(errorMessage);
+                return;
+            }
             
             // Xoa the div tam thoi va gop noi dung vao chinh
             const container = document.getElementById(streamContainerId);
@@ -1225,6 +1269,16 @@ async function endStory() {
                     container.innerHTML = formatted;
                 }
                 updateWordCount();
+            }
+
+            const generationError = getStreamError(ending);
+            if (generationError) {
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'chat-message chat-ai';
+                errorMessage.style.color = 'red';
+                errorMessage.textContent = generationError;
+                chatHistory.appendChild(errorMessage);
+                return;
             }
             
             const container = document.getElementById(streamContainerId);

@@ -19,7 +19,7 @@ Nhiem vu cua ban la giam sat, phan tich loi, va dieu phoi cac AI Agent khac de m
 THONG TIN HE THONG:
 - Tom tat cot truyen da qua: {summaries}
 - Noi dung truyen hien tai (cuoi): {short_context[-2000:] if short_context else 'Trong'}
-- Gioi han he thong (Limit Awareness): Agent Viet Truyen bi gioi han toi da 8192 tokens/lan goi. Do do, neu nguoi dung yeu cau viet mot chuong QUA DAI, hay chia nho ra (yeu cau Agent viet part 1 truoc).
+- Gioi han he thong (Limit Awareness): Agent Viet Truyen bi gioi han toi da 6000 tokens/lan goi. Do do, neu nguoi dung yeu cau viet mot chuong QUA DAI, hay chia nho ra.
 
 CAC LOAI SU KIEN (EVENTS) BAN CO THE NHAN:
 - USER_CHAT: Nguoi dung go tin nhan.

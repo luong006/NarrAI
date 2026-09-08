@@ -1,7 +1,7 @@
-from groq import Groq
 import os
 import json
 import re
+from llm.groq_client import GroqClient
 
 MODEL = "qwen/qwen3.8-27b"
 
@@ -34,11 +34,11 @@ class ComicDirectorAgent:
         api_key = os.environ.get("GROQ_API_KEY_COMIC") or os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise ValueError("Thiếu GROQ_API_KEY_COMIC hoặc GROQ_API_KEY")
-        self.client = Groq(api_key=api_key)
+        self.llm = GroqClient(model_name=MODEL, api_key=api_key)
 
     def generate_comic_script(self, story_text: str):
         try:
-            response = self.client.chat.completions.create(
+            response = self.llm.chat(
                 messages=[
                     {
                         "role": "system",
@@ -49,11 +49,10 @@ class ComicDirectorAgent:
                         "content": f"Hãy chuyển thể nội dung tiểu thuyết sau thành kịch bản truyện tranh JSON:\n\n{story_text}"
                     }
                 ],
-                model=MODEL,
                 temperature=0.7,
-                max_tokens=8192
+                max_tokens=3500
             )
-            raw_output = response.choices[0].message.content
+            raw_output = response
             
             # Clean up markdown formatting or text preamble
             match = re.search(r'\[.*\]', raw_output, re.DOTALL)

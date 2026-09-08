@@ -19,9 +19,9 @@ class StoryGenerator:
 
     def _get_config(self, story_length: str):
         config = {
-            "short": {"word_range": "Duoi 5000 tu", "max_tokens": 8192, "chapter_mode": False},
-            "medium": {"word_range": "Tu 5000 den 6000 tu", "max_tokens": 8192, "chapter_mode": False},
-            "long": {"word_range": "2000 den 3000 tu cho CHUONG NAY", "max_tokens": 8192, "chapter_mode": True}
+            "short": {"word_range": "Khoang 1200 den 2200 tu", "max_tokens": 5500, "chapter_mode": False},
+            "medium": {"word_range": "Khoang 2500 den 4000 tu", "max_tokens": 6000, "chapter_mode": False},
+            "long": {"word_range": "Khoang 1800 den 2500 tu cho CHUONG NAY", "max_tokens": 6000, "chapter_mode": True}
         }
         return config.get(story_length, config["medium"])
 
@@ -39,7 +39,7 @@ DO DAI: Khoang {cfg['word_range']}. Khai trien chi tiet tung tinh huong.
         if cfg['chapter_mode']:
             system_prompt += """
 CHE DO VIET TUNG CHUONG:
-- Chi duoc viet DUY NHAT 1 CHUONG (2000-3000 tu).
+- Chi duoc viet DUY NHAT 1 CHUONG (1800-2500 tu).
 - Chuong co tieu de: ## Chuong X: [Ten chuong]
 - KET THUC bang Cliffhanger manh me.
 - KHONG viet them chuong nao khac."""
@@ -49,11 +49,9 @@ QUY TAC CHUONG:
 - Moi chuong co Tieu de: ## Chuong X: [Ten chuong]
 - Toi thieu 800 tu/chuong. Truyen ngan: toi da 3-4 chuong. Truyen trung binh: toi da 5-6 chuong."""
 
-        system_prompt += f"""
+        system_prompt += """
 
 Ban Phac Thao Cot Truyen:
-{refined_prompt}
-
 Quy tac dinh dang:
 - Dung markdown (##) cho tieu de Chuong.
 - Bat dau NGAY LAP TUC bang: **[TEN TIEU DE TRUYEN]** o dong dau tien.
@@ -61,7 +59,7 @@ Quy tac dinh dang:
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"BAN PHAC THAO COT TRUYEN YEU CAU:\n{refined_prompt}\n\nHay bat dau viet ngay bay gio:"}
+            {"role": "user", "content": f"BAN PHAC THAO COT TRUYEN YEU CAU:\n---\n{refined_prompt}\n---\n\nHay bat dau viet ngay bay gio:"}
         ]
         return messages, cfg["max_tokens"]
 
@@ -114,7 +112,7 @@ NHIEM VU HIEN TAI: Viet CHUONG {next_chapter} cua cau chuyen, bat dau ngay bang 
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
         ]
-        return self.llm.chat_stream(messages, temperature=0.8, max_tokens=8192)
+        return self.llm.chat_stream(messages, temperature=0.8, max_tokens=6000)
 
     def generate_ending_stream(self, memory: StoryMemory):
         """Viết đoạn kết thúc truyện dựa trên Memory."""
@@ -145,7 +143,7 @@ NHIEM VU: Viet DOAN KET THUC cho cau chuyen.
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
         ]
-        return self.llm.chat_stream(messages, temperature=0.8, max_tokens=8192)
+        return self.llm.chat_stream(messages, temperature=0.8, max_tokens=6000)
 
     # ===== LEGACY: Chat instruction (giữ tương thích) =====
     def handle_chat_instruction(self, current_story: str, user_message: str):
