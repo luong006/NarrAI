@@ -872,13 +872,21 @@ window.onclick = function(event) {
 function renderStoryDetail(data) {
     const output = document.getElementById('storyOutput');
     if(data.status === 'success') {
-        const formattedStory = data.story.story_content
+        const formattedStory = (data.story.story_content || '')
             .split('\n')
             .filter(line => line.trim())
             .map(line => `<p>${line}</p>`)
             .join('');
         output.innerHTML = formattedStory;
         updateWordCount();
+        
+        // Restore session state
+        if (data.story.session_id) {
+            globalData.sessionId = data.story.session_id;
+        }
+        if (data.story.refined_prompt) {
+            globalData.refinedPrompt = data.story.refined_prompt;
+        }
     } else {
         output.innerHTML = `<p style="color:red;">${data.message}</p>`;
     }

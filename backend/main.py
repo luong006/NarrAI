@@ -362,7 +362,7 @@ class CopilotEventRequest(BaseModel):
     event_data: str
 
 @app.post("/api/copilot-event")
-def copilot_event(request: CopilotEventRequest):
+def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get_current_user)):
     try:
         memory = STORY_SESSIONS.get(request.session_id)
         
@@ -379,6 +379,22 @@ def copilot_event(request: CopilotEventRequest):
         except:
             pass
             
+        
+        # Save memory changes to DB
+        if memory and current_user:
+            db = SessionLocal()
+            try:
+                story = db.query(Story).filter(Story.session_id == request.session_id).first()
+                if story:
+                    import json
+                    from dataclasses import asdict
+                    story.memory_data = json.dumps(asdict(memory), ensure_ascii=False)
+                    db.commit()
+            except Exception as e:
+                pass
+            finally:
+                db.close()
+                
         return {"status": "success", "data": result}
     except Exception as e:
         import traceback
@@ -424,11 +440,16 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
             if word_count > 10 and current_user:
                 db = SessionLocal()
                 try:
+                    import json
+                    from dataclasses import asdict
                     new_story = Story(
+                        session_id=session_id,
                         user_id=current_user.id,
                         refined_prompt=request.refined_prompt,
                         story_content=chapter_text,
-                        word_count=word_count
+                        word_count=word_count,
+                        bible_data=json.dumps(asdict(memory.story_bible), ensure_ascii=False) if memory.story_bible else None,
+                        memory_data=json.dumps(asdict(memory), ensure_ascii=False)
                     )
                     db.add(new_story)
                     db.commit()
@@ -480,10 +501,13 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
             if current_user:
                 db = SessionLocal()
                 try:
-                    story = db.query(Story).filter(Story.user_id == current_user.id).order_by(Story.id.desc()).first()
+                    story = db.query(Story).filter(Story.session_id == request.session_id).first()
                     if story:
-                        story.story_content = memory.full_text
-                        story.word_count = len(memory.full_text.split())
+                        story.story_content = memory.get_full_story()
+                        story.word_count = len(story.story_content.split())
+                        import json
+                        from dataclasses import asdict
+                        story.memory_data = json.dumps(asdict(memory), ensure_ascii=False)
                         db.commit()
                 except Exception as e:
                     print(f"DB Error: {e}")
@@ -521,10 +545,13 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
             if current_user:
                 db = SessionLocal()
                 try:
-                    story = db.query(Story).filter(Story.user_id == current_user.id).order_by(Story.id.desc()).first()
+                    story = db.query(Story).filter(Story.session_id == request.session_id).first()
                     if story:
-                        story.story_content = memory.full_text
-                        story.word_count = len(memory.full_text.split())
+                        story.story_content = memory.get_full_story()
+                        story.word_count = len(story.story_content.split())
+                        import json
+                        from dataclasses import asdict
+                        story.memory_data = json.dumps(asdict(memory), ensure_ascii=False)
                         db.commit()
                 except Exception as e:
                     print(f"DB Error: {e}")

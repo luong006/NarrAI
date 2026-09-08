@@ -20,6 +20,7 @@ class Story(Base):
     __tablename__ = "stories"
     
     id = Column(Integer, primary_key=True)
+    session_id = Column(String(100), unique=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     initial_prompt = Column(String(500))
     refined_prompt = Column(Text)
@@ -27,6 +28,8 @@ class Story(Base):
     tone = Column(String(100))
     story_content = Column(Text)
     word_count = Column(Integer)
+    bible_data = Column(Text, nullable=True)
+    memory_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     author = relationship("User", back_populates="stories")
