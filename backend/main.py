@@ -691,3 +691,26 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8000")))
+
+
+from fastapi import Response
+from services.cloudflare_ai import generate_image_cf
+
+@app.get("/api/comic/image/{panel_id}")
+def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
+    panel = db.query(ComicPanel).filter(ComicPanel.id == panel_id).first()
+    if not panel:
+        return Response(status_code=404)
+        
+    try:
+        # Request binary image from Cloudflare AI
+        img_bytes = generate_image_cf(panel.image_prompt)
+        return Response(content=img_bytes, media_type="image/png")
+    except Exception as e:
+        print("Image Generate Error:", e)
+        # Fallback to Pollinations API redirect if Cloudflare fails
+        import urllib.parse
+        safe_prompt = urllib.parse.quote(panel.image_prompt or "error")
+        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true"
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=fallback_url)

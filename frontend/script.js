@@ -1044,14 +1044,15 @@ async function adaptToComic() {
                         img.onerror = () => {
                             if (retryCount < 1) {
                                 retryCount += 1;
-                                const retrySeed = Math.floor(Math.random() * 100000);
-                                const separator = p.image_url.includes('?') ? '&' : '?';
-                                img.src = `${p.image_url}${separator}retry=${retrySeed}`;
+                                const retryParam = `retry=${Date.now()}`;
+                                const baseSrc = p.image_url.startsWith('http') ? p.image_url : API_URL.replace('/api', '') + p.image_url;
+                                const separator = baseSrc.includes('?') ? '&' : '?';
+                                img.src = `${baseSrc}${separator}${retryParam}`;
                                 return;
                             }
                             skeleton.innerHTML = '<span style="color:#c00; text-align:center; padding:20px">Không tải được ảnh từ Pollinations.<br><small>Hãy thử lại sau.</small></span>';
                         };
-                    img.src = p.image_url;
+                    img.src = p.image_url.startsWith('http') ? p.image_url : API_URL.replace('/api', '') + p.image_url;
                 }, index * 800);
             });
         } else {
