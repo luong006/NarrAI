@@ -283,7 +283,6 @@ async def health():
     }
 
 # ================= COMIC ENDPOINTS =================
-from services.image_gen import generate_comic_panel_image
 from db.models import Comic, ComicPanel
 
 class ComicRequest(BaseModel):
@@ -292,58 +291,67 @@ class ComicRequest(BaseModel):
 
 @app.post("/api/comic/generate")
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not current_user:
-        return {"status": "error", "message": "Bạn chưa đăng nhập."}
+    try:
+        if not current_user:
+            return {"status": "error", "message": "Bạn chưa đăng nhập."}
 
-    story = db.query(Story).filter(
-        Story.id == request.story_id,
-        Story.user_id == current_user.id,
-    ).first()
-    if not story:
-        return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền truy cập."}
+        story = db.query(Story).filter(
+            Story.id == request.story_id,
+            Story.user_id == current_user.id,
+        ).first()
+        if not story:
+            return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền truy cập."}
+            
+        # 1. Parse text to JSON panels using LLM
+        from agents.comic_agent import ComicDirectorAgent
+        director = ComicDirectorAgent()
+        # Truncate text to reduce token count and prevent timeout
+        truncated_text = request.story_text[:8000]
+        script_data = director.generate_comic_script(truncated_text)
         
-    # 1. Parse text to JSON panels using LLM
-    from agents.comic_agent import ComicDirectorAgent
-    director = ComicDirectorAgent()
-    script_data = director.generate_comic_script(request.story_text)
-    
-    # 2. Save to DB
-    comic = Comic(user_id=current_user.id, story_id=request.story_id, title="Comic Adaptation")
-    db.add(comic)
-    db.commit()
-    db.refresh(comic)
-    
-    # 3. Create panels and generate images
-    panels_response = []
-    for item in script_data:
-        # LLMs often invent slightly different keys, so we check alternatives
-        p_img_prompt = item.get('image_prompt') or item.get('description') or item.get('image_description') or 'comic manga scene'
-        p_dialogue = item.get('dialogue_text') or item.get('dialogue') or item.get('text') or ''
-        p_layout = item.get('layout_type') or item.get('layout') or 'square'
-        
-        # Generate image (using our mock Pollinations API for instant demo)
-        img_url = generate_comic_panel_image(p_img_prompt, seed=comic.id)
-        
-        panel = ComicPanel(
-            comic_id=comic.id,
-            panel_index=item.get('panel_index', 1),
-            image_prompt=p_img_prompt,
-            dialogue_text=p_dialogue,
-            layout_type=p_layout,
-            image_url=img_url
-        )
-        db.add(panel)
+        # 2. Save to DB
+        comic = Comic(user_id=current_user.id, story_id=request.story_id, title="Comic Adaptation")
+        db.add(comic)
         db.commit()
+        db.refresh(comic)
         
-        panels_response.append({
-            'panel_index': panel.panel_index,
-            'image_url': panel.image_url,
-            'image_prompt': panel.image_prompt,
-            'dialogue_text': panel.dialogue_text,
-            'layout_type': panel.layout_type
-        })
-        
-    return {"status": "success", "comic_id": comic.id, "panels": panels_response}
+        # 3. Create panels with Cloudflare proxy image URLs
+        panels_response = []
+        for item in script_data:
+            p_img_prompt = item.get('image_prompt') or item.get('description') or item.get('image_description') or 'comic manga scene'
+            p_dialogue = item.get('dialogue_text') or item.get('dialogue') or item.get('text') or ''
+            p_layout = item.get('layout_type') or item.get('layout') or 'square'
+            
+            panel = ComicPanel(
+                comic_id=comic.id,
+                panel_index=item.get('panel_index', 1),
+                image_prompt=p_img_prompt,
+                dialogue_text=p_dialogue,
+                layout_type=p_layout,
+                image_url=""
+            )
+            db.add(panel)
+            db.commit()
+            db.refresh(panel)
+            
+            # Use the Cloudflare proxy endpoint so images are generated on-demand
+            panel.image_url = f"/api/comic/image/{panel.id}"
+            db.commit()
+            
+            panels_response.append({
+                'panel_id': panel.id,
+                'panel_index': panel.panel_index,
+                'image_url': panel.image_url,
+                'image_prompt': panel.image_prompt,
+                'dialogue_text': panel.dialogue_text,
+                'layout_type': panel.layout_type
+            })
+            
+        return {"status": "success", "comic_id": comic.id, "panels": panels_response}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": f"Lỗi tạo truyện tranh: {str(e)}"}
 
 @app.post("/api/chat")
 async def chat_with_assistant(request: ChatRequest, current_user: User = Depends(get_current_user)):

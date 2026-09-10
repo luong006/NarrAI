@@ -91,8 +91,8 @@ class ComicDirectorAgent:
         if not api_key:
             raise ValueError("Thiếu GROQ_API_KEY_COMIC hoặc GROQ_API_KEY")
         
-        # Using a robust model for following this complex prompt
-        self.llm = GroqClient(model_name="openai/gpt-oss-120b", api_key=api_key)
+        # Using a fast model to avoid timeout on free hosting (30s limit)
+        self.llm = GroqClient(model_name="qwen/qwen3.8-27b", api_key=api_key)
 
     def generate_comic_script(self, story_text: str, memory: StoryMemory = None):
         try:
@@ -115,7 +115,7 @@ class ComicDirectorAgent:
                     },
                     {
                         "role": "user",
-                        "content": f"Based on the following context, generate a 10-15 panel manga comic script. Output ONLY a valid JSON array.\\n\\n{context}"
+                        "content": f"Based on the following context, generate a 6-8 panel manga comic script. Output ONLY a valid JSON array.\\n\\n{context}"
                     }
                 ],
                 temperature=0.3, # Low temp for consistency
