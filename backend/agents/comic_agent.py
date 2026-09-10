@@ -124,14 +124,15 @@ class ComicDirectorAgent:
             raw_output = response
             
             # Clean up markdown formatting or text preamble
-            match = re.search(r'\\[.*\\]', raw_output, re.DOTALL)
+            match = re.search(r'\[.*\]', raw_output, re.DOTALL)
             if match:
                 raw_output = match.group(0)
                 
-            script_data = json.loads(raw_output.strip())
+            script_data = json.loads(raw_output.strip(), strict=False)
             return script_data
         except Exception as e:
             print("Error parsing comic script:", e)
+            print("RAW OUTPUT WAS:", raw_output)
             return [
                 {"panel_index": 1, "image_prompt": "A cinematic wide shot of a beautiful landscape, ink linework, black and white manga, high quality", "dialogue_text": "Lỗi tạo kịch bản, đang dùng bản nháp...", "layout_type": "wide"}
             ]

@@ -711,6 +711,6 @@ def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
         # Fallback to Pollinations API redirect if Cloudflare fails
         import urllib.parse
         safe_prompt = urllib.parse.quote(panel.image_prompt or "error")
-        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true"
+        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_id}"
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url=fallback_url)

@@ -37,11 +37,11 @@ CHI TRA VE JSON. KHONG GIAI THICH GI THEM."""
 
         try:
             response = self.llm.chat(messages, temperature=0.3, max_tokens=2000)
-            json_match = re.search(r'\{.*\}', response.replace('\n', ' '), re.DOTALL)
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                data = json.loads(json_match.group(0))
+                data = json.loads(json_match.group(0), strict=False)
             else:
-                data = json.loads(response)
+                data = json.loads(response, strict=False)
 
             bible = StoryBible(
                 title=data.get("title", ""),
@@ -87,11 +87,11 @@ CHI TRA VE JSON. KHONG GIAI THICH."""
 
         try:
             response = self.llm.chat(messages, temperature=0.3, max_tokens=1500)
-            json_match = re.search(r'\{.*\}', response.replace('\n', ' '), re.DOTALL)
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                data = json.loads(json_match.group(0))
+                data = json.loads(json_match.group(0), strict=False)
             else:
-                data = json.loads(response)
+                data = json.loads(response, strict=False)
 
             # Update memory
             current_memory.chapter_summaries.append(

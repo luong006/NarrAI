@@ -175,10 +175,10 @@ DAU RA BAT BUOC LA JSON:
                 {"role": "user", "content": "Hay thuc hien yeu cau va tra ve JSON."}
             ]
             response = self.llm.chat(messages=messages, temperature=0.7, max_tokens=4000)
-            json_match = re.search(r'\{.*\}', response.replace('\n', ' '), re.DOTALL)
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(0))
-            return json.loads(response)
+                return json.loads(json_match.group(0), strict=False)
+            return json.loads(response, strict=False)
         except Exception as e:
             print("Chat Error:", e)
             return {"chat_reply": "Xin loi, da co loi xay ra.", "new_story_content": ""}

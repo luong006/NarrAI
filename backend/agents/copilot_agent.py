@@ -51,10 +51,10 @@ BAN PHAI TRA VE CHINH XAC JSON VOI CAU TRUC SAU (Va chi JSON):
 
         try:
             response = self.llm.chat(messages, temperature=0.3, max_tokens=2000)
-            json_match = re.search(r'\{.*\}', response.replace('\n', ' '), re.DOTALL)
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(0))
-            return json.loads(response)
+                return json.loads(json_match.group(0), strict=False)
+            return json.loads(response, strict=False)
         except Exception as e:
             print(f"Master Controller Error: {e}")
             return {
