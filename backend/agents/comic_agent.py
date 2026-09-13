@@ -4,92 +4,42 @@ import re
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
-# We use the new, massive prompt provided by the user.
-COMIC_COMPILER_PROMPT = """# SYSTEM ROLE — MANGA IMAGE PROMPT COMPILER
+# System prompt optimized for Shin-chan / classic manga panel style
+COMIC_COMPILER_PROMPT = """# SYSTEM ROLE -- MANGA PANEL PROMPT COMPILER
 
-You are a specialized Visual Prompt Engineer responsible for converting structured narrative and visual requirements into high-quality image-generation prompts for an image generation model.
+You are a specialized Visual Prompt Engineer. You convert Vietnamese story text into image-generation prompts for a manga comic.
 
-You are NOT the final image generator.
-You are NOT primarily a storyteller.
-You are a **prompt compiler and visual direction system**.
+## VISUAL STYLE (MANDATORY FOR ALL PANELS)
+Every image_prompt you generate MUST end with this exact style suffix:
+", manga panel, clean ink linework, black and white, simple bold outlines, expressive cartoon characters, screentone shading, white background, japanese manga style, high contrast"
 
-Your responsibility is to transform abstract instructions into precise, visually actionable instructions that an image generation model can understand.
+## RULES
+1. Read the story text carefully. Identify the KEY MOMENTS that advance the plot.
+2. Create exactly 6 panels that tell the story visually.
+3. Each panel must depict a DIFFERENT scene/moment (do not repeat the same scene).
+4. Focus on CHARACTER ACTIONS and EXPRESSIONS - show don't tell.
+5. If character descriptions are provided in the STORY BIBLE, use them exactly. Do not change hair color, clothing, or features.
+6. Write image_prompt in English only. Keep it under 120 words.
+7. Write dialogue_text in Vietnamese. Keep it SHORT (under 30 words) - like speech bubbles.
+8. Vary layout_type to create visual rhythm: mix "wide" for establishing/action shots, "square" for dialogue/reaction, "tall" for dramatic moments.
 
-Your output must maximize:
-* Visual fidelity
-* Character consistency
-* Scene consistency
-* Composition quality
-* Spatial clarity
-* Emotional accuracy
-* Manga visual language
-* Prompt-model compatibility
-* Instruction priority
+## PANEL COMPOSITION GUIDE (Shin-chan manga style)
+- Use simple, clean compositions with 1-3 characters per panel
+- Characters should have exaggerated facial expressions (surprise, anger, joy, shock)
+- Include speech bubble space in composition (leave open areas near character faces)
+- Background should be simple: indoor rooms, streets, parks - not overly detailed
+- Use comedic framing: zoomed-in reaction faces, chibi proportions for comedy
 
-# 1. PRIMARY OBJECTIVE
-Convert: USER INTENT + SCENE INFORMATION + CHARACTER INFORMATION + WORLD INFORMATION + VISUAL STYLE + CONTINUITY STATE
-into: A PRECISE IMAGE GENERATION PROMPT.
-
-# 2. CORE PRINCIPLE
-Think like a Manga artist, Cinematographer, Art director. Translate abstract concepts into observable visual properties.
-BAD: "Make the scene emotional."
-GOOD: "Close-up framing of the character's face, lowered gaze, tense eyelids, restrained facial expression, large negative space, quiet composition."
-
-# 3. INPUT INTERPRETATION
-Extract: SUBJECT, ACTION, EXPRESSION, POSE, ENVIRONMENT, TIME, CAMERA, COMPOSITION, LIGHTING, STYLE, MATERIAL, ATMOSPHERE, CONTINUITY.
-
-# 4. PROMPT PRIORITY HIERARCHY
-1. Explicit user requirements
-2. Established character identity (from STORY BIBLE)
-3. Established story continuity
-4. Required scene/action
-5. Composition
-...
-
-# 5. CHARACTER CONSISTENCY
-When character information is provided, preserve it exactly. Do not randomly add different hairstyles/clothing.
-If the character is established in the Character Bible, treat that information as canonical.
-
-# 6. CHARACTER DESCRIPTION STRATEGY
-Use the minimum description required to preserve identity.
-Example structure: [CHARACTER ID] * canonical appearance * current clothing state * current pose * current expression * current action.
-
-# 7. SCENE CONSTRUCTION
-Construct the prompt in this conceptual order: Scene subject -> Main action -> Character positioning -> Facial expression -> Camera framing/angle -> Perspective -> Environment -> Lighting -> Manga visual language.
-
-# 8. CAMERA DIRECTION
-Use explicit visual terminology (Extreme close-up, Full shot, High angle, Worm's-eye view).
-
-# 10. MANGA PANEL AWARENESS
-Account for the panel's narrative role (Establishing, Action, Emotional).
-
-# 11. JAPANESE MANGA VISUAL LANGUAGE
-Prioritize visual grammar: Ink linework, controlled line weight, black-and-white rendering, screentone-like shading, high-contrast values, speed lines.
-
-# 12. BLACK-AND-WHITE CONTROL
-Explicitly control pure black areas, white areas, midtone distribution, line density.
-
-# 18. CONTINUITY ENGINE
-Track continuity from panel to panel. Do not introduce continuity errors.
-
-# 25. OUTPUT CONTRACT
-You must output ONLY a strictly formatted JSON array containing the manga panels.
-Each object must have:
-- "panel_index": integer
-- "image_prompt": The highly optimized English prompt for Stable Diffusion XL. MUST include canonical character appearances from the Bible.
-- "dialogue_text": Vietnamese dialogue/narration (short).
-- "layout_type": "square", "wide", or "tall".
-
-DO NOT output any markdown, explanations, or conversational filler outside the JSON array.
+## OUTPUT FORMAT
+Output ONLY a valid JSON array. No markdown, no explanations.
+Each object: {"panel_index": int, "image_prompt": "...", "dialogue_text": "...", "layout_type": "square|wide|tall"}
 """
 
 class ComicDirectorAgent:
     def __init__(self):
-        # We can use the heavy model for complex prompt engineering, or the fast one if it handles JSON well.
-        # Let's use 120b or the default one depending on the keys.
         api_key = os.environ.get("GROQ_API_KEY_COMIC") or os.environ.get("GROQ_API_KEY")
         if not api_key:
-            raise ValueError("Thiếu GROQ_API_KEY_COMIC hoặc GROQ_API_KEY")
+            raise ValueError("Thieu GROQ_API_KEY_COMIC hoac GROQ_API_KEY")
         
         # Using a fast model to avoid timeout on free hosting (30s limit)
         self.llm = GroqClient(model_name="qwen/qwen3.8-27b", api_key=api_key)
@@ -99,13 +49,14 @@ class ComicDirectorAgent:
             # Build Context from Memory
             context = ""
             if memory and memory.story_bible:
-                context += "=== STORY BIBLE (CANONICAL INFORMATION) ===\\n"
-                context += f"Characters: {json.dumps(memory.story_bible.characters, ensure_ascii=False)}\\n"
-                context += f"World/Setting: {memory.story_bible.world_rules}\\n"
-                context += f"Genre/Tone: {memory.story_bible.genre} - {memory.story_bible.tone}\\n\\n"
+                context += "=== STORY BIBLE (CHARACTER APPEARANCES - USE EXACTLY) ===\n"
+                context += f"Characters: {json.dumps(memory.story_bible.characters, ensure_ascii=False)}\n"
+                context += f"World/Setting: {memory.story_bible.world_rules}\n"
+                context += f"Genre/Tone: {memory.story_bible.genre} - {memory.story_bible.tone}\n\n"
                 
-            context += "=== NEW CHAPTER TO ADAPT INTO MANGA ===\\n"
-            context += story_text
+            context += "=== STORY TEXT TO ADAPT ===\n"
+            # Limit text to prevent token overflow
+            context += story_text[:6000]
 
             response = self.llm.chat(
                 messages=[
@@ -115,24 +66,54 @@ class ComicDirectorAgent:
                     },
                     {
                         "role": "user",
-                        "content": f"Based on the following context, generate a 6-8 panel manga comic script. Output ONLY a valid JSON array.\\n\\n{context}"
+                        "content": f"Create exactly 6 manga panels from this story. Output ONLY a JSON array.\n\n{context}"
                     }
                 ],
-                temperature=0.3, # Low temp for consistency
-                max_tokens=4000
+                temperature=0.3,
+                max_tokens=3000
             )
             raw_output = response
             
-            # Clean up markdown formatting or text preamble
-            match = re.search(r'\[.*\]', raw_output, re.DOTALL)
+            # Clean up markdown formatting
+            # Remove ```json ... ``` wrapper if present
+            cleaned = re.sub(r'```(?:json)?\s*', '', raw_output)
+            cleaned = cleaned.strip()
+            
+            # Extract JSON array
+            match = re.search(r'\[.*\]', cleaned, re.DOTALL)
             if match:
-                raw_output = match.group(0)
+                cleaned = match.group(0)
                 
-            script_data = json.loads(raw_output.strip(), strict=False)
-            return script_data
+            script_data = json.loads(cleaned, strict=False)
+            
+            # Validate and ensure exactly 6 panels max
+            if not isinstance(script_data, list):
+                raise ValueError("Output is not a JSON array")
+            
+            # Cap at 6 panels
+            script_data = script_data[:6]
+            
+            # Validate each panel has required fields
+            validated = []
+            for i, item in enumerate(script_data):
+                validated.append({
+                    "panel_index": item.get("panel_index", i + 1),
+                    "image_prompt": item.get("image_prompt", "a manga scene, black and white, clean linework"),
+                    "dialogue_text": item.get("dialogue_text", ""),
+                    "layout_type": item.get("layout_type", "square")
+                })
+            
+            return validated
+            
         except Exception as e:
-            print("Error parsing comic script:", e)
-            print("RAW OUTPUT WAS:", raw_output)
+            print(f"Error parsing comic script: {e}")
+            try:
+                print(f"RAW OUTPUT WAS: {raw_output[:500]}")
+            except:
+                pass
+            # Return 3 fallback panels instead of 1
             return [
-                {"panel_index": 1, "image_prompt": "A cinematic wide shot of a beautiful landscape, ink linework, black and white manga, high quality", "dialogue_text": "Lỗi tạo kịch bản, đang dùng bản nháp...", "layout_type": "wide"}
+                {"panel_index": 1, "image_prompt": "wide establishing shot of a scenic landscape, manga panel, clean ink linework, black and white, simple bold outlines, japanese manga style, high contrast", "dialogue_text": "Cau chuyen bat dau...", "layout_type": "wide"},
+                {"panel_index": 2, "image_prompt": "medium shot of a young character looking determined, manga panel, clean ink linework, black and white, expressive cartoon face, japanese manga style", "dialogue_text": "Hay bat dau cuoc phieu luu!", "layout_type": "square"},
+                {"panel_index": 3, "image_prompt": "dramatic low angle shot of characters walking towards horizon, manga panel, clean ink linework, black and white, simple bold outlines, high contrast", "dialogue_text": "Va hanh trinh bat dau tu day...", "layout_type": "wide"},
             ]
