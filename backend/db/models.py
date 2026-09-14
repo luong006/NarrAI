@@ -42,6 +42,7 @@ class Comic(Base):
     user_id = Column(Integer, ForeignKey('users.id'))
     story_id = Column(Integer, ForeignKey('stories.id'), nullable=True)
     title = Column(String(200))
+    adapted_offset = Column(Integer, default=0)  # tracks how many chars of story_text have been adapted
     created_at = Column(DateTime, default=datetime.utcnow)
     
     author = relationship('User')
@@ -62,3 +63,13 @@ class ComicPanel(Base):
 # Initialize DB
 engine = create_engine('sqlite:///narrai.db', connect_args={'check_same_thread': False})
 Base.metadata.create_all(engine)
+
+# Auto-migration for existing databases
+try:
+    with engine.connect() as conn:
+        from sqlalchemy import text
+        conn.execute(text("ALTER TABLE comics ADD COLUMN adapted_offset INTEGER DEFAULT 0"))
+        conn.commit()
+except Exception:
+    pass  # Column already exists or table freshly created
+

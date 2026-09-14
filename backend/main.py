@@ -289,69 +289,168 @@ class ComicRequest(BaseModel):
     story_id: int
     story_text: str
 
+class ComicContinueRequest(BaseModel):
+    comic_id: int
+    story_text: str
+
+def _save_panels(db, comic, script_data, start_index=0):
+    """Helper to save panel data to DB and return response list."""
+    panels_response = []
+    for i, item in enumerate(script_data):
+        p_img_prompt = item.get('image_prompt', 'comic manga scene')
+        p_dialogue = item.get('dialogue_text', '')
+        p_layout = item.get('layout_type', 'square')
+        
+        panel = ComicPanel(
+            comic_id=comic.id,
+            panel_index=start_index + i + 1,
+            image_prompt=p_img_prompt,
+            dialogue_text=p_dialogue,
+            layout_type=p_layout,
+            image_url=""
+        )
+        db.add(panel)
+        db.commit()
+        db.refresh(panel)
+        
+        panel.image_url = f"/api/comic/image/{panel.id}"
+        db.commit()
+        
+        panels_response.append({
+            'panel_id': panel.id,
+            'panel_index': panel.panel_index,
+            'image_url': panel.image_url,
+            'image_prompt': panel.image_prompt,
+            'dialogue_text': panel.dialogue_text,
+            'layout_type': panel.layout_type
+        })
+    return panels_response
+
+def _get_story_memory(story, db):
+    """Load StoryMemory from DB for ontology context."""
+    try:
+        if story and story.memory_data:
+            from agents.story_memory import StoryMemory
+            return StoryMemory.from_dict(json.loads(story.memory_data))
+    except:
+        pass
+    return None
+
 @app.post("/api/comic/generate")
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         if not current_user:
-            return {"status": "error", "message": "Bạn chưa đăng nhập."}
+            return {"status": "error", "message": "Ban chua dang nhap."}
 
         story = db.query(Story).filter(
             Story.id == request.story_id,
             Story.user_id == current_user.id,
         ).first()
         if not story:
-            return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền truy cập."}
+            return {"status": "error", "message": "Khong tim thay truyen hoac khong co quyen truy cap."}
+        
+        # Load memory for ontology
+        memory = _get_story_memory(story, db)
+        
+        # Take first chunk of text (up to 6000 chars)
+        chunk_size = 6000
+        text_to_adapt = request.story_text[:chunk_size]
+        adapted_len = len(text_to_adapt)
             
-        # 1. Parse text to JSON panels using LLM
+        # Generate panels
         from agents.comic_agent import ComicDirectorAgent
         director = ComicDirectorAgent()
-        # Truncate text to reduce token count and prevent timeout
-        truncated_text = request.story_text[:8000]
-        script_data = director.generate_comic_script(truncated_text)
+        script_data = director.generate_comic_script(text_to_adapt, memory=memory)
         
-        # 2. Save to DB
-        comic = Comic(user_id=current_user.id, story_id=request.story_id, title="Comic Adaptation")
+        # Save comic with adapted_offset
+        comic = Comic(user_id=current_user.id, story_id=request.story_id, title="Comic Adaptation", adapted_offset=adapted_len)
         db.add(comic)
         db.commit()
         db.refresh(comic)
         
-        # 3. Create panels with Cloudflare proxy image URLs
-        panels_response = []
-        for item in script_data:
-            p_img_prompt = item.get('image_prompt') or item.get('description') or item.get('image_description') or 'comic manga scene'
-            p_dialogue = item.get('dialogue_text') or item.get('dialogue') or item.get('text') or ''
-            p_layout = item.get('layout_type') or item.get('layout') or 'square'
+        panels_response = _save_panels(db, comic, script_data)
+        
+        # Check if there's more text to adapt
+        has_more = len(request.story_text) > adapted_len
             
-            panel = ComicPanel(
-                comic_id=comic.id,
-                panel_index=item.get('panel_index', 1),
-                image_prompt=p_img_prompt,
-                dialogue_text=p_dialogue,
-                layout_type=p_layout,
-                image_url=""
-            )
-            db.add(panel)
-            db.commit()
-            db.refresh(panel)
-            
-            # Use the Cloudflare proxy endpoint so images are generated on-demand
-            panel.image_url = f"/api/comic/image/{panel.id}"
-            db.commit()
-            
-            panels_response.append({
-                'panel_id': panel.id,
-                'panel_index': panel.panel_index,
-                'image_url': panel.image_url,
-                'image_prompt': panel.image_prompt,
-                'dialogue_text': panel.dialogue_text,
-                'layout_type': panel.layout_type
-            })
-            
-        return {"status": "success", "comic_id": comic.id, "panels": panels_response}
+        return {
+            "status": "success",
+            "comic_id": comic.id,
+            "panels": panels_response,
+            "adapted_offset": adapted_len,
+            "has_more": has_more
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return {"status": "error", "message": f"Lỗi tạo truyện tranh: {str(e)}"}
+        return {"status": "error", "message": f"Loi tao truyen tranh: {str(e)}"}
+
+@app.post("/api/comic/continue")
+def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        if not current_user:
+            return {"status": "error", "message": "Ban chua dang nhap."}
+
+        comic = db.query(Comic).filter(
+            Comic.id == request.comic_id,
+            Comic.user_id == current_user.id,
+        ).first()
+        if not comic:
+            return {"status": "error", "message": "Khong tim thay truyen tranh."}
+        
+        # Check if there's new text to adapt
+        current_offset = comic.adapted_offset or 0
+        remaining_text = request.story_text[current_offset:]
+        
+        if len(remaining_text.strip()) < 50:
+            return {"status": "error", "message": "Noi dung truyen chua duoc viet them. Hay viet tiep truyen chu truoc khi tao them truyen tranh.", "no_more_text": True}
+        
+        # Get previous panels summary for continuity
+        existing_panels = db.query(ComicPanel).filter(
+            ComicPanel.comic_id == comic.id
+        ).order_by(ComicPanel.panel_index).all()
+        
+        previous_summary = " -> ".join([
+            f"Panel {p.panel_index}: {p.dialogue_text}" 
+            for p in existing_panels[-6:] if p.dialogue_text
+        ])
+        
+        # Get max panel_index for continuation numbering
+        max_index = max([p.panel_index for p in existing_panels]) if existing_panels else 0
+        
+        # Load memory for ontology
+        story = db.query(Story).filter(Story.id == comic.story_id).first()
+        memory = _get_story_memory(story, db)
+        
+        # Generate continuation
+        chunk_size = 6000
+        new_text = remaining_text[:chunk_size]
+        
+        from agents.comic_agent import ComicDirectorAgent
+        director = ComicDirectorAgent()
+        script_data = director.generate_continuation(previous_summary, new_text, memory=memory)
+        
+        panels_response = _save_panels(db, comic, script_data, start_index=max_index)
+        
+        # Update adapted_offset
+        comic.adapted_offset = current_offset + len(new_text)
+        db.commit()
+        
+        has_more = len(request.story_text) > comic.adapted_offset
+        
+        return {
+            "status": "success",
+            "comic_id": comic.id,
+            "panels": panels_response,
+            "adapted_offset": comic.adapted_offset,
+            "has_more": has_more
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": f"Loi tiep tuc truyen tranh: {str(e)}"}
+
+
 
 @app.post("/api/chat")
 async def chat_with_assistant(request: ChatRequest, current_user: User = Depends(get_current_user)):
@@ -713,12 +812,14 @@ def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
     try:
         # Request binary image from Cloudflare AI
         img_bytes = generate_image_cf(panel.image_prompt)
-        return Response(content=img_bytes, media_type="image/png")
+        # Auto-detect format: JPEG starts with \xff\xd8, PNG with \x89PNG
+        content_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
+        return Response(content=img_bytes, media_type=content_type)
     except Exception as e:
         print("Image Generate Error:", e)
         # Fallback to Pollinations API redirect if Cloudflare fails
         import urllib.parse
-        safe_prompt = urllib.parse.quote(panel.image_prompt or "error")
+        safe_prompt = urllib.parse.quote((panel.image_prompt or "error")[:500])
         fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_id}"
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url=fallback_url)
