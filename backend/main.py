@@ -303,7 +303,7 @@ def _save_panels(db, comic, script_data, start_index=0):
         
         panel = ComicPanel(
             comic_id=comic.id,
-            panel_index=start_index + i + 1,
+            panel_index=start_index + item.get('panel_index', i + 1),
             image_prompt=p_img_prompt,
             dialogue_text=p_dialogue,
             layout_type=p_layout,
