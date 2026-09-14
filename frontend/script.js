@@ -967,58 +967,62 @@ let comicHasMore = false;
 function _renderPanels(panels, grid) {
     panels.forEach((p, index) => {
         const panelDiv = document.createElement('div');
-        panelDiv.className = `comic-panel panel-${p.layout_type}`;
+        panelDiv.className = `comic-panel panel-${p.layout_type || 'square'}`;
 
         // Skeleton placeholder
         const skeleton = document.createElement('div');
         skeleton.className = 'comic-panel-skeleton';
-        skeleton.innerHTML = '<span>Đang tải ảnh...</span>';
+        skeleton.innerHTML = '<span>Đang khắc họa nét vẽ...</span>';
         panelDiv.appendChild(skeleton);
 
-        // Speech bubble overlaid on panel
-        if (p.dialogue_text) {
+        // Speech bubble overlaid on panel - strictly no scrollbars
+        if (p.dialogue_text && p.dialogue_text.trim()) {
             const bubble = document.createElement('div');
             bubble.className = 'speech-bubble';
-            bubble.innerText = p.dialogue_text;
+            bubble.innerText = p.dialogue_text.trim();
             panelDiv.appendChild(bubble);
         }
 
         grid.appendChild(panelDiv);
 
-        // Lazy load image with stagger
+        // Lazy load image with 600ms stagger to ensure smooth rendering
         setTimeout(() => {
             const img = document.createElement('img');
-            img.alt = 'Comic Panel';
+            img.alt = p.image_prompt || 'Manga Comic Panel';
             img.onload = () => {
                 skeleton.replaceWith(img);
                 img.classList.add('loaded');
             };
             let retryCount = 0;
             img.onerror = () => {
-                if (retryCount < 1) {
+                if (retryCount < 2) {
                     retryCount += 1;
                     const baseSrc = p.image_url.startsWith('http') ? p.image_url : API_URL.replace('/api', '') + p.image_url;
-                    img.src = `${baseSrc}?retry=${Date.now()}`;
+                    const separator = baseSrc.includes('?') ? '&' : '?';
+                    setTimeout(() => {
+                        img.src = `${baseSrc}${separator}retry=${Date.now()}`;
+                    }, 1200);
                     return;
                 }
-                skeleton.innerHTML = '<span style="color:#c00; text-align:center; padding:20px">Không tải được ảnh.<br><small>Hãy thử lại sau.</small></span>';
+                skeleton.innerHTML = '<span style="color:#c00; text-align:center; padding:15px; font-size:0.85em">Không tải được tranh.<br><small>Vui lòng thử lại sau.</small></span>';
             };
-            img.src = p.image_url.startsWith('http') ? p.image_url : API_URL.replace('/api', '') + p.image_url;
-        }, index * 800);
+            const baseSrc = p.image_url.startsWith('http') ? p.image_url : API_URL.replace('/api', '') + p.image_url;
+            img.src = baseSrc;
+        }, index * 600);
     });
 }
 
 async function adaptToComic() {
     const text = document.getElementById('storyOutput').innerText;
-    if (!text || text.length < 10) {
-        alert('Cần có nội dung truyện để chuyển thể truyện tranh!');
+    if (!text || text.trim().length < 10) {
+        alert('Cần có nội dung truyện chữ để chuyển thể thành truyện tranh!');
         return;
     }
     
     document.getElementById('editorView').style.display = 'none';
     document.getElementById('comicView').style.display = 'block';
     
-    // If same text and already generated -> reuse
+    // Reuse existing grid if text has not changed
     if (hasGeneratedComic && text === lastComicText) {
         return;
     }
@@ -1032,11 +1036,12 @@ async function adaptToComic() {
     grid.innerHTML = '';
     const loader = document.getElementById('comicLoading');
     loader.style.display = 'block';
-    document.getElementById('btnContinueComic').style.display = 'none';
+    const btnContinue = document.getElementById('btnContinueComic');
+    if (btnContinue) btnContinue.style.display = 'none';
     
     try {
         if (!globalData.storyId) {
-            throw new Error('Chưa có mã bản thảo. Hãy tạo và lưu truyện trước.');
+            throw new Error('Chưa có mã bản thảo. Vui lòng lưu truyện trước khi chuyển thể.');
         }
         const res = await fetch(`${API_URL}/comic/generate`, {
             method: 'POST',
@@ -1053,16 +1058,15 @@ async function adaptToComic() {
         
         if (data.status === 'success') {
             if (!Array.isArray(data.panels) || data.panels.length === 0) {
-                throw new Error('Comic Agent không tạo được khung tranh.');
+                throw new Error('Đạo diễn AI không tạo được khung tranh từ phân đoạn này.');
             }
             currentComicId = data.comic_id;
             comicHasMore = data.has_more;
             
             _renderPanels(data.panels, grid);
             
-            // Show/hide continue button
-            if (comicHasMore) {
-                document.getElementById('btnContinueComic').style.display = 'inline-block';
+            if (btnContinue && comicHasMore) {
+                btnContinue.style.display = 'inline-block';
             }
         } else {
             alert('Lỗi tạo truyện tranh: ' + (data.message || 'Lỗi hệ thống'));
@@ -1077,7 +1081,7 @@ async function adaptToComic() {
 
 async function continueComic() {
     if (!currentComicId) {
-        alert('Chưa có truyện tranh để tiếp tục.');
+        alert('Chưa có truyện tranh để viết tiếp.');
         return;
     }
     
@@ -1087,7 +1091,7 @@ async function continueComic() {
     const btn = document.getElementById('btnContinueComic');
     
     loader.style.display = 'block';
-    btn.style.display = 'none';
+    if (btn) btn.style.display = 'none';
     
     try {
         const res = await fetch(`${API_URL}/comic/continue`, {
@@ -1099,25 +1103,24 @@ async function continueComic() {
         loader.style.display = 'none';
         
         if (data.no_more_text) {
-            alert('Nội dung truyện chữ chưa được viết thêm. Hãy quay lại viết tiếp truyện chữ trước khi tạo thêm truyện tranh.');
-            btn.style.display = 'none';
+            alert('Nội dung truyện chữ chưa được viết thêm. Hãy quay lại viết tiếp truyện chữ trước khi vẽ thêm truyện tranh!');
+            if (btn) btn.style.display = 'none';
         } else if (data.status === 'success') {
-            // APPEND new panels (don't clear old ones)
             _renderPanels(data.panels, grid);
             comicHasMore = data.has_more;
             lastComicText = text;
             
-            if (comicHasMore) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
+            if (btn) {
+                btn.style.display = comicHasMore ? 'inline-block' : 'none';
             }
         } else {
             alert('Lỗi: ' + (data.message || 'Lỗi hệ thống'));
+            if (btn) btn.style.display = 'inline-block';
         }
     } catch(e) {
         loader.style.display = 'none';
         alert(`Không thể tiếp tục truyện tranh: ${e.message}`);
+        if (btn) btn.style.display = 'inline-block';
     }
 }
 

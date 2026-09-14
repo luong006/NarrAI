@@ -26,7 +26,7 @@ def generate_image_cf(prompt: str):
     
     payload = {
         "prompt": prompt,
-        "negative_prompt": "color, colorful, vibrant, saturated, photorealistic, photograph, 3d render, realistic photo, bright colors, rainbow, neon"
+        "negative_prompt": "color, colorful, vibrant, saturated, photorealistic, photograph, photo, realistic, 3d render, digital painting, oil painting, watercolor, bright colors, rainbow, neon, warm tones, cool tones, skin color, blue sky, green grass, red, blue, yellow, orange, purple, pink, colored, CGI, real person, real face, real photo, camera"
     }
     
     last_error = None
