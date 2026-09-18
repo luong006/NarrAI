@@ -109,34 +109,105 @@ class UserCreate(BaseModel):
     username: str
     password: str
 
-# ============ AUTH ENDPOINTS ============
+from fastapi import Request
 
 @app.post("/api/register")
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.username == user.username).first()
+async def register_user(request: Request, db: Session = Depends(get_db)):
+    username = None
+    password = None
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            username = body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            username = form.get("username")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp đầy đủ tên đăng nhập và mật khẩu")
+
+    username = str(username).strip()
+    password = str(password).strip()
+
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Tên đăng nhập phải có ít nhất 3 ký tự")
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 4 ký tự")
+
+    existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
     
-    hashed_password = get_password_hash(user.password)
-    new_user = User(username=user.username, password_hash=hashed_password)
+    hashed_password = get_password_hash(password)
+    new_user = User(username=username, password_hash=hashed_password)
     db.add(new_user)
     db.commit()
-    return {"status": "success", "message": "Đăng ký thành công"}
+
+    # Generate token immediately so user is automatically logged in upon registration
+    access_token = create_access_token(data={"sub": new_user.username})
+    return {
+        "status": "success",
+        "message": "Đăng ký thành công",
+        "access_token": access_token,
+        "token": access_token,
+        "token_type": "bearer",
+        "username": new_user.username
+    }
 
 @app.post("/api/login")
-def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+async def login_user(request: Request, db: Session = Depends(get_db)):
+    username = None
+    password = None
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            username = body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            username = form.get("username")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp đầy đủ tên đăng nhập và mật khẩu")
+
+    username = str(username).strip()
+    password = str(password).strip()
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=400, detail="Sai tên đăng nhập hoặc mật khẩu")
     
     access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer", "username": user.username}
+    return {
+        "status": "success",
+        "access_token": access_token,
+        "token": access_token,
+        "token_type": "bearer",
+        "username": user.username
+    }
 
 @app.get("/api/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Chưa đăng nhập")
-    return {"username": current_user.username}
+    return {"status": "success", "username": current_user.username}
 
 # ============ CORE ENDPOINTS ============
 

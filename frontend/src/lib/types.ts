@@ -6,6 +6,9 @@ export interface User {
 export interface AuthResponse {
   status: 'success' | 'error';
   token?: string;
+  access_token?: string;
+  token_type?: string;
+  username?: string;
   user?: User;
   message?: string;
   detail?: string;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { translations, Language } from "@/lib/i18n";
-import { X, Lock, User as UserIcon } from "lucide-react";
+import { X, Lock, User as UserIcon, AlertCircle, CheckCircle } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +18,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   const t = translations[lang];
@@ -26,28 +27,40 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+
+    if (!cleanUser || !cleanPass) {
       setError(lang === 'vi' ? "Vui lòng nhập đầy đủ tài khoản và mật khẩu." : "Please enter username and password.");
       return;
     }
 
     setLoading(true);
     setError("");
+    setSuccessMsg("");
 
     try {
       const res = isLogin
-        ? await api.login(username.trim(), password)
-        : await api.register(username.trim(), password);
+        ? await api.login(cleanUser, cleanPass)
+        : await api.register(cleanUser, cleanPass);
 
-      if (res.status === 'success' && res.token) {
-        storage.setToken(res.token);
-        onSuccess(username.trim());
-        onClose();
+      if (res.status === 'success') {
+        const token = res.token || res.access_token;
+        if (token) {
+          storage.setToken(token);
+          onSuccess(res.username || cleanUser);
+          onClose();
+        } else {
+          setSuccessMsg(lang === 'vi' ? "Đăng ký thành công! Hãy đăng nhập." : "Registered successfully! Please log in.");
+          setIsLogin(true);
+          setPassword("");
+        }
       } else {
-        setError(res.message || res.detail || (isLogin ? "Đăng nhập thất bại" : "Đăng ký thất bại"));
+        const msg = typeof res.detail === 'string' ? res.detail : (res.message || (isLogin ? "Đăng nhập thất bại" : "Đăng ký thất bại"));
+        setError(msg);
       }
     } catch (err: any) {
-      setError(err.message || "Lỗi kết nối máy chủ");
+      setError(typeof err?.message === 'string' ? err.message : "Lỗi kết nối máy chủ");
     } finally {
       setLoading(false);
     }
@@ -73,8 +86,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
         </p>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm">
-            {error}
+          <div className="mb-4 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/80 text-red-700 dark:text-red-300 text-sm flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1 font-medium">{error}</div>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 text-sm flex items-start gap-2.5">
+            <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="flex-1 font-medium">{successMsg}</div>
           </div>
         )}
 
@@ -87,6 +108,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
               <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder={t.username}
@@ -103,6 +125,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="password"
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t.password}

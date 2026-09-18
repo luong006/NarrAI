@@ -14,29 +14,105 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
+function parseErrorDetail(data: any): string {
+  if (!data) return "Lỗi không xác định từ máy chủ";
+  if (typeof data === "string") return data;
+  if (typeof data.detail === "string") return data.detail;
+  if (Array.isArray(data.detail)) {
+    return data.detail.map((e: any) => e.msg || JSON.stringify(e)).join(", ");
+  }
+  if (data.message && typeof data.message === "string") return data.message;
+  return "Đã xảy ra lỗi không xác định";
+}
+
 export const api = {
   // Auth
-  async login(username: string, password: string):Promise<AuthResponse> {
-    const res = await fetch(`${API_BASE_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    return res.json();
+  async login(username: string, password: string): Promise<AuthResponse> {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('username', username.trim());
+      formData.append('password', password);
+
+      const res = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorText = parseErrorDetail(data);
+        return {
+          status: 'error',
+          detail: errorText,
+          message: errorText,
+        };
+      }
+
+      const token = data.access_token || data.token;
+      return {
+        status: 'success',
+        token,
+        access_token: token,
+        username: data.username || username.trim(),
+      };
+    } catch (err: any) {
+      const msg = err?.message || "Không thể kết nối tới máy chủ (Network Error)";
+      return {
+        status: 'error',
+        detail: msg,
+        message: msg,
+      };
+    }
   },
 
   async register(username: string, password: string): Promise<AuthResponse> {
-    const res = await fetch(`${API_BASE_URL}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorText = parseErrorDetail(data);
+        return {
+          status: 'error',
+          detail: errorText,
+          message: errorText,
+        };
+      }
+
+      const token = data.access_token || data.token;
+      return {
+        status: 'success',
+        message: data.message || 'Đăng ký thành công',
+        token,
+        access_token: token,
+        username: data.username || username.trim(),
+      };
+    } catch (err: any) {
+      const msg = err?.message || "Không thể kết nối tới máy chủ (Network Error)";
+      return {
+        status: 'error',
+        detail: msg,
+        message: msg,
+      };
+    }
   },
 
   async me() {
-    const res = await fetch(`${API_BASE_URL}/me`, { headers: authHeaders() });
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/me`, { headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { status: 'error', message: parseErrorDetail(data) };
+      }
+      return { status: 'success', username: data.username };
+    } catch (err: any) {
+      return { status: 'error', message: err?.message || "Network Error" };
+    }
   },
 
   // Setup Flow
