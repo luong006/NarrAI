@@ -1,4 +1,4 @@
-﻿# Environments
+# Environments
 .env
 .venv
 env/
@@ -19,3 +19,9 @@ narrai.db
 
 # Project zips
 *.zip
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+dist/

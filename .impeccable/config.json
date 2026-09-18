@@ -1,0 +1,21 @@
+{
+  "shared": {
+    "ignores": {
+      "rules": [],
+      "files": [
+        "frontend/src/components/comic/**",
+        "frontend/out/**",
+        "frontend/.next/**",
+        "**/out/**",
+        "**/.next/**"
+      ],
+      "values": [
+        {
+          "rule": "overused-font",
+          "value": "Inter",
+          "reason": "Replaced with Plus Jakarta Sans and Merriweather"
+        }
+      ]
+    }
+  }
+}

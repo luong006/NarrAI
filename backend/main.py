@@ -808,6 +808,15 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ============ FRONTEND STATIC SERVING (NEXT.JS EXPORT) ============
+from fastapi.staticfiles import StaticFiles
+
+frontend_out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "out"))
+if os.path.isdir(frontend_out_dir):
+    print(f"[NarrAI] Mounting Next.js Frontend from: {frontend_out_dir}")
+    app.mount("/", StaticFiles(directory=frontend_out_dir, html=True), name="frontend")
+else:
+    print(f"[NarrAI] Frontend out directory not found at: {frontend_out_dir}")
 
 if __name__ == "__main__":
     import uvicorn
