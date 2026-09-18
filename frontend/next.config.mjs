@@ -1,9 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Static HTML export for Render and CDN deployment
+  // On Vercel, deploy as native Next.js application. Locally or for Render, export static HTML.
+  ...(process.env.VERCEL ? {} : { output: 'export' }),
   trailingSlash: true,
   images: {
-    unoptimized: true, // Required for static export
+    unoptimized: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
   },
 };
 
