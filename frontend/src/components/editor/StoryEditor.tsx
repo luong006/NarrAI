@@ -12,6 +12,7 @@ interface Props {
   onDownload: () => void;
   onSelectText: (selectedText: string) => void;
   onQuickAction: (action: 'rewrite' | 'expand' | 'shorten') => void;
+  onOpenCustomAI?: (selectedText: string) => void;
 }
 
 export function StoryEditor({
@@ -22,14 +23,25 @@ export function StoryEditor({
   onDownload,
   onSelectText,
   onQuickAction,
+  onOpenCustomAI,
 }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [floatingPos, setFloatingPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedText, setSelectedText] = useState("");
+  const isTypingRef = useRef(false);
   const t = translations[lang];
 
+  // Sync content when streaming or loaded externally
+  useEffect(() => {
+    if (editorRef.current && !isTypingRef.current) {
+      if (editorRef.current.innerText !== content) {
+        editorRef.current.innerText = content;
+      }
+    }
+  }, [content]);
+
   // Calculate word count
-  const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const words = content.trim() ? content.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
 
   // Handle text selection for floating toolbar
   const handleMouseUp = () => {
@@ -41,11 +53,11 @@ export function StoryEditor({
     }
 
     const text = selection.toString().trim();
-    if (text.length > 5) {
+    if (text.length > 3) {
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       setFloatingPos({
-        x: Math.max(10, rect.left + rect.width / 2 - 120),
+        x: Math.max(10, rect.left + rect.width / 2 - 140),
         y: Math.max(10, rect.top - 48 + window.scrollY),
       });
       setSelectedText(text);
@@ -97,10 +109,14 @@ export function StoryEditor({
             contentEditable
             suppressContentEditableWarning
             onMouseUp={handleMouseUp}
-            onInput={(e) => onContentChange(e.currentTarget.innerText)}
+            onFocus={() => { isTypingRef.current = true; }}
+            onBlur={() => { isTypingRef.current = false; }}
+            onInput={(e) => {
+              const newTxt = e.currentTarget.innerText;
+              onContentChange(newTxt);
+            }}
             className="outline-none font-serif text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-[1.85] tracking-wide whitespace-pre-wrap min-h-[70vh]"
             data-placeholder={t.editor_placeholder}
-            dangerouslySetInnerHTML={{ __html: content || "" }}
           />
         </div>
       </div>
@@ -112,26 +128,47 @@ export function StoryEditor({
           className="fixed z-40 flex items-center gap-1 p-1 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 animate-in fade-in zoom-in-95 duration-150"
         >
           <button
-            onClick={() => onQuickAction("rewrite")}
+            onClick={() => {
+              onQuickAction("rewrite");
+              setFloatingPos(null);
+            }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
           >
             <Wand2 className="w-3 h-3 text-indigo-400" />
             <span>{t.tool_rewrite}</span>
           </button>
           <button
-            onClick={() => onQuickAction("expand")}
+            onClick={() => {
+              onQuickAction("expand");
+              setFloatingPos(null);
+            }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
           >
             <Maximize2 className="w-3 h-3 text-emerald-400" />
             <span>{t.tool_expand}</span>
           </button>
           <button
-            onClick={() => onQuickAction("shorten")}
+            onClick={() => {
+              onQuickAction("shorten");
+              setFloatingPos(null);
+            }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
           >
             <Minimize2 className="w-3 h-3 text-amber-400" />
             <span>{t.tool_shorten}</span>
           </button>
+          {onOpenCustomAI && (
+            <button
+              onClick={() => {
+                onOpenCustomAI(selectedText);
+                setFloatingPos(null);
+              }}
+              className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors text-indigo-300"
+            >
+              <Sparkles className="w-3 h-3 text-brand-400" />
+              <span>{t.tool_ai}</span>
+            </button>
+          )}
         </div>
       )}
     </div>

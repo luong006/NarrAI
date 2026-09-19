@@ -1,5 +1,14 @@
 import { storage } from './storage';
-import { AuthResponse, StoryDetail, ComicResponse } from './types';
+import {
+  AuthResponse,
+  StoryDetail,
+  ComicResponse,
+  InterviewResponse,
+  RefineResponse,
+  EditTextResponse,
+  CopilotEventResponse,
+  TrendingTopic,
+} from './types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://narrai-c1oc.onrender.com/api';
 
@@ -115,38 +124,45 @@ export const api = {
     }
   },
 
+  async getMe() {
+    return this.me();
+  },
+
   // Setup Flow
-  async chatInterview(initialPrompt: string, history: Array<{role: string; content: string}>, userMessage?: string) {
+  async chatInterview(history: Array<{role: string; content: string}>): Promise<InterviewResponse> {
     const res = await fetch(`${API_BASE_URL}/chat-interview`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({
-        initial_prompt: initialPrompt,
-        chat_history: history,
-        user_message: userMessage,
-      }),
+      body: JSON.stringify({ chat_history: history }),
     });
     return res.json();
   },
 
-  async refinePrompt(initialPrompt: string, history: Array<{role: string; content: string}>) {
+  async refinePrompt(history: Array<{role: string; content: string}>): Promise<RefineResponse> {
     const res = await fetch(`${API_BASE_URL}/refine-prompt`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({
-        initial_prompt: initialPrompt,
-        chat_history: history,
-      }),
+      body: JSON.stringify({ chat_history: history }),
     });
     return res.json();
   },
 
-  // Streaming Text Generation
+  // Trending Topics
+  async getTrendingTopics(): Promise<{ status: string; topics?: TrendingTopic[] }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/trending-topics`);
+      return res.json();
+    } catch {
+      return { status: 'error' };
+    }
+  },
+
+  // Streaming Text Generation (supports generate-story, init-story, generate-chapter, end-story)
   async streamStory(
     endpoint: string,
     payload: Record<string, any>,
-    onChunk: (text: string) => void,
-    onComplete: (fullText: string) => void,
+    onChunk: (cleanChunk: string, cleanAccumulated: string) => void,
+    onComplete: (result: { fullText: string; cleanText: string; sessionId?: string; storyId?: number; error?: string }) => void,
     onError: (err: Error) => void
   ) {
     try {
@@ -162,37 +178,75 @@ export const api = {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
-      let accumulated = '';
+      let fullAccumulated = '';
+
+      const cleanText = (txt: string) => {
+        return txt
+          .replace(/\[(?:GENERATION_ERROR|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):[\s\S]*$/i, '')
+          .replace(/\[(?:SESSION_ID|STORY_ID):[^\]]*\]/g, '')
+          .trim();
+      };
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
-        accumulated += chunk;
-        onChunk(chunk);
+        fullAccumulated += chunk;
+        const currentClean = cleanText(fullAccumulated);
+        onChunk(chunk, currentClean);
       }
 
-      onComplete(accumulated);
+      // Extract Session ID & Story ID & Error
+      const sessionMatch = fullAccumulated.match(/\[SESSION_ID:([^\]]+)\]/);
+      const storyMatch = fullAccumulated.match(/\[STORY_ID:(\d+)\]/);
+      const errorMatch = fullAccumulated.match(/\[(?:GENERATION_ERROR|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):\s*([\s\S]*?)\]/i);
+
+      onComplete({
+        fullText: fullAccumulated,
+        cleanText: cleanText(fullAccumulated),
+        sessionId: sessionMatch ? sessionMatch[1] : undefined,
+        storyId: storyMatch ? Number(storyMatch[1]) : undefined,
+        error: errorMatch ? errorMatch[1].trim() : undefined,
+      });
     } catch (e: any) {
       onError(e);
     }
   },
 
   // Selection Edit
-  async editText(storyText: string, selectedText: string, instruction: string) {
+  async editText(selectedText: string, instruction: string): Promise<EditTextResponse> {
     const res = await fetch(`${API_BASE_URL}/edit-text`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        story_text: storyText,
-        selected_text: selectedText,
+        original_text: selectedText,
         instruction: instruction,
       }),
     });
     return res.json();
   },
 
-  // Copilot Chat
+  // Copilot Event System
+  async sendCopilotEvent(
+    sessionId: string | null,
+    storyId: number | null,
+    eventType: string,
+    eventData: string
+  ): Promise<CopilotEventResponse> {
+    const res = await fetch(`${API_BASE_URL}/copilot-event`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        session_id: sessionId || 'temp',
+        story_id: storyId || null,
+        event_type: eventType,
+        event_data: eventData,
+      }),
+    });
+    return res.json();
+  },
+
+  // Legacy Fallback Chat
   async chatCopilot(storyText: string, userMessage: string, storyId?: number) {
     const res = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',

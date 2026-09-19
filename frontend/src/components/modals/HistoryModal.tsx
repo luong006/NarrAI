@@ -43,6 +43,23 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
     }
   };
 
+  const handleStoryClick = async (id: number) => {
+    setLoading(true);
+    try {
+      const res = await api.getStoryDetail(id);
+      if (res.status === 'success' && res.story) {
+        onSelectStory(res.story);
+        onClose();
+      } else {
+        alert("Không thể tải chi tiết truyện.");
+      }
+    } catch (e: any) {
+      alert("Lỗi tải truyện: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -87,22 +104,19 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
             stories.map((story) => (
               <div
                 key={story.id}
-                onClick={() => {
-                  onSelectStory(story);
-                  onClose();
-                }}
+                onClick={() => handleStoryClick(story.id)}
                 className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-indigo-50/50 dark:bg-slate-800/60 dark:hover:bg-slate-800 cursor-pointer transition-all hover:border-brand-300 dark:hover:border-brand-700"
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-1">
-                    {story.refined_prompt || (lang === 'vi' ? "Bản thảo không tên" : "Untitled Manuscript")}
+                    {story.title || story.refined_prompt || (lang === 'vi' ? "Bản thảo không tên" : "Untitled Manuscript")}
                   </h3>
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                     {story.word_count || 0} {t.words}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
-                  {story.story_content?.replace(/<[^>]*>/g, '') || ""}
+                  {story.snippet || story.story_content?.replace(/<[^>]*>/g, '') || ""}
                 </p>
                 <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
                   <Clock className="w-3 h-3" />

@@ -15,6 +15,45 @@ interface Props {
   loadingMore: boolean;
 }
 
+function ComicPanelCard({ panel, t }: { panel: ComicPanel; t: any }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
+  return (
+    <div className={`comic-panel panel-${panel.layout_type || "square"}`}>
+      {!loaded && !error && (
+        <div className="comic-panel-skeleton">
+          <span>{t.loading_comic}</span>
+        </div>
+      )}
+      {error && (
+        <div className="comic-panel-skeleton text-red-500 text-xs text-center p-4">
+          <span>Không tải được khung tranh. Vui lòng thử lại sau.</span>
+        </div>
+      )}
+      <img
+        src={`${api.getComicImageUrl(panel.image_url)}${retryKey > 0 ? `?retry=${retryKey}` : ''}`}
+        alt={panel.image_prompt || "Manga Comic Panel"}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          if (retryKey < 2) {
+            setTimeout(() => setRetryKey((k) => k + 1), 1500);
+          } else {
+            setError(true);
+          }
+        }}
+        className={loaded ? "loaded" : "opacity-0"}
+      />
+      {panel.dialogue_text && panel.dialogue_text.trim() && (
+        <div className="speech-bubble">
+          {panel.dialogue_text.trim()}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ComicViewer({
   panels,
   hasMore,
@@ -70,34 +109,7 @@ export function ComicViewer({
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="comic-grid">
           {panels.map((panel, idx) => (
-            <div
-              key={panel.panel_id || idx}
-              className={`comic-panel panel-${panel.layout_type || "square"}`}
-            >
-              {/* Image loading */}
-              <img
-                src={api.getComicImageUrl(panel.image_url)}
-                alt={panel.image_prompt || "Manga Comic Panel"}
-                loading="lazy"
-                onError={(e) => {
-                  // Subtle fallback retry
-                  const target = e.currentTarget;
-                  if (!target.dataset.retried) {
-                    target.dataset.retried = "true";
-                    setTimeout(() => {
-                      target.src = `${api.getComicImageUrl(panel.image_url)}?retry=${Date.now()}`;
-                    }, 1500);
-                  }
-                }}
-              />
-
-              {/* Overlaid Speech Bubble - Strictly zero scrollbars */}
-              {panel.dialogue_text && panel.dialogue_text.trim() && (
-                <div className="speech-bubble">
-                  {panel.dialogue_text.trim()}
-                </div>
-              )}
-            </div>
+            <ComicPanelCard key={panel.panel_id || idx} panel={panel} t={t} />
           ))}
         </div>
 

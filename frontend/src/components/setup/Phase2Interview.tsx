@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { translations, Language } from "@/lib/i18n";
 import { ChatMessage } from "@/lib/types";
 import { Send, FastForward, Bot, User } from "lucide-react";
@@ -15,7 +15,12 @@ interface Props {
 
 export function Phase2Interview({ lang, history, onSendMessage, onSkip, loading }: Props) {
   const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const t = translations[lang];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history, loading]);
 
   const handleSend = () => {
     if (!input.trim() || loading) return;
@@ -69,6 +74,7 @@ export function Phase2Interview({ lang, history, onSendMessage, onSkip, loading 
             <span>{t.ai_thinking}</span>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}

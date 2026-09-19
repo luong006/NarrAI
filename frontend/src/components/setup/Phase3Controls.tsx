@@ -25,21 +25,21 @@ export function Phase3Controls({ lang, onStartWriting, loading }: Props) {
   };
 
   const getLengthLabel = () => {
-    if (lengthIndex === 1) return t.len_short;
-    if (lengthIndex === 3) return t.len_long;
-    return t.len_medium;
+    if (lengthIndex === 1) return t.val_short;
+    if (lengthIndex === 3) return t.val_long;
+    return t.val_med;
   };
 
   const getCreativityLabel = () => {
-    if (creativity === 1) return lang === 'vi' ? "Cân bằng & Chặt chẽ" : "Grounded & Consistent";
-    if (creativity === 3) return lang === 'vi' ? "Phá cách & Táo bạo" : "Wild & Imaginative";
-    return lang === 'vi' ? "Sáng tạo vừa phải" : "Balanced Creative";
+    if (creativity === 1) return t.val_logic;
+    if (creativity === 3) return t.val_crazy;
+    return t.val_bal;
   };
 
   const getPacingLabel = () => {
-    if (pacing === 1) return lang === 'vi' ? "Chậm rãi, đậm chất miêu tả" : "Slow & Descriptive";
-    if (pacing === 3) return lang === 'vi' ? "Dồn dập, hồi hộp cao" : "Fast & Action-packed";
-    return lang === 'vi' ? "Vừa phải, hài hòa" : "Moderate & Balanced";
+    if (pacing === 1) return t.val_slow;
+    if (pacing === 3) return t.val_fast;
+    return t.val_bal;
   };
 
   return (

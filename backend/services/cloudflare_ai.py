@@ -2,7 +2,7 @@ import os
 import requests
 
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN", "")
-ACCOUNT_ID = "c349c6c7357e310e5032506f7efe5d42"
+ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "c349c6c7357e310e5032506f7efe5d42")
 
 # Model fallback chain: fastest first, then higher quality
 CF_MODELS = [

@@ -42,6 +42,7 @@ export default function WorkspacePage() {
   const [storyContent, setStoryContent] = useState("");
   const [selectedText, setSelectedText] = useState("");
   const [proposedText, setProposedText] = useState<string | null>(null);
+  const [copilotMessages, setCopilotMessages] = useState<ChatMessage[]>([]);
 
   // Comic State
   const [comicId, setComicId] = useState<number | null>(null);
@@ -58,19 +59,24 @@ export default function WorkspacePage() {
     const savedLang = storage.getLanguage();
     setLang(savedLang);
 
-    const token = storage.getToken();
-    if (token) {
-      api.me()
-        .then((res) => {
-          if (res.status === "success" && res.username) {
-            setUser({ username: res.username });
-            setView("workspace");
-          }
-        })
-        .catch(() => {
+    const initAuth = async () => {
+      const token = storage.getToken();
+      if (!token) return;
+
+      try {
+        const res = await api.getMe();
+        if (res.status === "success" && res.username) {
+          setUser({ username: res.username });
+          setView("workspace");
+        } else {
           storage.removeToken();
-        });
-    }
+        }
+      } catch (err) {
+        console.error("Auth check error:", err);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const handleLanguageChange = (newLang: Language) => {
@@ -85,23 +91,49 @@ export default function WorkspacePage() {
     setActiveTab("setup");
     setSetupPhase(1);
     setStoryContent("");
+    setCopilotMessages([]);
   };
 
-  // Phase 1 -> Phase 2
-  const handlePhase1Continue = async (prompt: string, genres: string[], themes: string[]) => {
-    setInitialPrompt(prompt);
+  // Phase 1 -> Phase 2 (Immediately switch screen & send user prompt to AI)
+  const handlePhase1Continue = async (combinedPrompt: string, genres: string[], themes: string[]) => {
+    setInitialPrompt(combinedPrompt);
+    const initialUserMsg: ChatMessage = { role: "user", content: combinedPrompt };
+    setChatHistory([initialUserMsg]);
+    setSetupPhase(2);
     setLoading(true);
+
     try {
-      const fullContext = `Thể loại: ${genres.join(", ")}; Chủ đề: ${themes.join(", ")}; Ý tưởng: ${prompt}`;
-      const res = await api.chatInterview(fullContext, []);
-      if (res.status === "success") {
+      const res = await api.chatInterview([initialUserMsg]);
+      if (res.status === "success" && res.message) {
         setChatHistory([
-          { role: "assistant", content: res.reply || res.questions?.join("\n\n") || "Hãy chia sẻ thêm về nhân vật chính của bạn." }
+          initialUserMsg,
+          { role: "assistant", content: res.message }
         ]);
-        setSetupPhase(2);
+        if (res.is_ready) {
+          handleSkipInterview();
+        }
+      } else {
+        setChatHistory([
+          initialUserMsg,
+          {
+            role: "assistant",
+            content: lang === "vi"
+              ? "Ý tưởng của bạn rất cuốn hút! Hãy chia sẻ thêm về nhân vật chính và bối cảnh câu chuyện nhé."
+              : "Fascinating concept! Could you tell me more about the main protagonist and setting?"
+          }
+        ]);
       }
     } catch (e: any) {
-      alert("Lỗi phỏng vấn AI: " + e.message);
+      console.error(e);
+      setChatHistory([
+        initialUserMsg,
+        {
+          role: "assistant",
+          content: lang === "vi"
+            ? "Đang kết nối lại với AI. Bạn có thể gõ câu trả lời bên dưới hoặc bấm 'Bỏ qua hỏi đáp' để tiếp tục."
+            : "Reconnecting to AI. You can reply below or skip to proceed."
+        }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -113,12 +145,17 @@ export default function WorkspacePage() {
     setChatHistory(updatedHistory);
     setLoading(true);
     try {
-      const res = await api.chatInterview(initialPrompt, updatedHistory, msg);
-      if (res.status === "success") {
-        setChatHistory([...updatedHistory, { role: "assistant", content: res.reply }]);
+      const res = await api.chatInterview(updatedHistory);
+      if (res.status === "success" && res.message) {
+        setChatHistory([...updatedHistory, { role: "assistant", content: res.message }]);
+        if (res.is_ready) {
+          handleSkipInterview();
+        }
+      } else {
+        alert("Lỗi từ AI: " + (res.message || "Vui lòng thử lại"));
       }
     } catch (e: any) {
-      alert("Lỗi: " + e.message);
+      alert("Lỗi kết nối: " + e.message);
     } finally {
       setLoading(false);
     }
@@ -128,9 +165,12 @@ export default function WorkspacePage() {
   const handleSkipInterview = async () => {
     setLoading(true);
     try {
-      const res = await api.refinePrompt(initialPrompt, chatHistory);
-      if (res.status === "success") {
-        setRefinedPrompt(res.refined_prompt || initialPrompt);
+      const res = await api.refinePrompt(chatHistory);
+      if (res.status === "success" && res.refined_prompt) {
+        setRefinedPrompt(res.refined_prompt);
+        setSetupPhase(3);
+      } else {
+        setRefinedPrompt(initialPrompt);
         setSetupPhase(3);
       }
     } catch (e: any) {
@@ -147,27 +187,46 @@ export default function WorkspacePage() {
     setStreaming(true);
     setActiveTab("editor");
     setStoryContent("");
+    setStoryId(null);
+    setSessionId(null);
+
+    let extraPrompt = "";
+    if (creativity === 1) extraPrompt += " Hãy giữ cốt truyện cực kỳ logic, thực tế.";
+    else if (creativity === 3) extraPrompt += " Hãy bùng nổ sáng tạo, thêm những tình tiết bất ngờ (plot twist) điên rồ.";
+
+    if (pacing === 1) extraPrompt += " Nhịp độ truyện chậm rãi, miêu tả nội tâm và bối cảnh thật chi tiết.";
+    else if (pacing === 3) extraPrompt += " Nhịp độ truyện nhanh, dồn dập, tập trung vào hành động và hội thoại kịch tính.";
+
+    const finalPrompt = (refinedPrompt || initialPrompt) + (extraPrompt ? "\n" + extraPrompt : "");
+    const endpoint = length === "long" ? "init-story" : "generate-story";
 
     await api.streamStory(
-      "generate-story-stream",
+      endpoint,
       {
-        refined_prompt: refinedPrompt || initialPrompt,
+        refined_prompt: finalPrompt,
         story_length: length,
-        creativity: creativity,
-        pacing: pacing,
       },
-      (chunk) => {
-        setStoryContent((prev) => prev + chunk);
+      (chunk, cleanAccumulated) => {
+        setStoryContent(cleanAccumulated);
       },
-      (full) => {
+      (result) => {
         setStreaming(false);
         setLoading(false);
-        // Refresh session to get storyId
-        api.getStories().then((res) => {
-          if (res.status === "success" && res.stories && res.stories.length > 0) {
-            setStoryId(res.stories[0].id);
-          }
-        });
+        setStoryContent(result.cleanText);
+        if (result.sessionId) setSessionId(result.sessionId);
+        if (result.storyId) setStoryId(result.storyId);
+        if (result.error) {
+          alert("Thông báo hệ thống: " + result.error);
+        } else {
+          setCopilotMessages([
+            {
+              role: "assistant",
+              content: length === "long"
+                ? "Chương 1 đã hoàn tất! Bạn có thể ra lệnh cho Copilot bên dưới, ấn 'Viết tiếp chương mới' hoặc 'Chuyển thể Truyện tranh'."
+                : "Bản thảo đã hoàn tất! Bạn có thể bôi đen văn bản để sửa nhanh, ra lệnh cho Copilot hoặc chuyển thể sang truyện tranh."
+            }
+          ]);
+        }
       },
       (err) => {
         setStreaming(false);
@@ -181,15 +240,17 @@ export default function WorkspacePage() {
   const handleQuickAction = async (action: "rewrite" | "expand" | "shorten") => {
     if (!selectedText) return;
     const instructions = {
-      rewrite: "Hãy viết lại đoạn này cho hay, trau chuốt và giàu cảm xúc hơn.",
-      expand: "Hãy mở rộng đoạn này, bổ sung miêu tả chi tiết bối cảnh và tâm trạng.",
-      shorten: "Hãy tóm lược đoạn này cho ngắn gọn, nhịp độ nhanh hơn.",
+      rewrite: lang === "vi" ? "Hãy viết lại đoạn này cho hay và văn vẻ hơn." : "Rewrite this beautifully.",
+      expand: lang === "vi" ? "Hãy mở rộng đoạn này, miêu tả chi tiết bối cảnh và cảm xúc." : "Expand this with more descriptive details.",
+      shorten: lang === "vi" ? "Hãy tóm lược đoạn này cho súc tích, nhịp độ nhanh hơn." : "Shorten this for faster pacing.",
     };
     setLoading(true);
     try {
-      const res = await api.editText(storyContent, selectedText, instructions[action]);
-      if (res.status === "success") {
-        setProposedText(res.new_text);
+      const res = await api.editText(selectedText, instructions[action]);
+      if (res.status === "success" && res.revised_text) {
+        setProposedText(res.revised_text);
+      } else {
+        alert("Không thể sửa: " + (res.message || "Lỗi xử lý"));
       }
     } catch (e: any) {
       alert("Lỗi sửa văn bản: " + e.message);
@@ -202,9 +263,11 @@ export default function WorkspacePage() {
     if (!selectedText) return;
     setLoading(true);
     try {
-      const res = await api.editText(storyContent, selectedText, instruction);
-      if (res.status === "success") {
-        setProposedText(res.new_text);
+      const res = await api.editText(selectedText, instruction);
+      if (res.status === "success" && res.revised_text) {
+        setProposedText(res.revised_text);
+      } else {
+        alert("Không thể sửa: " + (res.message || "Lỗi xử lý"));
       }
     } catch (e: any) {
       alert("Lỗi: " + e.message);
@@ -225,61 +288,191 @@ export default function WorkspacePage() {
     setSelectedText("");
   };
 
+  // Interactive Copilot Live Chat
+  const handleSendCopilotMessage = async (msg: string) => {
+    const userMsg: ChatMessage = { role: "user", content: msg };
+    setCopilotMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+
+    try {
+      const storyContext = storyContent.slice(-6000);
+      const res = await api.sendCopilotEvent(
+        sessionId,
+        storyId,
+        "USER_CHAT",
+        JSON.stringify({
+          user_message: msg,
+          current_story: storyContext,
+        })
+      );
+
+      if (res.status === "success" && res.data) {
+        const action = res.data.action;
+        const params = res.data.action_params || {};
+
+        if (action === "reply_user") {
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: params.message || "Đã xử lý." }
+          ]);
+        } else if (action === "command_writer") {
+          if (params.message) {
+            const pMsg = String(params.message);
+            setCopilotMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: pMsg }
+            ]);
+          }
+          await handleContinueChapterWithInstruction(params.instruction || "");
+        } else if (action === "reject_and_rewrite") {
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "Đang yêu cầu viết lại: " + (params.critique || "") }
+          ]);
+          await handleContinueChapterWithInstruction(params.fix_instruction || params.instruction || params.critique || "");
+        } else {
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "Đã xử lý tác vụ: " + action }
+          ]);
+        }
+      } else {
+        // Fallback to /api/chat
+        const chatRes = await api.chatCopilot(storyContext, msg, storyId || undefined);
+        if (chatRes.chat_reply) {
+          const replyText = String(chatRes.chat_reply);
+          setCopilotMessages((prev) => [...prev, { role: "assistant", content: replyText }]);
+        }
+        if (chatRes.new_story_content) {
+          setStoryContent((prev) => prev + "\n\n" + chatRes.new_story_content);
+        }
+      }
+    } catch (err: any) {
+      setCopilotMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Lỗi kết nối Copilot: " + err.message }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Continue Chapter (Streaming)
-  const handleContinueChapter = async () => {
+  const handleContinueChapterWithInstruction = async (userInstruction: string = "") => {
     if (streaming || loading) return;
     setStreaming(true);
     setLoading(true);
 
-    await api.streamStory(
-      "generate-chapter",
-      {
-        story_id: storyId,
-        session_id: sessionId,
-        story_text: storyContent,
-      },
-      (chunk) => {
-        setStoryContent((prev) => prev + chunk);
-      },
-      () => {
+    if (sessionId) {
+      let accumulatedChapter = "";
+      await api.streamStory(
+        "generate-chapter",
+        {
+          session_id: sessionId,
+          user_instruction: userInstruction,
+        },
+        (chunk, cleanAccumulated) => {
+          accumulatedChapter = cleanAccumulated;
+        },
+        (result) => {
+          setStreaming(false);
+          setLoading(false);
+          if (result.error) {
+            alert("Lỗi viết chương: " + result.error);
+          } else {
+            setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+            setCopilotMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "Đã viết xong chương mới! Bạn có thể tiếp tục ra lệnh hoặc kết thúc truyện." }
+            ]);
+          }
+        },
+        (err) => {
+          setStreaming(false);
+          setLoading(false);
+          alert("Lỗi viết tiếp: " + err.message);
+        }
+      );
+    } else {
+      try {
+        const res = await api.chatCopilot(
+          storyContent,
+          userInstruction || "Hãy viết tiếp chương tiếp theo. Tối thiểu 2000 từ. Kết thúc bằng tình tiết kịch tính.",
+          storyId || undefined
+        );
         setStreaming(false);
         setLoading(false);
-      },
-      (err) => {
+        if (res.chat_reply) {
+          setCopilotMessages((prev) => [...prev, { role: "assistant", content: res.chat_reply }]);
+        }
+        if (res.new_story_content) {
+          setStoryContent((prev) => prev + "\n\n" + res.new_story_content);
+        }
+      } catch (err: any) {
         setStreaming(false);
         setLoading(false);
-        alert("Lỗi viết tiếp: " + err.message);
+        alert("Lỗi: " + err.message);
       }
-    );
+    }
+  };
+
+  const handleContinueChapter = async () => {
+    await handleContinueChapterWithInstruction("");
   };
 
   // End Story (Streaming)
   const handleEndStory = async () => {
     if (streaming || loading) return;
+    if (!confirm(lang === "vi" ? "Bạn có chắc muốn kết thúc câu chuyện? AI sẽ chấp bút đoạn kết trọn vẹn." : "Are you sure you want to conclude the story?")) return;
+
     setStreaming(true);
     setLoading(true);
 
-    await api.streamStory(
-      "end-story",
-      {
-        story_id: storyId,
-        session_id: sessionId,
-        story_text: storyContent,
-      },
-      (chunk) => {
-        setStoryContent((prev) => prev + chunk);
-      },
-      () => {
+    if (sessionId) {
+      await api.streamStory(
+        "end-story",
+        { session_id: sessionId },
+        (chunk, cleanAccumulated) => {},
+        (result) => {
+          setStreaming(false);
+          setLoading(false);
+          if (result.error) {
+            alert("Lỗi kết thúc: " + result.error);
+          } else {
+            setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+            setCopilotMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "Câu chuyện đã kết thúc trọn vẹn! Bạn có thể tải xuống bản thảo hoặc chuyển thể sang truyện tranh." }
+            ]);
+          }
+        },
+        (err) => {
+          setStreaming(false);
+          setLoading(false);
+          alert("Lỗi kết thúc: " + err.message);
+        }
+      );
+    } else {
+      try {
+        const res = await api.chatCopilot(
+          storyContent,
+          "Hãy viết ĐOẠN KẾT THÚC. Gói gọn tất cả tuyến truyện, giải quyết xung đột chính và mang lại dư ba sâu lắng.",
+          storyId || undefined
+        );
         setStreaming(false);
         setLoading(false);
-        alert(lang === "vi" ? "Truyện đã kết thúc trọn vẹn!" : "Story concluded!");
-      },
-      (err) => {
+        if (res.chat_reply) {
+          setCopilotMessages((prev) => [...prev, { role: "assistant", content: res.chat_reply }]);
+        }
+        if (res.new_story_content) {
+          setStoryContent((prev) => prev + "\n\n" + res.new_story_content);
+        }
+      } catch (err: any) {
         setStreaming(false);
         setLoading(false);
-        alert("Lỗi kết thúc: " + err.message);
+        alert("Lỗi: " + err.message);
       }
-    );
+    }
   };
 
   // Download Story
@@ -296,17 +489,29 @@ export default function WorkspacePage() {
   // Load Saved Story from History
   const handleSelectStory = (story: StoryDetail) => {
     setStoryId(story.id);
-    setSessionId(story.session_id);
-    setStoryContent(story.story_content);
+    setSessionId(story.session_id || null);
+    setStoryContent(story.story_content || "");
+    setRefinedPrompt(story.refined_prompt || "");
     setActiveTab("editor");
     setComicPanels([]);
     setComicId(null);
+    setCopilotMessages([
+      {
+        role: "assistant",
+        content: `Đã tải bản thảo "${story.title || 'Đang viết'}". Bạn có thể tiếp tục chỉnh sửa, ra lệnh cho Copilot hoặc chuyển thể sang truyện tranh.`
+      }
+    ]);
   };
 
   // Adapt to Comic
   const handleAdaptToComic = async () => {
-    if (!storyContent || storyContent.length < 50) {
-      alert(lang === "vi" ? "Bản thảo cần ít nhất 50 từ để chuyển thể truyện tranh." : "Manuscript needs at least 50 words to adapt.");
+    if (!storyContent || storyContent.length < 10) {
+      alert(lang === "vi" ? "Bản thảo cần có nội dung chữ để chuyển thể truyện tranh." : "Manuscript needs content to adapt.");
+      return;
+    }
+
+    if (!storyId) {
+      alert(lang === "vi" ? "Chưa có mã bản thảo trên máy chủ. Hãy chờ AI tạo xong bản thảo hoặc lưu truyện trước khi chuyển thể." : "Story ID not ready.");
       return;
     }
 
@@ -314,7 +519,7 @@ export default function WorkspacePage() {
     setActiveTab("comic");
 
     try {
-      const res = await api.generateComic(storyId || 1, storyContent);
+      const res = await api.generateComic(storyId, storyContent.substring(0, 30000));
       if (res.status === "success" && res.panels) {
         setComicId(res.comic_id || null);
         setComicPanels(res.panels);
@@ -386,6 +591,7 @@ export default function WorkspacePage() {
           setSetupPhase(1);
           setStoryContent("");
           setComicPanels([]);
+          setCopilotMessages([]);
         }}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onLogout={handleLogout}
@@ -396,7 +602,11 @@ export default function WorkspacePage() {
         {activeTab === "setup" && (
           <div className="flex-1 overflow-y-auto">
             {setupPhase === 1 && (
-              <Phase1Idea lang={lang} onContinue={handlePhase1Continue} />
+              <Phase1Idea
+                lang={lang}
+                onContinue={handlePhase1Continue}
+                loading={loading}
+              />
             )}
             {setupPhase === 2 && (
               <Phase2Interview
@@ -427,14 +637,17 @@ export default function WorkspacePage() {
               onDownload={handleDownload}
               onSelectText={setSelectedText}
               onQuickAction={handleQuickAction}
+              onOpenCustomAI={(txt) => setSelectedText(txt)}
             />
             <AICopilotPanel
               lang={lang}
               selectedText={selectedText}
               proposedText={proposedText}
+              copilotMessages={copilotMessages}
               onAcceptEdit={handleAcceptEdit}
               onRejectEdit={handleRejectEdit}
               onSubmitCustomInstruction={handleSubmitCustomInstruction}
+              onSendCopilotMessage={handleSendCopilotMessage}
               onContinueChapter={handleContinueChapter}
               onEndStory={handleEndStory}
               loading={loading}
