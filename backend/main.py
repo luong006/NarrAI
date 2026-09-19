@@ -51,8 +51,10 @@ def get_story_generator():
     return story_generator
 
 import re
-from fastapi.responses import StreamingResponse, JSONResponse
-from db.models import Story, User, engine
+import urllib.parse
+from fastapi.responses import StreamingResponse, JSONResponse, Response, RedirectResponse, FileResponse
+from services.cloudflare_ai import generate_image_cf, get_cached_or_generate_image
+from db.models import Story, User, Comic, ComicPanel, engine
 from sqlalchemy.orm import sessionmaker, Session
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token
 
@@ -517,20 +519,16 @@ def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db),
 
 @app.get("/api/comic/image/{panel_id}")
 def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
-    """Proxies comic panel image generation via Cloudflare Workers AI with fallback to Pollinations."""
+    """Proxies comic panel image generation with local disk cache and Cloudflare Workers AI + Pollinations fallback."""
     panel = db.query(ComicPanel).filter(ComicPanel.id == panel_id).first()
     if not panel:
         return Response(status_code=404)
         
     try:
-        # 1. Primary: Generate binary image from Cloudflare Workers AI
-        img_bytes = generate_image_cf(panel.image_prompt)
-        # Auto-detect format: JPEG starts with \xff\xd8, PNG with \x89PNG
-        content_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
-        return Response(content=img_bytes, media_type=content_type)
+        img_bytes, media_type = get_cached_or_generate_image(panel.id, panel.image_prompt)
+        return Response(content=img_bytes, media_type=media_type)
     except Exception as e:
-        print(f"[Comic Image] Cloudflare AI failed ({e}), falling back to Pollinations...")
-        # 2. Secondary: Fallback to Pollinations with STRICT B&W manga prefix so it NEVER produces color
+        print(f"[Comic Image] Generation failed ({e}), fallback redirect...")
         bw_prompt = f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {panel.image_prompt[:300]}, screentone, no color"
         safe_prompt = urllib.parse.quote(bw_prompt)
         fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_id}"
@@ -664,6 +662,28 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
             pass
             
         
+        # If story was directly modified, persist to database
+        if result.get("action") == "edit_story_direct":
+            params = result.get("action_params", {})
+            updated_content = params.get("updated_story_content")
+            if updated_content and current_user:
+                db = SessionLocal()
+                try:
+                    story_query = db.query(Story).filter(Story.user_id == current_user.id)
+                    if request.story_id:
+                        story_query = story_query.filter(Story.id == request.story_id)
+                    else:
+                        story_query = story_query.filter(Story.session_id == request.session_id)
+                    story = story_query.first()
+                    if story:
+                        story.story_content = updated_content
+                        story.word_count = len(updated_content.split())
+                        db.commit()
+                except Exception as e:
+                    print(f"[Copilot DB Update Error] {e}")
+                finally:
+                    db.close()
+
         # Save memory changes to DB
         if memory and current_user:
             db = SessionLocal()

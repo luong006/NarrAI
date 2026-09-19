@@ -20,25 +20,47 @@ function ComicPanelCard({ panel, t }: { panel: ComicPanel; t: any }) {
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
+  const handleManualRetry = () => {
+    setError(false);
+    setLoaded(false);
+    setRetryKey((k) => k + 1);
+  };
+
   return (
-    <div className={`comic-panel panel-${panel.layout_type || "square"}`}>
+    <div className={`comic-panel panel-${panel.layout_type || "square"} relative group`}>
+      {/* Panel Sequence Badge */}
+      <div className="absolute top-2 left-2 z-10 bg-black/75 text-white text-[10px] font-mono px-2 py-0.5 rounded shadow border border-white/20">
+        #{panel.panel_index}
+      </div>
+
       {!loaded && !error && (
-        <div className="comic-panel-skeleton">
-          <span>{t.loading_comic}</span>
+        <div className="comic-panel-skeleton flex flex-col items-center justify-center p-4">
+          <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mb-2" />
+          <span className="text-xs text-slate-500 dark:text-slate-400 text-center font-medium">{t.loading_comic}</span>
         </div>
       )}
       {error && (
-        <div className="comic-panel-skeleton text-red-500 text-xs text-center p-4">
-          <span>Không tải được khung tranh. Vui lòng thử lại sau.</span>
+        <div className="comic-panel-skeleton text-center p-4 flex flex-col items-center justify-center">
+          <span className="text-red-500 text-xs font-semibold mb-2">Chưa tải được khung tranh #{panel.panel_index}</span>
+          <button
+            onClick={handleManualRetry}
+            className="px-3 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded text-xs font-medium transition-colors shadow flex items-center gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Thử lại</span>
+          </button>
         </div>
       )}
       <img
         src={`${api.getComicImageUrl(panel.image_url)}${retryKey > 0 ? `?retry=${retryKey}` : ''}`}
         alt={panel.image_prompt || "Manga Comic Panel"}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => {
+          setLoaded(true);
+          setError(false);
+        }}
         onError={() => {
-          if (retryKey < 2) {
-            setTimeout(() => setRetryKey((k) => k + 1), 1500);
+          if (retryKey < 4) {
+            setTimeout(() => setRetryKey((k) => k + 1), 2000);
           } else {
             setError(true);
           }

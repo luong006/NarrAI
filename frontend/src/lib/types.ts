@@ -90,7 +90,7 @@ export interface EditTextResponse {
 export interface CopilotEventResponse {
   status: 'success' | 'error';
   data?: {
-    action: 'reply_user' | 'command_writer' | 'reject_and_rewrite' | 'heal_image' | string;
+    action: 'reply_user' | 'command_writer' | 'reject_and_rewrite' | 'heal_image' | 'edit_story_direct' | string;
     action_params?: {
       message?: string;
       instruction?: string;
@@ -98,6 +98,9 @@ export interface CopilotEventResponse {
       critique?: string;
       panel_id?: number;
       new_prompt?: string;
+      updated_story_content?: string;
+      summary_of_changes?: string;
+      edit_type?: string;
     };
     thought?: string;
   };

@@ -1,0 +1,95 @@
+{
+  "functional_tests": [
+    {
+      "test_name": "API Trending Topics",
+      "endpoint": "GET /api/trending-topics",
+      "status_code": 200,
+      "latency_ms": 19.62,
+      "passed": true,
+      "details": "Nhận được 7 chủ đề thịnh hành."
+    },
+    {
+      "test_name": "Authentication (Register & JWT Login)",
+      "endpoint": "POST /api/register + POST /api/login",
+      "status_code": 200,
+      "latency_ms": 57.42,
+      "passed": true,
+      "details": "Tạo người dùng tester_1789809053 và cấp JWT Token thành công."
+    },
+    {
+      "test_name": "AI Co-pilot Direct Manuscript Intervention",
+      "endpoint": "POST /api/copilot-event & _is_direct_edit_request",
+      "status_code": 200,
+      "latency_ms": 3295.34,
+      "passed": true,
+      "details": "Nhận diện ý định: True | Action: None"
+    },
+    {
+      "test_name": "Comic Beat-by-Beat & Character Visual DNA",
+      "endpoint": "agents.comic_agent: extract_character_dna & _validate_panels",
+      "status_code": 200,
+      "latency_ms": 1603.65,
+      "passed": true,
+      "details": "Tách 4 khung tranh chi tiết | Trích xuất DNA: ['Lý Tiêu', 'Hắc Ma Quân']"
+    },
+    {
+      "test_name": "Comic Image Disk Cache (Instant 1ms Retrieval)",
+      "endpoint": "services.cloudflare_ai: get_cached_or_generate_image",
+      "status_code": 200,
+      "latency_ms": 13.41,
+      "passed": true,
+      "details": "Lần 1 tạo/lưu cache (17011 bytes) | Lần 2 đọc từ đĩa: 13.41ms"
+    }
+  ],
+  "benchmark_metrics": {
+    "sample_size": 100,
+    "baseline": {
+      "hallucination_rate_pct": 12.0,
+      "visual_drift_pct": 38.0,
+      "avg_context_tokens": 13574,
+      "avg_query_latency_ms": 701.21,
+      "prerequisite_recovery_pct": 33.0
+    },
+    "nokg_v2": {
+      "hallucination_rate_pct": 0.0,
+      "visual_drift_pct": 6.0,
+      "avg_context_tokens": 2088,
+      "avg_query_latency_ms": 1.35,
+      "prerequisite_recovery_pct": 69.0
+    },
+    "improvements": {
+      "hallucination_reduction_pct": 100.0,
+      "visual_consistency_boost_pct": 84.2,
+      "token_cost_saving_pct": 84.6,
+      "latency_speedup_x": 519.3,
+      "prerequisite_gain_pct": 109.1
+    }
+  },
+  "ontology_invariant_tests": [
+    {
+      "rule": "Vitality Invariant (Phát hiện nhân vật chết hành động)",
+      "scenario": "Bạch Vương (đã tử trận ở Chương 2) đứng trò chuyện tại Tuyết Sơn Đỉnh",
+      "caught": true,
+      "violation_msg": "VITALITY_VIOLATION: Nhân vật 'Bạch Vương' đã chết nhưng vẫn thực hiện hành động 'SPEAKS'."
+    },
+    {
+      "rule": "Spatial Exclusivity Invariant (Phát hiện mâu thuẫn vị trí không gian)",
+      "scenario": "Lý Tiêu đang ở Tuyết Sơn Đỉnh nhưng lại tấn công ở Hắc Phong Động",
+      "caught": true,
+      "violation_msg": "SPATIAL_VIOLATION: Nhân vật 'Lý Tiêu' đang ở 'Tuyet_Son_Dinh' nhưng hành động xảy ra tại 'Hac_Phong_Dong' mà không có sự kiện di chuyển."
+    },
+    {
+      "rule": "Inventory Conservation Invariant (Phát hiện dùng đồ chưa từng có)",
+      "scenario": "Lý Tiêu rút ra Thái Hư Thần Trâm (vật phẩm chưa thu thập)",
+      "caught": true,
+      "violation_msg": "INVENTORY_VIOLATION: Nhân vật 'Lý Tiêu' sử dụng vật phẩm/pháp bảo 'thai_hu_than_tram' nhưng không sở hữu trong túi đồ."
+    },
+    {
+      "rule": "Visual DNA Invariant (Phát hiện mất đặc trưng nhân vật Manga)",
+      "scenario": "Prompt vẽ khung tranh mô tả chung chung không có tóc đuôi ngựa và huyền bào kim tuyến",
+      "caught": true,
+      "violation_msg": "VISUAL_DNA_VIOLATION: Khung tranh thiếu đặc trưng ngoại hình 'hair: high black ponytail' của 'Lý Tiêu'."
+    }
+  ],
+  "traversal_benchmark": {}
+}

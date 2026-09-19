@@ -43,6 +43,8 @@ export default function WorkspacePage() {
   const [selectedText, setSelectedText] = useState("");
   const [proposedText, setProposedText] = useState<string | null>(null);
   const [copilotMessages, setCopilotMessages] = useState<ChatMessage[]>([]);
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [manuscriptNotice, setManuscriptNotice] = useState<string | null>(null);
 
   // Comic State
   const [comicId, setComicId] = useState<number | null>(null);
@@ -288,14 +290,23 @@ export default function WorkspacePage() {
     setSelectedText("");
   };
 
-  // Interactive Copilot Live Chat
+  const handleUndoEdit = () => {
+    if (undoStack.length === 0) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setStoryContent(previous);
+    setManuscriptNotice(lang === "vi" ? "Đã hoàn tác thay đổi gần nhất của bản thảo!" : "Reverted the latest manuscript change!");
+    setTimeout(() => setManuscriptNotice(null), 4000);
+  };
+
+  // Interactive Copilot Live Chat & Direct Story Modification
   const handleSendCopilotMessage = async (msg: string) => {
     const userMsg: ChatMessage = { role: "user", content: msg };
     setCopilotMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     try {
-      const storyContext = storyContent.slice(-6000);
+      const storyContext = storyContent.slice(0, 15000);
       const res = await api.sendCopilotEvent(
         sessionId,
         storyId,
@@ -310,7 +321,22 @@ export default function WorkspacePage() {
         const action = res.data.action;
         const params = res.data.action_params || {};
 
-        if (action === "reply_user") {
+        if (action === "edit_story_direct") {
+          const newContent = params.updated_story_content;
+          if (newContent) {
+            setUndoStack((prev) => [...prev, storyContent]);
+            setStoryContent(newContent);
+            const notice = params.summary_of_changes || (lang === "vi" ? "Bản thảo đã được AI Co-pilot cập nhật trực tiếp!" : "Manuscript directly updated by AI Co-pilot!");
+            setManuscriptNotice(notice);
+            setTimeout(() => setManuscriptNotice(null), 8000);
+          }
+          const responseMsg = (params.message || (lang === "vi" ? "Tôi đã cập nhật trực tiếp vào bản thảo của bạn theo yêu cầu!" : "I directly updated your manuscript as requested!")) +
+            (params.summary_of_changes ? `\n\n📝 Chi tiết thay đổi: ${params.summary_of_changes}` : "");
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: responseMsg }
+          ]);
+        } else if (action === "reply_user") {
           setCopilotMessages((prev) => [
             ...prev,
             { role: "assistant", content: params.message || "Đã xử lý." }
@@ -350,7 +376,7 @@ export default function WorkspacePage() {
     } catch (err: any) {
       setCopilotMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Lỗi kết nối Copilot: " + err.message }
+        { role: "assistant", content: "Lỗi kết nối Copilot: " + (err.message || "Không xác định") }
       ]);
     } finally {
       setLoading(false);
@@ -628,32 +654,52 @@ export default function WorkspacePage() {
         )}
 
         {activeTab === "editor" && (
-          <>
-            <StoryEditor
-              content={storyContent}
-              onContentChange={setStoryContent}
-              lang={lang}
-              onAdaptToComic={handleAdaptToComic}
-              onDownload={handleDownload}
-              onSelectText={setSelectedText}
-              onQuickAction={handleQuickAction}
-              onOpenCustomAI={(txt) => setSelectedText(txt)}
-            />
-            <AICopilotPanel
-              lang={lang}
-              selectedText={selectedText}
-              proposedText={proposedText}
-              copilotMessages={copilotMessages}
-              onAcceptEdit={handleAcceptEdit}
-              onRejectEdit={handleRejectEdit}
-              onSubmitCustomInstruction={handleSubmitCustomInstruction}
-              onSendCopilotMessage={handleSendCopilotMessage}
-              onContinueChapter={handleContinueChapter}
-              onEndStory={handleEndStory}
-              loading={loading}
-              streaming={streaming}
-            />
-          </>
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {manuscriptNotice && (
+              <div className="bg-emerald-600 dark:bg-emerald-700 text-white px-4 py-2 flex items-center justify-between shadow text-xs font-medium shrink-0 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">✨</span>
+                  <span>{manuscriptNotice}</span>
+                </div>
+                {undoStack.length > 0 && (
+                  <button
+                    onClick={handleUndoEdit}
+                    className="ml-4 font-bold bg-white/20 hover:bg-white/35 px-2.5 py-0.5 rounded transition-colors text-white"
+                  >
+                    {lang === "vi" ? "Hoàn tác (Undo)" : "Undo"}
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex-1 flex overflow-hidden">
+              <StoryEditor
+                content={storyContent}
+                onContentChange={setStoryContent}
+                lang={lang}
+                onAdaptToComic={handleAdaptToComic}
+                onDownload={handleDownload}
+                onSelectText={setSelectedText}
+                onQuickAction={handleQuickAction}
+                onOpenCustomAI={(txt) => setSelectedText(txt)}
+              />
+              <AICopilotPanel
+                lang={lang}
+                selectedText={selectedText}
+                proposedText={proposedText}
+                copilotMessages={copilotMessages}
+                onAcceptEdit={handleAcceptEdit}
+                onRejectEdit={handleRejectEdit}
+                onSubmitCustomInstruction={handleSubmitCustomInstruction}
+                onSendCopilotMessage={handleSendCopilotMessage}
+                onContinueChapter={handleContinueChapter}
+                onEndStory={handleEndStory}
+                loading={loading}
+                streaming={streaming}
+                onUndo={handleUndoEdit}
+                canUndo={undoStack.length > 0}
+              />
+            </div>
+          </div>
         )}
 
         {activeTab === "comic" && (
