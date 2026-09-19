@@ -2,60 +2,123 @@ from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
 
-WRITING_RULES = """Quy tac sang tac BAT BUOC:
-1. CAU TRUC 3 HOI: Setup (25%) -> Confrontation (50%) -> Resolution (25%).
-2. KIEN TRUC CHUONG: Moi chuong la cau chuyen thu nho co tu tri. Cau truc: Mo dau loi cuon -> Xung dot leo thang -> Cao trao -> Ket thuc hap dan. Toi thieu 800 tu/chuong.
-3. CHUOI NHAN QUA: Khong ket noi su kien bang "Va roi...". Moi su kien phai la "Vi vay..." hoac "Nhung...".
-4. SCENE & SEQUEL: Luan phien canh chu dong (muc tieu -> xung dot -> that bai) va canh phan ung (soc -> lua chon -> quyet dinh moi).
-5. VALUE SHIFT: Cuoi moi chuong, trang thai nhan vat BAT BUOC thay doi (Tich cuc <-> Tieu cuc).
-6. MO DAU: Bat dau ngay giua hanh dong (In medias res). Neo nguoi doc bang giac quan cu the.
-7. KET THUC: Luon ket bang Cliffhanger - moi de doa moi, cau hoi chua loi dap, hoac lat nguoc tinh the.
-8. VAN PHONG: Show don't tell. Ta qua hanh dong va doi thoai. TUYET DOI KHONG in ra nhan ky thuat nhu "Canh Chu Dong", "Muc tieu:", "Xung dot:", "Value Shift". Viet VAN XUOI THUAN TUY."""
+MODERN_NOVEL_WRITING_RULES = """QUY TẮC SÁNG TÁC TIỂU THUYẾT HIỆN ĐẠI (ĐÚC KẾT TỪ 5 DÒNG WEB NOVEL KINH ĐIỂN):
+
+1. KHỞI ĐẦU IN MEDIAS RES (HOOK ĐỘC GIẢ TRONG 3 CÂU ĐẦU):
+   - Ném nhân vật ngay vào xung đột, nguy cơ hoặc hành động cụ thể đang diễn ra.
+   - CẤM mở đầu bằng miêu tả thời tiết chung chung ("trời thu se lạnh", "ánh nắng le lói"), bình minh/hoàng hôn sáo rỗng, hoặc thuyết minh lịch sử dài dòng.
+   - Neo độc giả bằng chi tiết giác quan: tiếng kim loại va chạm, mùi khói khét, giọt mồ hôi cay xè mắt, hoặc một câu thoại sắc lạnh.
+
+2. SHOW, DON'T TELL & ĐỊNH CẢNH CHI TIẾT (VISCERAL SENSORY):
+   - CẤM nói thẳng cảm xúc nhân vật ("hắn rất sợ", "cô ấy buồn bã", "họ phẫn nộ").
+   - Tả BIỂU HIỆN SINH LÝ và VI HÀNH ĐỘNG: Bàn tay siết chặt đến trắng bệch đốt ngón tay, đồng tử co rút, cơ hàm bạnh ra, hơi thở đứt quãng, ngón chân bấu chặt xuống sàn.
+   - Môi trường xung quanh phải có sự tương tác vật lý (tiếng mưa gõ trên mái tôn gỉ, ánh đèn chớp nháy rè rè, tàn thuốc lá rơi trên bàn kính).
+
+3. NHỊP ĐIỆU CÂU VĂN CO GIÃN (SENTENCE PACING):
+   - Cảnh hành động / đấu trí / căng thẳng: Câu ngắn, đanh thép, tiết tấu dồn dập (3-8 từ/câu). Ngắt nhịp dứt khoát.
+   - Cảnh suy luận / nội tâm / chuyển tiếp: Câu phức giàu hình ảnh nhưng gãy gọn, không lan man, không sến sẩm.
+   - TUYỆT ĐỐI LOẠI BỎ văn phong hoa mỹ rỗng tuếch.
+
+4. HỘI THOẠI ĐẮT GIÁ, CÓ SUBTEXT (KHÔNG NÓI CHUYỆN VÔ THƯỞNG VÔ PHẠT):
+   - Mỗi câu thoại phải phản ánh đúng VỊ THẾ, TÂM CƠ và ĐỘNG CƠ NGẦM của nhân vật.
+   - Không ai giải thích điều đối phương đã biết. Dùng thoại để thăm dò, thao túng, đe dọa hoặc che giấu.
+   - Đan xen cử chỉ thực tế giữa các câu thoại (gõ nhẹ ngón tay lên bàn, khựng lại một nhịp trước khi đáp).
+
+5. TUÂN THỦ BỘ KHUNG NARRATIVE ONTOLOGY:
+   - Các thuộc tính nhân vật, quy tắc thế giới (World Axioms), và chuỗi nhân quả đã thiết lập là BẤT BIẾN.
+   - CẤM xuất hiện "Bàn tay vàng vô lý" (Deus Ex Machina). Mọi bước ngoặt đều phải có nguyên nhân logic từ trước.
+
+6. CLIFFHANGER CUỐI CHƯƠNG:
+   - Mỗi chương BẮT BUỘC kết thúc bằng một cú ngoặt (plot twist), một phát hiện chấn động, một tiếng bước chân bất thường ngoài cửa, hoặc một thế cờ ngàn cân treo sợi tóc.
+
+7. DANH SÁCH CẤM TUYỆT ĐỐI (ANTI-CLICHÉ BANLIST):
+   - CẤM: "vầng trăng vằng vặc trôi trên nền trời nhung đen", "hắn ta khẽ cười khẩy / cười lạnh một tiếng", "thời gian thấm thoắt trôi đi", "không khỏi hít vào một ngụm khí lạnh", "mắt phượng mày ngài", "trời quang mây tạnh lòng người u sầu", "bỗng nhiên một chuyện bất ngờ xảy ra".
+   - Viết văn xuôi tự nhiên, chân thực, hiện đại, cuốn hút."""
+
+WRITING_RULES = MODERN_NOVEL_WRITING_RULES
 
 
 class StoryGenerator:
     def __init__(self):
         self.llm = GroqClient(model_name="openai/gpt-oss-120b")
 
+    def _extract_narrative_ontology(self, refined_prompt: str) -> str:
+        """
+        Trích xuất Bộ khung Narrative Ontology để neo giữ tính nhất quán của truyện chữ:
+        - Thực thể (Entities): Nhân vật chính, ngoại hình, mục tiêu ngầm, điểm yếu
+        - Quan hệ (Relations): Ma trận xung đột & động cơ
+        - Tiền đề thế giới (World Axioms): Quy tắc vật lý/xã hội, giới hạn công nghệ/phép thuật
+        - Chuỗi nhân quả (Causal Milestones): Tiến trình nguyên nhân - kết quả
+        """
+        prompt = f"""Phân tích bản phác thảo và trích xuất BỘ KHUNG NARRATIVE ONTOLOGY dưới dạng cấu trúc ngắn gọn:
+BẢN PHÁC THẢO:
+{refined_prompt[:3000]}
+
+Yêu cầu xuất ra cấu trúc chính xác sau:
+[THỰC THỂ & NHÂN VẬT]: (Tên, ngoại hình nhận diện, mục tiêu, điểm yếu chí mạng)
+[QUAN HỆ & ĐỘNG CƠ]: (Mối quan hệ cụ thể và điểm ngờ vực ngầm giữa các nhân vật)
+[QUY TẮC THẾ GIỚI & BỐI CẢNH (WORLD AXIOMS)]: (Địa điểm cụ thể, thời đại, các quy tắc bất biến không thể phá vỡ)
+[CHUỖI NHÂN QUẢ CHÍNH]: (Nguyên nhân A -> Dẫn đến hệ quả B -> Đẩy vào xung đột C)
+"""
+        try:
+            ontology_text = self.llm.chat(
+                messages=[
+                    {"role": "system", "content": "Bạn là Kiến trúc sư Ontology Cốt truyện. Trích xuất Bộ khung Narrative Ontology ngắn gọn, chính xác."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
+                max_tokens=800
+            )
+            if ontology_text and ontology_text.strip():
+                return ontology_text.strip()
+            return f"[BỐI CẢNH & CỐT TRUYỆN GỐC]:\n{refined_prompt[:600]}\n[QUY TẮC BẤT BIẾN]: Giữ nguyên tính cách, không dùng phép màu vô lý, logic nhân quả chặt chẽ."
+        except Exception as e:
+            return f"[BỐI CẢNH & CỐT TRUYỆN GỐC]:\n{refined_prompt[:600]}\n[QUY TẮC BẤT BIẾN]: Giữ nguyên tính cách, không dùng phép màu vô lý, logic nhân quả chặt chẽ."
+
     def _get_config(self, story_length: str):
         config = {
-            "short": {"word_range": "Khoang 1200 den 2200 tu", "max_tokens": 5500, "chapter_mode": False},
-            "medium": {"word_range": "Khoang 2500 den 4000 tu", "max_tokens": 6000, "chapter_mode": False},
-            "long": {"word_range": "Khoang 1800 den 2500 tu cho CHUONG NAY", "max_tokens": 6000, "chapter_mode": True}
+            "short": {"word_range": "Khoảng 1200 đến 2200 từ", "max_tokens": 5500, "chapter_mode": False},
+            "medium": {"word_range": "Khoảng 2500 đến 4000 từ", "max_tokens": 6000, "chapter_mode": False},
+            "long": {"word_range": "Khoảng 1800 đến 2500 từ cho CHƯƠNG NÀY", "max_tokens": 6000, "chapter_mode": True}
         }
         return config.get(story_length, config["medium"])
 
     def _build_prompt(self, refined_prompt: str, story_length: str):
         cfg = self._get_config(story_length)
+        ontology_block = self._extract_narrative_ontology(refined_prompt)
 
-        system_prompt = f"""Ban la mot tieu thuyet gia xuat chung tam co quoc te, chuyen sang tac truyen bang tieng Viet.
-TUYET DOI CHI VIET BANG TIENG VIET, khong duoc pha tron tieng Anh.
-Nhiem vu: Dua vao "Ban Phac Thao Cot Truyen", hay viet cau chuyen hoan chinh, bam sat tuyet doi vao cot truyen. Khong doi ten nhan vat hay chech huong.
+        system_prompt = f"""Bạn là một đại tiểu thuyết gia xuất chúng tầm cỡ quốc tế, chuyên sáng tác truyện bằng tiếng Việt hiện đại.
+TUYỆT ĐỐI CHỈ VIẾT BẰNG TIẾNG VIỆT, không được pha trộn tiếng Anh.
 
-{WRITING_RULES}
+=== BỘ KHUNG NARRATIVE ONTOLOGY (BẤT BIẾN - TUYỆT ĐỐI TUÂN THỦ) ===
+{ontology_block}
+====================================================================
 
-DO DAI: Khoang {cfg['word_range']}. Khai trien chi tiet tung tinh huong.
-"""
+{MODERN_NOVEL_WRITING_RULES}
+
+NHIỆM VỤ: Dựa vào "Bộ khung Narrative Ontology" và "Bản Phác Thảo Cốt Truyện", hãy viết câu chuyện hoàn chỉnh, bám sát tuyệt đối vào các thực thể, mối quan hệ và quy tắc thế giới. Không đổi tên nhân vật hay chệch hướng logic.
+
+ĐỘ DÀI: Khoảng {cfg['word_range']}. Khai triển chi tiết từng tình huống, từng vi hành động."""
         if cfg['chapter_mode']:
             system_prompt += """
-CHE DO VIET TUNG CHUONG:
-- Chi duoc viet DUY NHAT 1 CHUONG (1800-2500 tu).
-- Chuong co tieu de: ## Chuong X: [Ten chuong]
-- KET THUC bang Cliffhanger manh me.
-- KHONG viet them chuong nao khac."""
+CHẾ ĐỘ VIẾT TỪNG CHƯƠNG:
+- Chỉ được viết DUY NHẤT 1 CHƯƠNG (1800-2500 từ).
+- Chương có tiêu đề: ## Chương X: [Tên chương]
+- KẾT THÚC bằng Cliffhanger mạnh mẽ.
+- KHÔNG viết thêm chương nào khác."""
         else:
             system_prompt += """
-QUY TAC CHUONG:
-- Moi chuong co Tieu de: ## Chuong X: [Ten chuong]
-- Toi thieu 800 tu/chuong. Truyen ngan: toi da 3-4 chuong. Truyen trung binh: toi da 5-6 chuong."""
+QUY TẮC CHƯƠNG:
+- Mỗi chương có Tiêu đề: ## Chương X: [Tên chương]
+- Tối thiểu 800 từ/chương. Truyện ngắn: tối đa 3-4 chương. Truyện trung bình: tối đa 5-6 chương."""
 
         system_prompt += """
 
-Ban Phac Thao Cot Truyen:
-Quy tac dinh dang:
-- Dung markdown (##) cho tieu de Chuong.
-- Bat dau NGAY LAP TUC bang: **[TEN TIEU DE TRUYEN]** o dong dau tien.
-- TUYET DOI KHONG them loi mo dau hay ket thuc mang tinh tro chuyen."""
+Bản Phác Thảo Cốt Truyện:
+Quy tắc định dạng:
+- Dùng markdown (##) cho tiêu đề Chương.
+- Bắt đầu NGAY LẬP TỨC bằng: **[TÊN TIÊU ĐỀ TRUYỆN]** ở dòng đầu tiên.
+- TUYỆT ĐỐI KHÔNG thêm lời mở đầu hay kết thúc mang tính trò chuyện."""
 
         messages = [
             {"role": "system", "content": system_prompt},

@@ -1,6 +1,24 @@
 import os
+import sys
 import json
 import re
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+def safe_log(msg: str):
+    try:
+        print(msg)
+    except Exception:
+        try:
+            print(str(msg).encode("ascii", "backslashreplace").decode("ascii"))
+        except Exception:
+            pass
+
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
@@ -113,8 +131,19 @@ class CopilotAgent:
                             "message": data.get("message", "Tôi đã chỉnh sửa trực tiếp vào bản thảo của bạn theo yêu cầu!")
                         }
                     }
+            elif len(cleaned) > 100:
+                # Direct prose fallback if LLM returned text instead of JSON
+                return {
+                    "thought": f"Can thiệp trực tiếp bằng văn bản mới sinh: {user_instruction}",
+                    "action": "edit_story_direct",
+                    "action_params": {
+                        "updated_story_content": cleaned,
+                        "summary_of_changes": "Đã cập nhật bản thảo theo yêu cầu.",
+                        "message": "Tôi đã chỉnh sửa trực tiếp vào bản thảo của bạn theo yêu cầu!"
+                    }
+                }
         except Exception as e:
-            print(f"[Copilot Direct Edit] Error: {e}")
+            safe_log(f"[Copilot Direct Edit] Error: {e}")
         return None
 
     def process_event(self, event_type: str, event_data: str, memory: StoryMemory = None) -> dict:
@@ -130,12 +159,27 @@ class CopilotAgent:
         except Exception:
             user_message = str(event_data)
 
+        if not user_message and isinstance(event_data, str):
+            user_message = event_data
+
+        if not current_story and memory:
+            current_story = memory.get_short_context(max_chars=6000)
+
         # 1. Check if user requested direct manuscript intervention
-        if event_type == "USER_CHAT" and self._is_direct_edit_request(user_message) and current_story:
-            print(f"[Copilot] Detected direct manuscript edit request: '{user_message}'")
-            direct_edit_result = self._perform_direct_manuscript_edit(user_message, current_story)
-            if direct_edit_result:
-                return direct_edit_result
+        if self._is_direct_edit_request(user_message):
+            safe_log(f"[Copilot] Detected direct manuscript edit request: {user_message[:40]}")
+            if current_story:
+                direct_edit_result = self._perform_direct_manuscript_edit(user_message, current_story)
+                if direct_edit_result:
+                    return direct_edit_result
+            else:
+                return {
+                    "thought": "Yêu cầu chỉnh sửa bản thảo nhưng chưa có nội dung truyện để sửa.",
+                    "action": "reply_user",
+                    "action_params": {
+                        "message": "Tôi rất sẵn lòng chỉnh sửa! Hãy đảm bảo bạn đã có nội dung truyện trên màn hình soạn thảo để tôi thực hiện nhé."
+                    }
+                }
 
         # 2. General Master Controller logic
         short_context = memory.get_short_context(max_chars=3000) if memory else (current_story[-2000:] if current_story else "Chưa có truyện.")
@@ -162,7 +206,7 @@ THÔNG TIN BẢN THẢO HIỆN TẠI:
                 return json.loads(match.group(0))
             return json.loads(response)
         except Exception as e:
-            print(f"Master Controller Error: {e}")
+            safe_log(f"Master Controller Error: {e}")
             return {
                 "thought": f"Lỗi hệ thống khi phân tích event: {str(e)}",
                 "action": "reply_user",

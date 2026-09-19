@@ -10,9 +10,9 @@ interface Props {
   lang: Language;
   onAdaptToComic: () => void;
   onDownload: () => void;
-  onSelectText: (selectedText: string) => void;
-  onQuickAction: (action: 'rewrite' | 'expand' | 'shorten') => void;
-  onOpenCustomAI?: (selectedText: string) => void;
+  onSelectText: (text: string) => void;
+  onQuickAction: (action: 'rewrite' | 'expand' | 'shorten', targetText?: string) => void;
+  onOpenCustomAI?: (text: string) => void;
 }
 
 export function StoryEditor({
@@ -128,8 +128,9 @@ export function StoryEditor({
           className="fixed z-40 flex items-center gap-1 p-1 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 animate-in fade-in zoom-in-95 duration-150"
         >
           <button
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              onQuickAction("rewrite");
+              onQuickAction("rewrite", selectedText);
               setFloatingPos(null);
             }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
@@ -138,8 +139,9 @@ export function StoryEditor({
             <span>{t.tool_rewrite}</span>
           </button>
           <button
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              onQuickAction("expand");
+              onQuickAction("expand", selectedText);
               setFloatingPos(null);
             }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
@@ -148,8 +150,9 @@ export function StoryEditor({
             <span>{t.tool_expand}</span>
           </button>
           <button
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              onQuickAction("shorten");
+              onQuickAction("shorten", selectedText);
               setFloatingPos(null);
             }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
@@ -159,6 +162,7 @@ export function StoryEditor({
           </button>
           {onOpenCustomAI && (
             <button
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 onOpenCustomAI(selectedText);
                 setFloatingPos(null);

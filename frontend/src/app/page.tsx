@@ -238,9 +238,10 @@ export default function WorkspacePage() {
     );
   };
 
-  // Quick Action on Selected Text
-  const handleQuickAction = async (action: "rewrite" | "expand" | "shorten") => {
-    if (!selectedText) return;
+  // Quick Action on Selected Text (Rewrite, Expand, Shorten)
+  const handleQuickAction = async (action: "rewrite" | "expand" | "shorten", targetText?: string) => {
+    const textToEdit = targetText || selectedText;
+    if (!textToEdit || !textToEdit.trim()) return;
     const instructions = {
       rewrite: lang === "vi" ? "Hãy viết lại đoạn này cho hay và văn vẻ hơn." : "Rewrite this beautifully.",
       expand: lang === "vi" ? "Hãy mở rộng đoạn này, miêu tả chi tiết bối cảnh và cảm xúc." : "Expand this with more descriptive details.",
@@ -248,9 +249,25 @@ export default function WorkspacePage() {
     };
     setLoading(true);
     try {
-      const res = await api.editText(selectedText, instructions[action]);
+      const res = await api.editText(textToEdit, instructions[action]);
       if (res.status === "success" && res.revised_text) {
-        setProposedText(res.revised_text);
+        const revised = res.revised_text.trim();
+        // Push previous state to undo stack
+        setUndoStack((prev) => [...prev, storyContent]);
+        // Directly update editor content so user sees immediate results
+        setStoryContent((prev) => prev.replace(textToEdit, revised));
+        setProposedText(revised);
+
+        const actionLabels = {
+          rewrite: lang === "vi" ? "viết lại" : "rewritten",
+          expand: lang === "vi" ? "mở rộng" : "expanded",
+          shorten: lang === "vi" ? "rút gọn" : "shortened",
+        };
+        const noticeMsg = lang === "vi"
+          ? `✨ Đã ${actionLabels[action]} đoạn văn thành công! Bạn có thể nhấn "Hoàn tác" ở góc trên nếu muốn quay lại.`
+          : `✨ Successfully ${actionLabels[action]} selected text! Click "Undo" above to revert.`;
+        setManuscriptNotice(noticeMsg);
+        setTimeout(() => setManuscriptNotice(null), 8000);
       } else {
         alert("Không thể sửa: " + (res.message || "Lỗi xử lý"));
       }
