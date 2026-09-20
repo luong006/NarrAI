@@ -15,6 +15,84 @@ interface Props {
   onOpenCustomAI?: (text: string) => void;
 }
 
+function sanitizeProseSafetyNet(text: string): string {
+  if (!text) return "";
+  let clean = String(text).trim();
+
+  const candidateKeys = [
+    "updated_story_content",
+    "story_content",
+    "story",
+    "content",
+    "new_story_content",
+    "revised_text",
+    "text",
+  ];
+
+  for (let i = 0; i < 5; i++) {
+    const prev = clean;
+    // Strip markdown code fences
+    clean = clean.replace(/^```(?:json|markdown)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+    if (
+      (clean.startsWith("{") && clean.endsWith("}")) ||
+      clean.includes('"updated_story_content"') ||
+      clean.includes('"action_params"')
+    ) {
+      try {
+        const parsed = JSON.parse(clean);
+        if (typeof parsed === "string") {
+          clean = parsed.trim();
+        } else if (typeof parsed === "object" && parsed !== null) {
+          let found: string | null = null;
+          for (const k of candidateKeys) {
+            const v = (parsed as Record<string, unknown>)[k];
+            if (v && typeof v === "string") {
+              found = v;
+              break;
+            }
+          }
+          if (!found && parsed.action_params && typeof parsed.action_params === "object") {
+            const sub = parsed.action_params as Record<string, unknown>;
+            for (const k of candidateKeys) {
+              const v = sub[k];
+              if (v && typeof v === "string") {
+                found = v;
+                break;
+              }
+            }
+          }
+          if (found) {
+            clean = found.trim();
+          }
+        }
+      } catch {
+        const match = clean.match(
+          /"updated_story_content"\s*:\s*"([\s\S]*?)(?:",\s*"(?:summary_of_changes|message|action|instruction)"\s*:|"\s*\}[\}\]]?\s*$)/
+        );
+        if (match && match[1]) {
+          clean = match[1].trim();
+        }
+      }
+    }
+
+    if (clean.includes("\\n") || clean.includes("\\r") || clean.includes('\\"') || clean.includes("\\\\")) {
+      clean = clean
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\");
+    }
+
+    if (clean === prev) break;
+  }
+
+  clean = clean.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  clean = clean.replace(/\n{3,}/g, "\n\n");
+  return clean.trim();
+}
+
 export function StoryEditor({
   content,
   onContentChange,
@@ -34,8 +112,17 @@ export function StoryEditor({
   // Sync content when streaming or loaded externally
   useEffect(() => {
     if (editorRef.current && !isTypingRef.current) {
-      if (editorRef.current.innerText !== content) {
-        editorRef.current.innerText = content;
+      let displayContent = content;
+      if (
+        typeof displayContent === "string" &&
+        (displayContent.trim().startsWith("{") ||
+          displayContent.includes('"updated_story_content"') ||
+          displayContent.includes("\\n"))
+      ) {
+        displayContent = sanitizeProseSafetyNet(displayContent);
+      }
+      if (editorRef.current.innerText !== displayContent) {
+        editorRef.current.innerText = displayContent;
       }
     }
   }, [content]);

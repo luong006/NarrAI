@@ -19,6 +19,114 @@ def safe_log(msg: str):
         except Exception:
             pass
 
+def unwrap_story_prose(text: str) -> str:
+    """Multi-pass unwraps stringified JSON, nested envelopes, and markdown codeblocks to guarantee pure story prose."""
+    if not text:
+        return ""
+    current = str(text).strip()
+
+    candidate_keys = [
+        "updated_story_content",
+        "story_content",
+        "story",
+        "content",
+        "new_story_content",
+        "revised_text",
+        "text"
+    ]
+
+    for _ in range(10):
+        prev = current
+        # 1. Strip markdown code blocks (```json ... ``` or ```markdown ... ``` or ``` ... ```)
+        current = re.sub(r'^```(?:json|markdown)?\s*\n?', '', current, flags=re.IGNORECASE).strip()
+        current = re.sub(r'\n?```\s*$', '', current).strip()
+
+        # If wrapped inside ```json\n{...}\n``` within a larger string
+        code_fence_match = re.search(r'```(?:json|markdown)?\s*\n?(.*?)\n?```', current, re.DOTALL | re.IGNORECASE)
+        if code_fence_match:
+            fence_inner = code_fence_match.group(1).strip()
+            if any(f'"{k}"' in fence_inner for k in candidate_keys) or '"action_params"' in fence_inner:
+                current = fence_inner
+
+        # 2. Check if current is JSON-like
+        is_json_candidate = (
+            (current.startswith('{') and current.endswith('}'))
+            or (current.startswith('"{') and current.endswith('}"'))
+            or any(f'"{k}"' in current for k in candidate_keys)
+            or '"action_params"' in current
+        )
+
+        if is_json_candidate:
+            extracted_val = None
+            try:
+                parsed = json.loads(current, strict=False)
+                if isinstance(parsed, str):
+                    extracted_val = parsed
+                elif isinstance(parsed, dict):
+                    # Check candidate keys in root
+                    for k in candidate_keys:
+                        val = parsed.get(k)
+                        if val and isinstance(val, (str, dict)):
+                            extracted_val = val
+                            break
+                    # If not found in root, check inside action_params
+                    if not extracted_val and isinstance(parsed.get("action_params"), dict):
+                        sub = parsed["action_params"]
+                        for k in candidate_keys:
+                            val = sub.get(k)
+                            if val and isinstance(val, (str, dict)):
+                                extracted_val = val
+                                break
+                    # If still not found, check if there's a single key containing long text
+                    if not extracted_val:
+                        for k, v in parsed.items():
+                            if isinstance(v, str) and len(v) > 30 and k not in ("thought", "action", "message", "summary_of_changes"):
+                                extracted_val = v
+                                break
+            except Exception:
+                # Robust regex fallback for dialogue with quotes, escaped characters, and truncated streams
+                match = re.search(
+                    r'"updated_story_content"\s*:\s*"([\s\S]*?)(?:",\s*"(?:summary_of_changes|message|action|instruction)"\s*:|"\s*\}\s*[\}\]]?\s*|"?\s*$)',
+                    current
+                )
+                if match and match.group(1):
+                    extracted_val = match.group(1)
+                else:
+                    for k in candidate_keys:
+                        pattern = r'"' + re.escape(k) + r'"\s*:\s*"([\s\S]*?)(?:",\s*"[a-zA-Z0-9_]+"\s*:|"\s*\}\s*[\}\]]?\s*|"?\s*$)'
+                        m = re.search(pattern, current)
+                        if m and m.group(1):
+                            extracted_val = m.group(1)
+                            break
+
+            if extracted_val is not None:
+                if isinstance(extracted_val, dict):
+                    current = json.dumps(extracted_val, ensure_ascii=False)
+                else:
+                    current = str(extracted_val).strip()
+
+        if current == prev:
+            break
+
+    # 3. Unconditionally unescape escaped sequences once the prose is isolated
+    for _ in range(3):
+        if "\\n" in current or "\\r" in current or '\\"' in current or "\\\\" in current:
+            current = (
+                current.replace('\\r\\n', '\n')
+                .replace('\\n', '\n')
+                .replace('\\r', '')
+                .replace('\\"', '"')
+                .replace('\\\\', '\\')
+            )
+        else:
+            break
+
+    # Normalize newlines
+    current = current.replace('\r\n', '\n').replace('\r', '\n')
+    current = re.sub(r'\n{3,}', '\n\n', current)
+
+    return current.strip()
+
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
@@ -93,14 +201,27 @@ class CopilotAgent:
     def _is_direct_edit_request(self, user_msg: str) -> bool:
         """Heuristic check to identify requests that intend to modify the manuscript directly."""
         msg_lower = user_msg.lower()
+        # Avoid false positives for conversational questions
+        non_edit_idioms = ["thay vì", "đổi lại", "thay cho", "bớt giận", "xóa tan"]
+        if any(idiom in msg_lower for idiom in non_edit_idioms):
+            return False
+
         edit_keywords = [
             "mở đầu", "đoạn mở", "mở bài", "đoạn kết", "kết thúc", "kết bài",
             "sửa lại", "thay đổi", "viết lại", "đổi tên", "chỉnh sửa", "thay phần",
             "thay đoạn", "tạo phần", "làm lại", "cắt bỏ", "thêm cảnh", "thêm đoạn",
             "bỏ đoạn", "đổi phong cách", "đổi giọng văn", "tăng kịch tính", "sửa câu",
-            "khác đi", "hay hơn", "ngắn lại", "dài ra", "u tối hơn", "hài hước hơn"
+            "khác đi", "hay hơn", "ngắn lại", "dài ra", "u tối hơn", "hài hước hơn",
+            "soạn lại", "viết tiếp", "bản thảo"
         ]
-        return any(k in msg_lower for k in edit_keywords)
+        if any(k in msg_lower for k in edit_keywords):
+            return True
+        # Match single-word verbs as individual words/tokens
+        single_word_verbs = ["sửa", "chỉnh", "thay", "đổi", "bớt", "xóa"]
+        for verb in single_word_verbs:
+            if re.search(rf'(?:\b|^){re.escape(verb)}(?:\b|$)', msg_lower):
+                return True
+        return False
 
     def _perform_direct_manuscript_edit(self, user_instruction: str, current_story: str) -> dict:
         """Executes targeted manuscript modification directly on the text."""
@@ -117,31 +238,60 @@ class CopilotAgent:
                 temperature=0.4,
                 max_tokens=4000
             )
-            cleaned = re.sub(r'```(?:json)?\s*', '', resp).strip()
+            cleaned = re.sub(r'^```(?:json)?\s*\n?', '', resp.strip(), flags=re.IGNORECASE).strip()
+            cleaned = re.sub(r'\n?```\s*$', '', cleaned).strip()
             match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+            data = None
             if match:
-                data = json.loads(match.group(0))
-                if data.get("updated_story_content"):
+                try:
+                    data = json.loads(match.group(0), strict=False)
+                except Exception as parse_err:
+                    safe_log(f"[Copilot Direct Edit] json.loads strict=False failed: {parse_err}. Attempting unwrap_story_prose.")
+
+            if isinstance(data, dict):
+                content_candidate = data.get("updated_story_content")
+                if not content_candidate and isinstance(data.get("action_params"), dict):
+                    content_candidate = data["action_params"].get("updated_story_content")
+                if not content_candidate:
+                    content_candidate = data.get("story_content") or data.get("content")
+                if content_candidate:
+                    clean_story = unwrap_story_prose(content_candidate)
                     return {
                         "thought": f"Đã thực hiện can thiệp trực tiếp vào bản thảo theo yêu cầu: {user_instruction}",
                         "action": "edit_story_direct",
                         "action_params": {
-                            "updated_story_content": data["updated_story_content"],
+                            "updated_story_content": clean_story,
                             "summary_of_changes": data.get("summary_of_changes", "Đã cập nhật bản thảo theo yêu cầu của bạn."),
                             "message": data.get("message", "Tôi đã chỉnh sửa trực tiếp vào bản thảo của bạn theo yêu cầu!")
                         }
                     }
-            elif len(cleaned) > 100:
-                # Direct prose fallback if LLM returned text instead of JSON
+
+            # Resilient fallback: unwrap directly on match or cleaned
+            unwrapped_fallback = unwrap_story_prose(match.group(0) if match else cleaned)
+            if unwrapped_fallback and not unwrapped_fallback.startswith("{"):
                 return {
-                    "thought": f"Can thiệp trực tiếp bằng văn bản mới sinh: {user_instruction}",
+                    "thought": f"Đã trích xuất văn bản can thiệp trực tiếp: {user_instruction}",
                     "action": "edit_story_direct",
                     "action_params": {
-                        "updated_story_content": cleaned,
-                        "summary_of_changes": "Đã cập nhật bản thảo theo yêu cầu.",
+                        "updated_story_content": unwrapped_fallback,
+                        "summary_of_changes": "Đã cập nhật bản thảo theo yêu cầu của bạn.",
                         "message": "Tôi đã chỉnh sửa trực tiếp vào bản thảo của bạn theo yêu cầu!"
                     }
                 }
+
+            # Direct prose fallback if LLM returned text instead of JSON
+            if cleaned:
+                clean_story = unwrap_story_prose(cleaned)
+                if clean_story and not clean_story.startswith("{"):
+                    return {
+                        "thought": f"Can thiệp trực tiếp bằng văn bản mới sinh: {user_instruction}",
+                        "action": "edit_story_direct",
+                        "action_params": {
+                            "updated_story_content": clean_story,
+                            "summary_of_changes": "Đã cập nhật bản thảo theo yêu cầu.",
+                            "message": "Tôi đã chỉnh sửa trực tiếp vào bản thảo của bạn theo yêu cầu!"
+                        }
+                    }
         except Exception as e:
             safe_log(f"[Copilot Direct Edit] Error: {e}")
         return None
@@ -200,11 +350,23 @@ THÔNG TIN BẢN THẢO HIỆN TẠI:
 
         try:
             response = self.llm.chat(messages, temperature=0.3, max_tokens=3000)
-            cleaned = re.sub(r'```(?:json)?\s*', '', response).strip()
+            cleaned = re.sub(r'^```(?:json)?\s*\n?', '', response.strip(), flags=re.IGNORECASE).strip()
+            cleaned = re.sub(r'\n?```\s*$', '', cleaned).strip()
             match = re.search(r'\{.*\}', cleaned, re.DOTALL)
             if match:
-                return json.loads(match.group(0))
-            return json.loads(response)
+                res = json.loads(match.group(0), strict=False)
+            else:
+                res = json.loads(response, strict=False)
+
+            if isinstance(res, dict) and res.get("action") == "edit_story_direct":
+                if "action_params" not in res or not isinstance(res.get("action_params"), dict):
+                    res["action_params"] = {}
+                params = res["action_params"]
+                if "updated_story_content" not in params and "updated_story_content" in res:
+                    params["updated_story_content"] = res["updated_story_content"]
+                if "updated_story_content" in params:
+                    params["updated_story_content"] = unwrap_story_prose(params["updated_story_content"])
+            return res
         except Exception as e:
             safe_log(f"Master Controller Error: {e}")
             return {

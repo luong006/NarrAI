@@ -19,6 +19,133 @@ import { StoryEditor } from "@/components/editor/StoryEditor";
 import { AICopilotPanel } from "@/components/editor/AICopilotPanel";
 import { ComicViewer } from "@/components/comic/ComicViewer";
 
+/**
+ * Recursively unwraps stringified JSON envelopes, extracts clean story prose,
+ * strips markdown fences, and unconditionally converts escaped characters (\n, \", etc.).
+ */
+function unwrapStoryProseFrontend(content: string): string {
+  if (!content) return "";
+  let current = String(content).trim();
+
+  const candidateKeys = [
+    "updated_story_content",
+    "story_content",
+    "story",
+    "content",
+    "new_story_content",
+    "revised_text",
+    "text",
+  ];
+
+  for (let pass = 0; pass < 10; pass++) {
+    const prev = current;
+
+    // 1. Strip markdown code fences (```json ... ``` or ```markdown ... ``` or ``` ... ```)
+    current = current.replace(/^```(?:json|markdown)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+    // If enclosed in a code block embedded within text
+    const fenceMatch = current.match(/```(?:json|markdown)?\s*\n?([\s\S]*?)\n?```/i);
+    if (fenceMatch && fenceMatch[1]) {
+      const inner = fenceMatch[1].trim();
+      if (candidateKeys.some((k) => inner.includes(`"${k}"`)) || inner.includes('"action_params"')) {
+        current = inner;
+      }
+    }
+
+    // 2. Check if current looks like JSON
+    const isJsonLike =
+      (current.startsWith("{") && current.endsWith("}")) ||
+      (current.startsWith('"{') && current.endsWith('}"')) ||
+      candidateKeys.some((k) => current.includes(`"${k}"`)) ||
+      current.includes('"action_params"');
+
+    if (isJsonLike) {
+      let extracted: string | null = null;
+      try {
+        const parsed = JSON.parse(current);
+        if (typeof parsed === "string") {
+          extracted = parsed;
+        } else if (typeof parsed === "object" && parsed !== null) {
+          // Check candidate keys at root
+          for (const k of candidateKeys) {
+            const val = (parsed as Record<string, unknown>)[k];
+            if (val && (typeof val === "string" || typeof val === "object")) {
+              extracted = typeof val === "string" ? val : JSON.stringify(val);
+              break;
+            }
+          }
+          // If not at root, check inside action_params
+          if (!extracted && parsed.action_params && typeof parsed.action_params === "object") {
+            const sub = parsed.action_params as Record<string, unknown>;
+            for (const k of candidateKeys) {
+              const val = sub[k];
+              if (val && (typeof val === "string" || typeof val === "object")) {
+                extracted = typeof val === "string" ? val : JSON.stringify(val);
+                break;
+              }
+            }
+          }
+          // Fallback: check any key with string value > 30 characters
+          if (!extracted) {
+            for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+              if (
+                typeof v === "string" &&
+                v.length > 30 &&
+                !["thought", "action", "message", "summary_of_changes"].includes(k)
+              ) {
+                extracted = v;
+                break;
+              }
+            }
+          }
+        }
+      } catch {
+        // Robust regex fallback: handle dialogue quotes and truncated stream without premature cutoff
+        const match = current.match(
+          /"updated_story_content"\s*:\s*"([\s\S]*?)(?:",\s*"(?:summary_of_changes|message|action|instruction)"\s*:|"\s*\}[\}\]]?\s*|"?\s*$)/
+        );
+        if (match && match[1]) {
+          extracted = match[1];
+        } else {
+          for (const k of candidateKeys) {
+            const m = current.match(
+              new RegExp(`"${k}"\\s*:\\s*"([\\s\\S]*?)(?:",\\s*"[a-zA-Z0-9_]+"\\s*:|\\"\\s*\\}[\\}\\]]?\\s*|"?\\s*$)`)
+            );
+            if (m && m[1]) {
+              extracted = m[1];
+              break;
+            }
+          }
+        }
+      }
+
+      if (extracted !== null) {
+        current = extracted.trim();
+      }
+    }
+
+    // 3. Unconditionally unescape escaped sequences
+    if (current.includes("\\n") || current.includes("\\r") || current.includes('\\"') || current.includes("\\\\")) {
+      current = current
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\");
+    }
+
+    if (current === prev) {
+      break;
+    }
+  }
+
+  // Normalize newlines
+  current = current.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  current = current.replace(/\n{3,}/g, "\n\n");
+
+  return current.trim();
+}
+
 export default function WorkspacePage() {
   // Global State
   const [user, setUser] = useState<{ username: string } | null>(null);
@@ -339,13 +466,16 @@ export default function WorkspacePage() {
         const params = res.data.action_params || {};
 
         if (action === "edit_story_direct") {
-          const newContent = params.updated_story_content;
+          let newContent = params.updated_story_content || (res.data as any).updated_story_content;
           if (newContent) {
-            setUndoStack((prev) => [...prev, storyContent]);
-            setStoryContent(newContent);
-            const notice = params.summary_of_changes || (lang === "vi" ? "Bản thảo đã được AI Co-pilot cập nhật trực tiếp!" : "Manuscript directly updated by AI Co-pilot!");
-            setManuscriptNotice(notice);
-            setTimeout(() => setManuscriptNotice(null), 8000);
+            newContent = unwrapStoryProseFrontend(newContent);
+            if (!newContent.startsWith("{") && !newContent.includes('"updated_story_content"')) {
+              setUndoStack((prev) => [...prev, storyContent]);
+              setStoryContent(newContent);
+              const notice = params.summary_of_changes || (lang === "vi" ? "Bản thảo đã được AI Co-pilot cập nhật trực tiếp!" : "Manuscript directly updated by AI Co-pilot!");
+              setManuscriptNotice(notice);
+              setTimeout(() => setManuscriptNotice(null), 8000);
+            }
           }
           const responseMsg = (params.message || (lang === "vi" ? "Tôi đã cập nhật trực tiếp vào bản thảo của bạn theo yêu cầu!" : "I directly updated your manuscript as requested!")) +
             (params.summary_of_changes ? `\n\n📝 Chi tiết thay đổi: ${params.summary_of_changes}` : "");
@@ -387,7 +517,8 @@ export default function WorkspacePage() {
           setCopilotMessages((prev) => [...prev, { role: "assistant", content: replyText }]);
         }
         if (chatRes.new_story_content) {
-          setStoryContent((prev) => prev + "\n\n" + chatRes.new_story_content);
+          const cleanNew = unwrapStoryProseFrontend(chatRes.new_story_content);
+          setStoryContent((prev) => prev ? prev + "\n\n" + cleanNew : cleanNew);
         }
       }
     } catch (err: any) {
@@ -449,7 +580,8 @@ export default function WorkspacePage() {
           setCopilotMessages((prev) => [...prev, { role: "assistant", content: res.chat_reply }]);
         }
         if (res.new_story_content) {
-          setStoryContent((prev) => prev + "\n\n" + res.new_story_content);
+          const cleanNew = unwrapStoryProseFrontend(res.new_story_content);
+          setStoryContent((prev) => prev ? prev + "\n\n" + cleanNew : cleanNew);
         }
       } catch (err: any) {
         setStreaming(false);
@@ -508,7 +640,8 @@ export default function WorkspacePage() {
           setCopilotMessages((prev) => [...prev, { role: "assistant", content: res.chat_reply }]);
         }
         if (res.new_story_content) {
-          setStoryContent((prev) => prev + "\n\n" + res.new_story_content);
+          const cleanNew = unwrapStoryProseFrontend(res.new_story_content);
+          setStoryContent((prev) => prev ? prev + "\n\n" + cleanNew : cleanNew);
         }
       } catch (err: any) {
         setStreaming(false);
@@ -533,7 +666,7 @@ export default function WorkspacePage() {
   const handleSelectStory = (story: StoryDetail) => {
     setStoryId(story.id);
     setSessionId(story.session_id || null);
-    setStoryContent(story.story_content || "");
+    setStoryContent(unwrapStoryProseFrontend(story.story_content || ""));
     setRefinedPrompt(story.refined_prompt || "");
     setActiveTab("editor");
     setComicPanels([]);

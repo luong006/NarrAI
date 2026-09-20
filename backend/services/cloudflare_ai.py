@@ -2,6 +2,8 @@ import os
 import requests
 import urllib.parse
 
+from typing import Optional
+
 # Local persistent disk cache for rendered panels
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "comic_cache"))
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -19,7 +21,16 @@ def get_cloudflare_token():
 def get_account_id():
     return os.environ.get("CLOUDFLARE_ACCOUNT_ID", "c349c6c7357e310e5032506f7efe5d42")
 
-def generate_image_cf(prompt: str) -> bytes:
+def get_deterministic_comic_seed(story_id: int | None = 1) -> int:
+    """
+    Calculates a synchronized deterministic seed based on story ID.
+    Locks diffusion latent noise across all manga panels in the story.
+    Returns an integer in the range [100000, 999999].
+    """
+    anchor_id = int(story_id) if story_id is not None else 1
+    return (int(anchor_id) * 7919 + 4289000) % 900000 + 100000
+
+def generate_image_cf(prompt: str, seed: int | None = None) -> bytes:
     """
     Calls Cloudflare Workers AI Text-to-Image model with fallback chain.
     Returns binary image data (bytes).
@@ -39,6 +50,8 @@ def generate_image_cf(prompt: str) -> bytes:
         "prompt": prompt,
         "negative_prompt": "color, colorful, vibrant, saturated, photorealistic, photograph, photo, realistic, 3d render, digital painting, oil painting, watercolor, bright colors, rainbow, neon, warm tones, cool tones, skin color, blue sky, green grass, red, blue, yellow, orange, purple, pink, colored, CGI, real person, real face, real photo, camera"
     }
+    if seed is not None:
+        payload["seed"] = int(seed)
     
     last_error = None
     for model in CF_MODELS:
@@ -60,11 +73,16 @@ def generate_image_cf(prompt: str) -> bytes:
     raise Exception(f"All Cloudflare models failed. Last error: {last_error}")
 
 
-def get_cached_or_generate_image(panel_id: int, prompt: str) -> tuple[bytes, str]:
+def get_cached_or_generate_image(
+    panel_id: int,
+    prompt: str,
+    seed: int | None = None,
+    story_id: Optional[int] = None
+) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
-    Otherwise attempts Cloudflare Workers AI with fallback to Pollinations B&W manga,
-    then writes to disk cache for instantaneous future loads.
+    Otherwise attempts Cloudflare Workers AI with deterministic seed synchronized by story_id,
+    with fallback to Pollinations B&W manga, then writes to disk cache.
     Returns (image_bytes, media_type).
     """
     cache_path = os.path.join(CACHE_DIR, f"panel_{panel_id}.jpg")
@@ -79,16 +97,21 @@ def get_cached_or_generate_image(panel_id: int, prompt: str) -> tuple[bytes, str
         except Exception as e:
             print(f"[Comic Cache] Failed to read cached panel_{panel_id}: {e}")
 
-    # 2. Generate via Cloudflare Workers AI
-    img_bytes = None
+    # 2. Determine synchronized deterministic seed
+    if seed is not None:
+        panel_seed = int(seed)
+    elif story_id is not None:
+        panel_seed = get_deterministic_comic_seed(story_id)
+    else:
+        panel_seed = (4289000 + (panel_id % 1000))
     try:
-        img_bytes = generate_image_cf(prompt)
+        img_bytes = generate_image_cf(prompt, seed=panel_seed)
     except Exception as e:
         print(f"[Comic Image] Cloudflare AI unavailable ({e}). Falling back to Pollinations...")
         try:
             bw_prompt = f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {prompt[:300]}, screentone, no color"
             safe_prompt = urllib.parse.quote(bw_prompt)
-            fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_id}"
+            fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_seed}"
             resp = requests.get(fallback_url, timeout=20)
             if resp.status_code == 200 and len(resp.content) > 500:
                 img_bytes = resp.content

@@ -12,6 +12,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 import json
 import os
+import re
+from typing import Tuple
 from dotenv import load_dotenv
 
 # Load .env from current directory
@@ -61,7 +63,7 @@ def get_story_generator():
 import re
 import urllib.parse
 from fastapi.responses import StreamingResponse, JSONResponse, Response, RedirectResponse, FileResponse
-from services.cloudflare_ai import generate_image_cf, get_cached_or_generate_image
+from services.cloudflare_ai import generate_image_cf, get_cached_or_generate_image, get_deterministic_comic_seed
 from db.models import Story, User, Comic, ComicPanel, engine
 from sqlalchemy.orm import sessionmaker, Session
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token
@@ -423,6 +425,79 @@ def _get_story_memory(story, db):
         print(f"[Comic] Could not load story memory: {e}")
     return None
 
+def extract_sentence_bounded_chunk(text: str, target_size: int = 5000, max_limit: int = 6500) -> tuple[str, int]:
+    """
+    Extracts a chunk of story text breaking strictly at the nearest sentence boundary,
+    preventing mid-sentence cuts or amputated words when adapting long stories into comic panels.
+    
+    Parameters:
+        text (str): The full story or remaining story text.
+        target_size (int): Target character length for the chunk (default: 5000).
+        max_limit (int): Maximum allowable character length (default: 6500).
+        
+    Returns:
+        tuple[str, int]: (chunk_text, consumed_offset)
+            - chunk_text: Cleaned prose containing only complete sentences.
+            - consumed_offset: Exact character index consumed from original text,
+              ensuring request.story_text[consumed_offset:] aligns cleanly with the next sentence.
+    """
+    if not text:
+        return "", 0
+        
+    text_len = len(text)
+    if text_len <= target_size:
+        return text.strip(), text_len
+
+    effective_limit = min(max_limit, text_len)
+    search_sub = text[:effective_limit]
+
+    # Pattern identifying complete sentence boundaries:
+    # 1. Terminal punctuation [.!?] optionally followed by closing quotes ["'”’]
+    #    followed by whitespace, newline, or end-of-string
+    # 2. Double newlines (paragraph boundaries)
+    # 3. Single newlines followed by a dialogue dash, quote, or capital letter
+    boundary_regex = re.compile(
+        r'(?:[\.!\?]["\'”’]?|\n\n|\n(?=[—\-\"\'A-ZÀ-Ỹ]))(?:\s+|$)'
+    )
+
+    candidates = []
+    for m in boundary_regex.finditer(search_sub):
+        end_pos = m.end()
+        # Candidate cut should leave a substantial chunk (at least 200 chars or 20% of target)
+        if end_pos >= min(300, target_size // 3):
+            candidates.append(end_pos)
+
+    chosen_cut = None
+    if candidates:
+        after_target = [c for c in candidates if c >= target_size]
+        before_target = [c for c in candidates if c < target_size]
+
+        if after_target:
+            after_cand = after_target[0]
+            if before_target:
+                before_cand = before_target[-1]
+                dist_after = after_cand - target_size
+                dist_before = target_size - before_cand
+                if dist_after <= dist_before or dist_after <= 400:
+                    chosen_cut = after_cand
+                else:
+                    chosen_cut = before_cand
+            else:
+                chosen_cut = after_cand
+        elif before_target:
+            chosen_cut = before_target[-1]
+
+    if not chosen_cut:
+        # Fallback 1: word boundary near target_size
+        space_idx = search_sub.rfind(' ', 0, target_size)
+        if space_idx > target_size * 0.5:
+            chosen_cut = space_idx + 1
+        else:
+            chosen_cut = min(target_size, text_len)
+
+    chunk_text = text[:chosen_cut].strip()
+    return chunk_text, chosen_cut
+
 @app.post("/api/comic/generate")
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
@@ -438,10 +513,8 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
         
         memory = _get_story_memory(story, db)
         
-        # Adapt first chunk of story (up to 6000 chars)
-        chunk_size = 6000
-        text_to_adapt = request.story_text[:chunk_size]
-        adapted_len = len(text_to_adapt)
+        # Adapt first chunk of story using sentence boundaries (up to ~5000-6500 chars)
+        text_to_adapt, adapted_len = extract_sentence_bounded_chunk(request.story_text, target_size=5000, max_limit=6500)
             
         from agents.comic_agent import ComicDirectorAgent
         director = ComicDirectorAgent()
@@ -499,8 +572,8 @@ def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db),
         story = db.query(Story).filter(Story.id == comic.story_id).first()
         memory = _get_story_memory(story, db)
         
-        chunk_size = 6000
-        new_text = remaining_text[:chunk_size]
+        # Adapt continuation chunk using sentence boundaries (up to ~5000-6500 chars)
+        new_text, chunk_len = extract_sentence_bounded_chunk(remaining_text, target_size=5000, max_limit=6500)
         
         from agents.comic_agent import ComicDirectorAgent
         director = ComicDirectorAgent()
@@ -508,7 +581,7 @@ def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db),
         
         panels_response = _save_panels(db, comic, script_data, start_index=max_index)
         
-        comic.adapted_offset = current_offset + len(new_text)
+        comic.adapted_offset = current_offset + chunk_len
         db.commit()
         
         has_more = len(request.story_text) > comic.adapted_offset
@@ -526,6 +599,7 @@ def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db),
         return {"status": "error", "message": f"Lỗi tiếp tục truyện tranh: {str(e)}"}
 
 @app.get("/api/comic/image/{panel_id}")
+@app.get("/api/comics/panels/{panel_id}/image")
 def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
     """Proxies comic panel image generation with local disk cache and Cloudflare Workers AI + Pollinations fallback."""
     panel = db.query(ComicPanel).filter(ComicPanel.id == panel_id).first()
@@ -533,13 +607,17 @@ def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
         return Response(status_code=404)
         
     try:
-        img_bytes, media_type = get_cached_or_generate_image(panel.id, panel.image_prompt)
+        story_id = (panel.comic.story_id if panel.comic else None) or panel.comic_id or 1
+        comic_seed = get_deterministic_comic_seed(story_id)
+        img_bytes, media_type = get_cached_or_generate_image(panel.id, panel.image_prompt, seed=comic_seed, story_id=story_id)
         return Response(content=img_bytes, media_type=media_type)
     except Exception as e:
         print(f"[Comic Image] Generation failed ({e}), fallback redirect...")
+        story_id = (panel.comic.story_id if panel.comic else None) or panel.comic_id or 1
+        comic_seed = get_deterministic_comic_seed(story_id)
         bw_prompt = f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {panel.image_prompt[:300]}, screentone, no color"
         safe_prompt = urllib.parse.quote(bw_prompt)
-        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_id}"
+        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={comic_seed}"
         return RedirectResponse(url=fallback_url)
 
 
@@ -672,25 +750,52 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
         
         # If story was directly modified, persist to database
         if result.get("action") == "edit_story_direct":
-            params = result.get("action_params", {})
+            if "action_params" not in result or not isinstance(result.get("action_params"), dict):
+                result["action_params"] = {}
+            params = result["action_params"]
+            if "updated_story_content" not in params and "updated_story_content" in result:
+                params["updated_story_content"] = result["updated_story_content"]
             updated_content = params.get("updated_story_content")
-            if updated_content and current_user:
-                db = SessionLocal()
-                try:
-                    story_query = db.query(Story).filter(Story.user_id == current_user.id)
-                    if request.story_id:
-                        story_query = story_query.filter(Story.id == request.story_id)
+            if updated_content:
+                from agents.copilot_agent import unwrap_story_prose
+                clean_prose = unwrap_story_prose(updated_content)
+                params["updated_story_content"] = clean_prose
+                updated_content = clean_prose
+
+                # Database Quarantine Guard: strictly verify clean prose before persisting
+                is_raw_json = (
+                    updated_content.strip().startswith("{")
+                    or '"updated_story_content"' in updated_content
+                    or '"action":' in updated_content
+                )
+                if is_raw_json:
+                    clean_prose = unwrap_story_prose(updated_content)
+                    if not clean_prose.strip().startswith("{") and '"updated_story_content"' not in clean_prose:
+                        updated_content = clean_prose
+                        params["updated_story_content"] = clean_prose
                     else:
-                        story_query = story_query.filter(Story.session_id == request.session_id)
-                    story = story_query.first()
-                    if story:
-                        story.story_content = updated_content
-                        story.word_count = len(updated_content.split())
-                        db.commit()
-                except Exception as e:
-                    print(f"[Copilot DB Update Error] {e}")
-                finally:
-                    db.close()
+                        print("[Copilot DB Guard] Raw JSON detected in edit_story_direct; skipping DB overwrite to prevent corruption.")
+                        updated_content = None
+                        params["updated_story_content"] = None
+                        params["message"] = "Hệ thống phát hiện lỗi định dạng bản thảo và đã ngăn chặn ghi đè để bảo vệ tác phẩm của bạn."
+
+                if updated_content:
+                    db = SessionLocal()
+                    try:
+                        story_query = db.query(Story).filter(Story.user_id == current_user.id)
+                        if request.story_id:
+                            story_query = story_query.filter(Story.id == request.story_id)
+                        else:
+                            story_query = story_query.filter(Story.session_id == request.session_id)
+                        story = story_query.first()
+                        if story:
+                            story.story_content = updated_content
+                            story.word_count = len(updated_content.split())
+                            db.commit()
+                    except Exception as e:
+                        print(f"[Copilot DB Update Error] {e}")
+                    finally:
+                        db.close()
 
         # Save memory changes to DB
         if memory and current_user:
