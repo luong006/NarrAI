@@ -305,4 +305,19 @@ export const api = {
     if (imageUrl.startsWith('http')) return imageUrl;
     return API_BASE_URL.replace('/api', '') + imageUrl;
   },
+
+  // Coins & Banking
+  async getCoinsBalance(): Promise<{ status: string; coins?: number; balance?: number }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/balance`, { headers: authHeaders() });
+      if (!res.ok) {
+        const fallbackRes = await fetch(`${API_BASE_URL}/coins/balance`, { headers: authHeaders() });
+        if (fallbackRes.ok) return fallbackRes.json();
+        return { status: 'error', coins: 100 };
+      }
+      return res.json();
+    } catch {
+      return { status: 'error', coins: 100 };
+    }
+  },
 };

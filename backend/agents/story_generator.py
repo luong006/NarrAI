@@ -1,6 +1,36 @@
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
+try:
+    from services.ontology import (
+        NarrativeMode,
+        CulturalTier,
+        HistoricalGroundingGatekeeper,
+        TriTierOntologyResolver,
+        SmartSelectiveLanguageFilter,
+        resolve_ontology,
+        normalize_narrative_mode,
+    )
+except ImportError:
+    try:
+        from backend.services.ontology import (
+            NarrativeMode,
+            CulturalTier,
+            HistoricalGroundingGatekeeper,
+            TriTierOntologyResolver,
+            SmartSelectiveLanguageFilter,
+            resolve_ontology,
+            normalize_narrative_mode,
+        )
+    except ImportError:
+        NarrativeMode = None
+        CulturalTier = None
+        HistoricalGroundingGatekeeper = None
+        TriTierOntologyResolver = None
+        SmartSelectiveLanguageFilter = None
+        resolve_ontology = None
+        normalize_narrative_mode = lambda x: x
+
 
 # ==============================================================================
 # MODERN LIGHT NOVEL & WEB NOVEL WRITING ENGINE RULES (VIETNAMESE EDITION)
@@ -97,14 +127,22 @@ AI_CLICHE_BANLIST = [
     r"trái tim tan vỡ",
 ]
 
-def validate_anti_cliche_compliance(text: str) -> Tuple[bool, List[str]]:
+def validate_anti_cliche_compliance(text: str, genre: str = "", narrative_mode: Any = None) -> Tuple[bool, List[str]]:
     """
-    Validates generated text against the AI cliché banlist.
+    Validates generated text against the AI cliché banlist and Chinese translation clichés.
+    Delegates to SmartSelectiveLanguageFilter when available.
     Returns (is_clean, list_of_violations).
-    Each violation is a string describing the cliché found and its position.
     """
     if not text or not isinstance(text, str):
         return True, []
+
+    if SmartSelectiveLanguageFilter is not None:
+        mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+        return SmartSelectiveLanguageFilter.validate_smart_language_compliance(
+            text=text,
+            genre=genre,
+            narrative_mode=mode_enum
+        )
 
     violations = []
     text_lower = text.lower()
@@ -123,7 +161,7 @@ class StoryGenerator:
     def __init__(self):
         self.llm = GroqClient(model_name="openai/gpt-oss-120b")
 
-    def _extract_narrative_ontology(self, refined_prompt: str) -> str:
+    def _extract_narrative_ontology(self, refined_prompt: str, narrative_mode: Any = None, genre: str = "") -> str:
         """
         Trích xuất Bộ khung Dynamic Scene-Graph Ontology (3 Chiều: Thực thể - Không gian - Thời đại) & Chuỗi 5 Nhịp Kịch Tính:
         - Thực thể & Nhân vật (Entities & Tight POV)
@@ -132,7 +170,14 @@ class StoryGenerator:
         - Không gian phân cảnh (Spatial Scene Enclosure)
         - Cấu trúc 5 Nhịp Kịch Tính (5 Dramatic Narrative Beats)
         """
-        prompt = f"""Phân tích bản phác thảo và trích xuất BỘ KHUNG NARRATIVE ONTOLOGY (RÀNG BUỘC 3 CHIỀU) & CẤU TRÚC 5 NHỊP KỊCH TÍNH:
+        mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+        mode_note = ""
+        if mode_enum == NarrativeMode.CHINH_SU:
+            mode_note = "\nCHẾ ĐỘ SÁNG TÁC: CHÍNH SỬ (Tuân thủ nghiêm ngặt sự thật lịch sử Đại Việt, tuyệt đối không xuyên tạc biến cố hay nhân vật có thật)."
+        elif mode_enum == NarrativeMode.DA_SU:
+            mode_note = "\nCHẾ ĐỘ SÁNG TÁC: DÃ SỬ (Bối cảnh lịch sử có thật, nhân vật chính hư cấu vi mô, neo giữ tinh thần thời đại)."
+
+        prompt = f"""Phân tích bản phác thảo và trích xuất BỘ KHUNG NARRATIVE ONTOLOGY (RÀNG BUỘC 3 CHIỀU) & CẤU TRÚC 5 NHỊP KỊCH TÍNH:{mode_note}
 BẢN PHÁC THẢO:
 {refined_prompt[:3000]}
 
@@ -160,11 +205,19 @@ Yêu cầu xuất ra cấu trúc chính xác sau:
             )
             if ontology_text and ontology_text.strip():
                 return ontology_text.strip()
+            
+            if mode_enum in (NarrativeMode.CHINH_SU, NarrativeMode.DA_SU):
+                world_axiom = "Đại Việt lịch sử chính thống, tuân thủ đúng niên đại, chiến cục và cốt cách danh nhân."
+                enc_note = "Đại bản doanh chiến dịch, doanh trại quân ngũ hoặc hoàng cung tôn nghiêm."
+            else:
+                world_axiom = "Hiện đại, tuân thủ logic thực tế, cấm phép màu vô lý."
+                enc_note = "Không gian khép kín ban đầu, neo giữ vị trí, cấm trôi dạt ngoại cảnh."
+
             return (
                 f"[THỰC THỂ & NHÂN VẬT]:\n{refined_prompt[:400]}\n"
                 f"[QUAN HỆ & ĐỘNG CƠ]: Xung đột mục tiêu ngầm và áp lực nội tâm.\n"
-                f"[QUY TẮC THẾ GIỚI & BỐI CẢNH (WORLD AXIOMS)]: Hiện đại, tuân thủ logic thực tế, cấm phép màu vô lý.\n"
-                f"[KHÔNG GIAN PHÂN CẢNH & NEO GIỮ KIẾN TRÚC (SPATIAL SCENE ENCLOSURE)]: Không gian khép kín ban đầu, neo giữ vị trí, cấm trôi dạt ngoại cảnh.\n"
+                f"[QUY TẮC THẾ GIỚI & BỐI CẢNH (WORLD AXIOMS)]: {world_axiom}\n"
+                f"[KHÔNG GIAN PHÂN CẢNH & NEO GIỮ KIẾN TRÚC (SPATIAL SCENE ENCLOSURE)]: {enc_note}\n"
                 f"[CHUỖI NHÂN QUẢ CHÍNH]: Khởi phát -> Leo thang -> Bùng nổ.\n"
                 f"[CẤU TRÚC 5 NHỊP KỊCH TÍNH (5 DRAMATIC BEATS)]:\n"
                 f"  + Beat 1: Hook (0-15%): Xung đột bùng nổ ngay lập tức.\n"
@@ -174,11 +227,18 @@ Yêu cầu xuất ra cấu trúc chính xác sau:
                 f"  + Beat 5: Lingering Cliffhanger (90-100%): Nút thắt chưa gỡ kết thúc chương."
             )
         except Exception as e:
+            if mode_enum in (NarrativeMode.CHINH_SU, NarrativeMode.DA_SU):
+                world_axiom = "Đại Việt lịch sử chính thống, tuân thủ đúng niên đại, chiến cục và cốt cách danh nhân."
+                enc_note = "Đại bản doanh chiến dịch, doanh trại quân ngũ hoặc hoàng cung tôn nghiêm."
+            else:
+                world_axiom = "Hiện đại, tuân thủ logic thực tế, cấm phép màu vô lý."
+                enc_note = "Không gian khép kín ban đầu, neo giữ vị trí, cấm trôi dạt ngoại cảnh."
+
             return (
                 f"[THỰC THỂ & NHÂN VẬT]:\n{refined_prompt[:400]}\n"
                 f"[QUAN HỆ & ĐỘNG CƠ]: Xung đột mục tiêu ngầm và áp lực nội tâm.\n"
-                f"[QUY TẮC THẾ GIỚI & BỐI CẢNH (WORLD AXIOMS)]: Hiện đại, tuân thủ logic thực tế, cấm phép màu vô lý.\n"
-                f"[KHÔNG GIAN PHÂN CẢNH & NEO GIỮ KIẾN TRÚC (SPATIAL SCENE ENCLOSURE)]: Không gian khép kín ban đầu, neo giữ vị trí, cấm trôi dạt ngoại cảnh.\n"
+                f"[QUY TẮC THẾ GIỚI & BỐI CẢNH (WORLD AXIOMS)]: {world_axiom}\n"
+                f"[KHÔNG GIAN PHÂN CẢNH & NEO GIỮ KIẾN TRÚC (SPATIAL SCENE ENCLOSURE)]: {enc_note}\n"
                 f"[CHUỖI NHÂN QUẢ CHÍNH]: Khởi phát -> Leo thang -> Bùng nổ.\n"
                 f"[CẤU TRÚC 5 NHỊP KỊCH TÍNH (5 DRAMATIC BEATS)]:\n"
                 f"  + Beat 1: Hook (0-15%): Xung đột bùng nổ ngay lập tức.\n"
@@ -196,13 +256,24 @@ Yêu cầu xuất ra cấu trúc chính xác sau:
         }
         return config.get(story_length, config["medium"])
 
-    def _build_prompt(self, refined_prompt: str, story_length: str):
+    def _build_prompt(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = ""):
         cfg = self._get_config(story_length)
-        ontology_block = self._extract_narrative_ontology(refined_prompt)
+        mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+        ontology_block = self._extract_narrative_ontology(refined_prompt, narrative_mode=mode_enum, genre=genre)
+
+        mode_directives = ""
+        if HistoricalGroundingGatekeeper is not None:
+            mode_directives += HistoricalGroundingGatekeeper.get_historical_grounding_prompt(mode_enum)
+        if SmartSelectiveLanguageFilter is not None:
+            mode_directives += SmartSelectiveLanguageFilter.get_prompt_cliche_instructions(genre, mode_enum)
+        if TriTierOntologyResolver is not None:
+            sim = TriTierOntologyResolver.calculate_cultural_similarity(refined_prompt, genre=genre)
+            tier = TriTierOntologyResolver.resolve_tier(sim)
+            mode_directives += TriTierOntologyResolver.get_honorifics_guidelines(tier, mode_enum)
 
         system_prompt = f"""Bạn là Bút vàng chuyên gia sáng tác Light Novel & Web Novel thịnh hành, chuyên sáng tác các tác phẩm lôi cuốn, kịch tính, nhịp độ dồn dập dành cho giới trẻ bằng tiếng Việt hiện đại.
 TUYỆT ĐỐI CHỈ VIẾT BẰNG TIẾNG VIỆT, văn phong tự nhiên, giàu sắc thái đương đại, không lai tạp tiếng Anh.
-
+{mode_directives}
 === BỘ KHUNG NARRATIVE ONTOLOGY & 5 DRAMATIC BEATS (BẤT BIẾN - TUYỆT ĐỐI TUÂN THỦ) ===
 {ontology_block}
 ====================================================================
@@ -241,12 +312,12 @@ Quy tắc định dạng:
         return messages, cfg["max_tokens"]
 
     # ===== LEGACY METHODS (giữ tương thích ngược) =====
-    def generate_story(self, refined_prompt: str, story_length: str = "medium") -> str:
-        messages, max_tokens = self._build_prompt(refined_prompt, story_length)
+    def generate_story(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = "") -> str:
+        messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=narrative_mode, genre=genre)
         return self.llm.chat(messages, temperature=0.8, max_tokens=max_tokens)
 
-    def generate_story_stream(self, refined_prompt: str, story_length: str = "medium"):
-        messages, max_tokens = self._build_prompt(refined_prompt, story_length)
+    def generate_story_stream(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = ""):
+        messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=narrative_mode, genre=genre)
         return self.llm.chat_stream(messages, temperature=0.8, max_tokens=max_tokens)
 
     # ===== NEW: Memory-based Chapter Generation =====
@@ -257,11 +328,29 @@ Quy tắc định dạng:
         short_context = memory.get_short_context(max_chars=6000)
         next_chapter = memory.current_chapter + 1
 
+        genre = getattr(memory.story_bible, "genre", "")
+        raw_mode = getattr(memory.story_bible, "narrative_mode", None)
+        if not raw_mode and getattr(memory, "dynamic_scene_graph", None):
+            raw_mode = getattr(memory.dynamic_scene_graph, "narrative_mode", None)
+        mode_enum = normalize_narrative_mode(raw_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+
+        mode_directives = ""
+        if HistoricalGroundingGatekeeper is not None:
+            mode_directives += HistoricalGroundingGatekeeper.get_historical_grounding_prompt(mode_enum)
+        if SmartSelectiveLanguageFilter is not None:
+            mode_directives += SmartSelectiveLanguageFilter.get_prompt_cliche_instructions(genre, mode_enum)
+        if TriTierOntologyResolver is not None:
+            c_tier = getattr(memory.story_bible, "cultural_tier", None)
+            if c_tier is None and getattr(memory, "dynamic_scene_graph", None):
+                c_tier = getattr(memory.dynamic_scene_graph, "cultural_tier", 1)
+            tier_enum = CulturalTier(c_tier) if c_tier in (1, 2, 3) else CulturalTier.TIER_1_CANONICAL_VN
+            mode_directives += TriTierOntologyResolver.get_honorifics_guidelines(tier_enum, mode_enum)
+
         system_prompt = f"""Bạn là Bút vàng chuyên gia sáng tác Light Novel & Web Novel thịnh hành, đang trực tiếp chấp bút chương mới bằng tiếng Việt hiện đại.
 NHIỆM VỤ CỦA BẠN LÀ VIẾT VĂN XUÔI CHƯƠNG TRUYỆN NGAY BÂY GIỜ, không phân tích, không giải thích, không hỏi lại người dùng.
 TUYỆT ĐỐI KHÔNG viết lời chào, lời xin lỗi hay bất kỳ câu trò chuyện phi văn xuôi nào.
 TUYỆT ĐỐI CHỈ VIẾT BẰNG TIẾNG VIỆT VĂN XUÔI NGUYÊN BẢN.
-
+{mode_directives}
 {bible_block}
 
 {memory_block}

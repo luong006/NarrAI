@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ClientPortal } from "@/components/portals/ClientPortal";
 import { api } from "@/lib/api";
 import { StoryDetail } from "@/lib/types";
 import { translations, Language } from "@/lib/i18n";
@@ -65,8 +66,9 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-2xl max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
+    <ClientPortal zIndex={60}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="relative w-full max-w-2xl max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
         <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400" />
@@ -129,5 +131,6 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
         </div>
       </div>
     </div>
+    </ClientPortal>
   );
 }

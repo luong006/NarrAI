@@ -12,6 +12,15 @@ from enum import Enum
 from typing import List, Dict, Optional, Any, Tuple, Set
 from pydantic import BaseModel, Field, model_validator
 
+try:
+    from services.ontology import NarrativeMode, CulturalTier
+except ImportError:
+    try:
+        from backend.services.ontology import NarrativeMode, CulturalTier
+    except ImportError:
+        NarrativeMode = None
+        CulturalTier = None
+
 
 class VitalityState(str, Enum):
     ALIVE = "alive"
@@ -40,6 +49,9 @@ class EraType(str, Enum):
     ANCIENT_EAST_ASIA = "ancient_east_asia"
     CYBERPUNK_2099 = "cyberpunk_2099"
     VICTORIAN_1890S = "victorian_1890s"
+    VIETNAMESE_CANONICAL = "vietnamese_canonical"
+    VIETNAMESE_FUSION = "vietnamese_fusion"
+    OPEN_DOMAIN = "open_domain"
     CUSTOM = "custom"
 
 
@@ -216,6 +228,12 @@ class EraGenreConstraint(BaseModel):
     mandatory_style_anchor: str = "Japanese school manga, clean ink lineart, screentone shading"
     forbidden_visual_tokens: List[str] = Field(default_factory=list)
     forbidden_prose_cliches: List[str] = Field(default_factory=list)
+    cultural_tier: int = 1
+    narrative_mode: str = "hu_cau_tu_do"
+
+    def is_vietnamese_canonical(self) -> bool:
+        era_l = (self.era_name or "").lower()
+        return self.cultural_tier == 1 or "đại việt" in era_l or "vietnamese" in era_l or self.narrative_mode in ("chinh_su", "da_su", "strict_historical", "historical_fiction")
 
     @model_validator(mode="before")
     @classmethod
@@ -400,6 +418,7 @@ def sanitize_era_prompt(prompt: str, era_genre: Optional[EraGenreConstraint] = N
     """
     Strips prohibited historical/wuxia/fantasy keywords when in a modern setting
     or matching era_banlist. Preserves compound words and cleans up punctuation artifacts.
+    Relaxed when setting is historical (Tier 1) or open-domain fantasy (Tier 3).
     """
     if not prompt or not prompt.strip():
         return prompt or ""
@@ -409,13 +428,26 @@ def sanitize_era_prompt(prompt: str, era_genre: Optional[EraGenreConstraint] = N
 
     if era_genre:
         era_str = (era_genre.era_name or "").lower()
-        is_modern = "modern" in era_str or "2020" in era_str or "campus" in era_str
-        if era_genre.era_banlist:
-            banned_set.update(era_genre.era_banlist)
-        if era_genre.forbidden_visual_tokens:
-            banned_set.update(era_genre.forbidden_visual_tokens)
+        c_tier = getattr(era_genre, "cultural_tier", 1)
+        n_mode = str(getattr(era_genre, "narrative_mode", "")).lower()
 
-    if not is_modern and (not era_genre or not era_genre.era_banlist):
+        is_historical = (c_tier == 1 and ("historical" in era_str or "đại việt" in era_str or "vietnamese" in era_str or "ancient" in era_str or n_mode in ("chinh_su", "da_su", "strict_historical", "historical_fiction")))
+        is_open_non_modern = (c_tier == 3 and not any(k in era_str for k in ["modern", "2020", "campus"]))
+        is_explicit_non_modern = any(k in era_str for k in ["historical", "ancient", "medieval", "victorian", "cyberpunk", "open_domain"]) and not any(k in era_str for k in ["modern", "2020", "campus"])
+
+        if is_historical or is_open_non_modern or is_explicit_non_modern:
+            is_modern = False
+            banned_set = set(era_genre.era_banlist)
+            if era_genre.forbidden_visual_tokens:
+                banned_set.update(era_genre.forbidden_visual_tokens)
+        else:
+            is_modern = "modern" in era_str or "2020" in era_str or "campus" in era_str
+            if era_genre.era_banlist:
+                banned_set.update(era_genre.era_banlist)
+            if era_genre.forbidden_visual_tokens:
+                banned_set.update(era_genre.forbidden_visual_tokens)
+
+    if not is_modern and (not era_genre or not banned_set):
         return prompt
 
     sorted_banned = sorted(banned_set, key=lambda x: len(x), reverse=True)
@@ -452,6 +484,8 @@ class DynamicSceneGraph(BaseModel):
     active_enclosure_id: Optional[str] = None
     items: Dict[str, ItemEntity] = Field(default_factory=dict)
     relations: List[Dict[str, Any]] = Field(default_factory=list)
+    cultural_tier: int = 1
+    narrative_mode: str = "hu_cau_tu_do"
 
     @model_validator(mode="before")
     @classmethod
@@ -553,12 +587,25 @@ class DynamicSceneGraph(BaseModel):
     def validate_era_consistency(self, text_or_prompt: str) -> Tuple[bool, List[str]]:
         """
         Era Consistency Invariant: Prohibits forbidden era tokens in modern settings.
+        Relaxed for historical and open-domain fantasy.
         """
         violations = []
-        is_modern = "modern" in self.era_genre.era_name.lower() or "2020" in self.era_genre.era_name.lower()
-        banlist = set(self.era_genre.era_banlist)
-        if is_modern:
-            banlist.update(DEFAULT_MODERN_ERA_BANLIST)
+        era_str = self.era_genre.era_name.lower()
+        c_tier = getattr(self, "cultural_tier", getattr(self.era_genre, "cultural_tier", 1))
+        n_mode = str(getattr(self, "narrative_mode", getattr(self.era_genre, "narrative_mode", "hu_cau_tu_do"))).lower()
+
+        is_historical = (c_tier == 1 and ("historical" in era_str or "đại việt" in era_str or "vietnamese" in era_str or "ancient" in era_str or n_mode in ("chinh_su", "da_su", "strict_historical", "historical_fiction")))
+        is_open_non_modern = (c_tier == 3 and not any(k in era_str for k in ["modern", "2020", "campus"]))
+        is_explicit_non_modern = any(k in era_str for k in ["historical", "ancient", "medieval", "victorian", "cyberpunk", "open_domain"]) and not any(k in era_str for k in ["modern", "2020", "campus"])
+
+        if is_historical or is_open_non_modern or is_explicit_non_modern:
+            is_modern = False
+            banlist = set(self.era_genre.era_banlist)
+        else:
+            is_modern = "modern" in era_str or "2020" in era_str or "campus" in era_str
+            banlist = set(self.era_genre.era_banlist)
+            if is_modern:
+                banlist.update(DEFAULT_MODERN_ERA_BANLIST)
 
         lower_text = text_or_prompt.lower()
         for token in banlist:
@@ -761,6 +808,7 @@ class DynamicSceneGraph(BaseModel):
         """
         Combines era banlist tokens with active enclosure's negative drift tokens.
         If active enclosure is enclosed, automatically includes default outdoor tokens.
+        If cultural_tier is 1 or 2, includes master negative against Hanfu/Kimono/Samurai/Ninja.
         """
         tokens: Set[str] = set()
         for tok in self.era_genre.era_banlist:
@@ -768,9 +816,22 @@ class DynamicSceneGraph(BaseModel):
         for tok in self.era_genre.forbidden_visual_tokens:
             tokens.add(tok)
 
-        is_modern = "modern" in self.era_genre.era_name.lower() or "2020" in self.era_genre.era_name.lower()
-        if is_modern:
-            for tok in DEFAULT_MODERN_ERA_BANLIST:
+        era_str = self.era_genre.era_name.lower()
+        c_tier = getattr(self, "cultural_tier", getattr(self.era_genre, "cultural_tier", 1))
+        n_mode = str(getattr(self, "narrative_mode", getattr(self.era_genre, "narrative_mode", "hu_cau_tu_do"))).lower()
+
+        is_historical = (c_tier == 1 and ("historical" in era_str or "đại việt" in era_str or "vietnamese" in era_str or "ancient" in era_str or n_mode in ("chinh_su", "da_su", "strict_historical", "historical_fiction")))
+        is_open_non_modern = (c_tier == 3 and not any(k in era_str for k in ["modern", "2020", "campus"]))
+        is_explicit_non_modern = any(k in era_str for k in ["historical", "ancient", "medieval", "victorian", "cyberpunk", "open_domain"]) and not any(k in era_str for k in ["modern", "2020", "campus"])
+
+        if not (is_historical or is_open_non_modern or is_explicit_non_modern):
+            if "modern" in era_str or "2020" in era_str or "campus" in era_str:
+                for tok in DEFAULT_MODERN_ERA_BANLIST:
+                    tokens.add(tok)
+
+        # Master negative for Vietnamese cultural purity (Tier 1 & Tier 2)
+        if c_tier in (1, 2):
+            for tok in ["hanfu", "kimono", "yukata", "hanbok", "samurai", "ninja", "katana", "geisha"]:
                 tokens.add(tok)
 
         enc = self.get_active_enclosure()

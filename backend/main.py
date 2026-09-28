@@ -1,4 +1,10 @@
 import sys
+import os
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -13,7 +19,7 @@ from pydantic import BaseModel
 import json
 import os
 import re
-from typing import Tuple
+from typing import Tuple, Optional, List, Dict, Any
 from dotenv import load_dotenv
 
 # Load .env from current directory
@@ -76,6 +82,35 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Sub-Routers Mount
+from routers.coins_router import router as coins_router
+from routers.social_router import router as social_router
+from routers.messenger_router import router as messenger_router
+
+app.include_router(coins_router, prefix="/api/coins", tags=["Coins"])
+app.include_router(social_router, prefix="/api/social", tags=["Social"])
+app.include_router(messenger_router, prefix="/api/messenger", tags=["Messenger"])
+
+# Banking Services
+from services.banking_service import (
+    deduct_coins,
+    refund_coins,
+    register_device_and_get_initial_coins,
+    get_story_cost,
+    get_action_cost,
+    COST_SHORT_STORY,
+    COST_MEDIUM_STORY,
+    COST_LONG_STORY,
+    COST_EDIT,
+    COST_MANGA,
+    ACTION_STORY_SHORT,
+    ACTION_STORY_MEDIUM,
+    ACTION_STORY_LONG,
+    ACTION_STORY_EDIT,
+    ACTION_COMIC_GENERATE,
+    ACTION_REFUND_FAILED,
+)
 
 # Cache for users backed by CacheManager
 from services.cache_service import get_cache_manager
@@ -157,6 +192,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     full_name: str | None = ""
+    fingerprint: dict | str | None = None
 
 from fastapi import Request
 
@@ -165,6 +201,7 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
     username = None
     password = None
     full_name = ""
+    fingerprint_data = None
 
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
@@ -173,6 +210,7 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
             username = body.get("username")
             password = body.get("password")
             full_name = body.get("full_name", "")
+            fingerprint_data = body.get("fingerprint") or body.get("fingerprint_data") or body.get("device_fingerprint")
         except Exception:
             pass
     else:
@@ -181,6 +219,7 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
             username = form.get("username")
             password = form.get("password")
             full_name = form.get("full_name", "")
+            fingerprint_data = form.get("fingerprint") or form.get("fingerprint_data") or form.get("device_fingerprint")
         except Exception:
             pass
 
@@ -202,12 +241,34 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại (Username already exists)")
-    
+
+    # Extract client IP for anti-clone guard
+    client_ip = (
+        request.headers.get("x-forwarded-for")
+        or request.headers.get("x-real-ip")
+        or (request.client.host if request.client else "127.0.0.1")
+    )
+    if "," in client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+
     hashed_password = get_password_hash(password)
-    new_user = User(username=username, full_name=full_name, password_hash=hashed_password)
+    new_user = User(username=username, full_name=full_name, password_hash=hashed_password, coins=0)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Register device fingerprint & grant initial trial coins (8 coins if fresh, 0 if clone/throttled)
+    initial_coins = 0
+    try:
+        initial_coins = register_device_and_get_initial_coins(
+            db=db,
+            client_ip=client_ip,
+            fingerprint_data=fingerprint_data or {},
+            user_id=new_user.id
+        )
+        db.refresh(new_user)
+    except Exception as e:
+        print(f"Anti-clone trial grant warning: {e}")
 
     # Generate token immediately so user is automatically logged in upon registration
     access_token = create_access_token(data={"sub": new_user.username})
@@ -218,7 +279,9 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
         "token": access_token,
         "token_type": "bearer",
         "username": new_user.username,
-        "full_name": new_user.full_name or new_user.username
+        "full_name": new_user.full_name or new_user.username,
+        "coins": new_user.coins if new_user.coins is not None else 0,
+        "coins_granted": initial_coins
     }
 
 @app.post("/api/login")
@@ -319,7 +382,22 @@ def refine_prompt(request: ChatInterviewRequest):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/edit-text")
-async def edit_text(request: EditTextRequest):
+async def edit_text(
+    request: EditTextRequest,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    deduct_ref = None
+    if current_user:
+        deduct_ok, deduct_ref, bal_after = deduct_coins(
+            db=db,
+            user_id=current_user.id,
+            amount=COST_EDIT,
+            action_type=ACTION_STORY_EDIT,
+            description=f"Chỉnh sửa bản thảo - {COST_EDIT} xu",
+            raise_on_insufficient=True
+        )
+
     try:
         from agents.editor_agent import EditorAgent
         editor = EditorAgent()
@@ -329,11 +407,45 @@ async def edit_text(request: EditTextRequest):
             cache_mgr.delete_draft(request.story_id)
         return {"status": "success", "revised_text": revised}
     except Exception as e:
+        if current_user and deduct_ref:
+            try:
+                refund_coins(
+                    db=db,
+                    user_id=current_user.id,
+                    amount=COST_EDIT,
+                    reason=ACTION_REFUND_FAILED,
+                    reference_id=deduct_ref,
+                    description=f"Hoàn {COST_EDIT} xu do sự cố sửa bản thảo: {str(e)[:100]}"
+                )
+            except Exception as refund_err:
+                print(f"Compensating rollback error: {refund_err}")
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/generate-story")
-def generate_story(request: GenerateStoryRequest, current_user: User = Depends(get_current_user)):
+def generate_story(
+    request: GenerateStoryRequest,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
+        cost = get_story_cost(request.story_length)
+        action_type = (
+            ACTION_STORY_SHORT if cost == COST_SHORT_STORY
+            else ACTION_STORY_LONG if cost == COST_LONG_STORY
+            else ACTION_STORY_MEDIUM
+        )
+        deduct_ref = None
+
+        if current_user:
+            deduct_ok, deduct_ref, bal_after = deduct_coins(
+                db=db,
+                user_id=current_user.id,
+                amount=cost,
+                action_type=action_type,
+                description=f"Tạo truyện ({request.story_length}) - {cost} xu",
+                raise_on_insufficient=True
+            )
+
         gen = get_story_generator()
         
         async def stream_and_save():
@@ -344,12 +456,28 @@ def generate_story(request: GenerateStoryRequest, current_user: User = Depends(g
                     full_story += chunk
                     yield chunk
             except Exception as e:
+                # Compensating transaction rollback: 100% refund on AI generation failure
+                if current_user and deduct_ref:
+                    rollback_db = SessionLocal()
+                    try:
+                        refund_coins(
+                            db=rollback_db,
+                            user_id=current_user.id,
+                            amount=cost,
+                            reason=ACTION_REFUND_FAILED,
+                            reference_id=deduct_ref,
+                            description=f"Hoàn {cost} xu do sự cố sinh truyện: {str(e)[:100]}"
+                        )
+                    except Exception as refund_err:
+                        print(f"Compensating rollback error: {refund_err}")
+                    finally:
+                        rollback_db.close()
                 yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e)}]"
                 return
                 
             word_count = len(full_story.split())
             if word_count > 10 and current_user:
-                db = SessionLocal()
+                db_save = SessionLocal()
                 try:
                     new_story = Story(
                         user_id=current_user.id,
@@ -357,19 +485,21 @@ def generate_story(request: GenerateStoryRequest, current_user: User = Depends(g
                         story_content=full_story,
                         word_count=word_count
                     )
-                    db.add(new_story)
-                    db.commit()
-                    db.refresh(new_story)
+                    db_save.add(new_story)
+                    db_save.commit()
+                    db_save.refresh(new_story)
                     saved_story_id = new_story.id
                 except Exception as e:
                     print(f"DB Error: {e}")
                 finally:
-                    db.close()
+                    db_save.close()
 
             if saved_story_id:
                 yield f"\n\n[STORY_ID:{saved_story_id}]"
 
         return StreamingResponse(stream_and_save(), media_type="text/plain")
+    except HTTPException:
+        raise
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -593,6 +723,7 @@ def extract_sentence_bounded_chunk(text: str, target_size: int = 5000, max_limit
 
 @app.post("/api/comic/generate")
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    deduct_ref = None
     try:
         if not current_user:
             return {"status": "error", "message": "Bạn chưa đăng nhập."}
@@ -603,6 +734,16 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
         ).first()
         if not story:
             return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền truy cập."}
+
+        # Server-authoritative coin deduction (16 xu)
+        deduct_ok, deduct_ref, bal_after = deduct_coins(
+            db=db,
+            user_id=current_user.id,
+            amount=COST_MANGA,
+            action_type=ACTION_COMIC_GENERATE,
+            description=f"Chuyển thể Manga - {COST_MANGA} xu",
+            raise_on_insufficient=True
+        )
         
         memory = _get_story_memory(story, db)
         
@@ -628,7 +769,21 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
             "adapted_offset": adapted_len,
             "has_more": has_more
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        if current_user and deduct_ref:
+            try:
+                refund_coins(
+                    db=db,
+                    user_id=current_user.id,
+                    amount=COST_MANGA,
+                    reason=ACTION_REFUND_FAILED,
+                    reference_id=deduct_ref,
+                    description=f"Hoàn {COST_MANGA} xu do sự cố tạo truyện tranh: {str(e)[:100]}"
+                )
+            except Exception as refund_err:
+                print(f"Compensating rollback error: {refund_err}")
         import traceback
         traceback.print_exc()
         return {"status": "error", "message": f"Lỗi tạo truyện tranh: {str(e)}"}
@@ -938,7 +1093,23 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
     
 @app.post("/api/init-story")
 def init_story(request: InitStoryRequest, current_user: User = Depends(get_current_user)):
+    deduct_ref = None
     try:
+        # Server-authoritative coin deduction (8 xu for Chapter 1)
+        if current_user:
+            db_deduct = SessionLocal()
+            try:
+                deduct_ok, deduct_ref, bal_after = deduct_coins(
+                    db=db_deduct,
+                    user_id=current_user.id,
+                    amount=COST_SHORT_STORY,
+                    action_type=ACTION_STORY_SHORT,
+                    description=f"Khởi tạo truyện chương 1 - {COST_SHORT_STORY} xu",
+                    raise_on_insufficient=True
+                )
+            finally:
+                db_deduct.close()
+
         extractor = get_memory_extractor()
         gen = get_story_generator()
 
@@ -958,6 +1129,22 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
+                # Compensating transaction rollback: 100% refund on AI generation failure
+                if current_user and deduct_ref:
+                    rollback_db = SessionLocal()
+                    try:
+                        refund_coins(
+                            db=rollback_db,
+                            user_id=current_user.id,
+                            amount=COST_SHORT_STORY,
+                            reason=ACTION_REFUND_FAILED,
+                            reference_id=deduct_ref,
+                            description=f"Hoàn {COST_SHORT_STORY} xu do sự cố sinh chương 1: {str(e)[:100]}"
+                        )
+                    except Exception as refund_err:
+                        print(f"Compensating rollback error: {refund_err}")
+                    finally:
+                        rollback_db.close()
                 yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e, 'sinh chương')}]"
                 return
 
@@ -1004,6 +1191,8 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
                 yield f"\n\n[STORY_ID:{saved_story_id}]"
 
         return StreamingResponse(stream_chapter_1(), media_type="text/plain")
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1011,6 +1200,7 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
 
 @app.post("/api/generate-chapter")
 def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_current_user)):
+    deduct_ref = None
     try:
         memory = get_story_session(request.session_id, current_user)
         if not memory:
@@ -1029,6 +1219,20 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
         finally:
             db.close()
 
+        # Server-authoritative coin deduction (8 xu per chapter)
+        db_deduct = SessionLocal()
+        try:
+            deduct_ok, deduct_ref, bal_after = deduct_coins(
+                db=db_deduct,
+                user_id=current_user.id,
+                amount=COST_SHORT_STORY,
+                action_type=ACTION_STORY_SHORT,
+                description=f"Sinh chương mới - {COST_SHORT_STORY} xu",
+                raise_on_insufficient=True
+            )
+        finally:
+            db_deduct.close()
+
         gen = get_story_generator()
         extractor = get_memory_extractor()
 
@@ -1039,6 +1243,22 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
+                # Compensating transaction rollback: 100% refund on AI generation failure
+                if current_user and deduct_ref:
+                    rollback_db = SessionLocal()
+                    try:
+                        refund_coins(
+                            db=rollback_db,
+                            user_id=current_user.id,
+                            amount=COST_SHORT_STORY,
+                            reason=ACTION_REFUND_FAILED,
+                            reference_id=deduct_ref,
+                            description=f"Hoàn {COST_SHORT_STORY} xu do sự cố sinh chương: {str(e)[:100]}"
+                        )
+                    except Exception as refund_err:
+                        print(f"Compensating rollback error: {refund_err}")
+                    finally:
+                        rollback_db.close()
                 yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e, 'sinh chương')}]"
                 return
 
@@ -1056,21 +1276,23 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
 
             # Update story in DB
             if current_user:
-                db = SessionLocal()
+                db_up = SessionLocal()
                 try:
-                    story = db.query(Story).filter(Story.session_id == request.session_id).first()
+                    story = db_up.query(Story).filter(Story.session_id == request.session_id).first()
                     if story:
                         story.story_content = memory.get_full_story()
                         story.word_count = len(story.story_content.split())
                         story.memory_data = memory_json(memory)
-                        db.commit()
+                        db_up.commit()
                         cache_mgr.delete_draft(story.id)
                 except Exception as e:
                     print(f"DB Error: {e}")
                 finally:
-                    db.close()
+                    db_up.close()
 
         return StreamingResponse(stream_next_chapter(), media_type="text/plain")
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()

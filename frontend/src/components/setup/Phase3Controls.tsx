@@ -4,6 +4,7 @@ import { useState } from "react";
 import { translations, Language } from "@/lib/i18n";
 import { StoryLength, CreativityLevel, PacingLevel } from "@/lib/types";
 import { Sliders, Sparkles } from "lucide-react";
+import { ModelSelectorMorphicon, ModelTier } from "@/components/morphicons/ModelSelectorMorphicon";
 
 interface Props {
   lang: Language;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function Phase3Controls({ lang, onStartWriting, loading }: Props) {
+  const [modelTier, setModelTier] = useState<ModelTier>("versatile");
   const [lengthIndex, setLengthIndex] = useState(2); // 1=short, 2=medium, 3=long
   const [creativity, setCreativity] = useState<CreativityLevel>(2);
   const [pacing, setPacing] = useState<PacingLevel>(2);
@@ -57,6 +59,24 @@ export function Phase3Controls({ lang, onStartWriting, loading }: Props) {
       </div>
 
       <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 mb-8">
+        {/* Layer 2 SVG Morphicon: AI Model Tier Selection */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              {lang === "vi" ? "Cấp độ mô hình AI" : "AI Model Tier"}
+            </span>
+            <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 capitalize">
+              {modelTier}
+            </span>
+          </div>
+          <ModelSelectorMorphicon
+            selectedTier={modelTier}
+            onSelectTier={setModelTier}
+            lang={lang}
+            className="w-full justify-between"
+          />
+        </div>
+
         {/* Story Length Slider */}
         <div>
           <div className="flex justify-between items-center mb-2">

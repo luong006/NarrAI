@@ -4,6 +4,7 @@ import { useState } from "react";
 import { translations, Language } from "@/lib/i18n";
 import { Bot, Send, Check, X, Sparkles, Feather, BookmarkCheck, RotateCcw, Wand2, Zap, Palette, Users } from "lucide-react";
 import { ChatMessage } from "@/lib/types";
+import { ModelSelectorMorphicon, ModelTier } from "@/components/morphicons/ModelSelectorMorphicon";
 
 interface Props {
   lang: Language;
@@ -38,6 +39,7 @@ export function AICopilotPanel({
   onUndo,
   canUndo,
 }: Props) {
+  const [modelTier, setModelTier] = useState<ModelTier>("versatile");
   const [customInstruction, setCustomInstruction] = useState("");
   const [chatInput, setChatInput] = useState("");
   const t = translations[lang];
@@ -111,6 +113,24 @@ export function AICopilotPanel({
             <span>{t.undo_btn}</span>
           </button>
         )}
+      </div>
+
+      {/* Layer 2 SVG Morphicon: AI Model Tier Selection */}
+      <div className="py-2.5 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between mb-1.5 px-0.5">
+          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            {lang === "vi" ? "Cấp độ mô hình AI" : "AI Model Tier"}
+          </span>
+          <span className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 capitalize">
+            {modelTier}
+          </span>
+        </div>
+        <ModelSelectorMorphicon
+          selectedTier={modelTier}
+          onSelectTier={setModelTier}
+          lang={lang}
+          className="w-full justify-between"
+        />
       </div>
 
       {/* Main Copilot Content: Scrollable */}

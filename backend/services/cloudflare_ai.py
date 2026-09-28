@@ -5,7 +5,16 @@ import urllib.parse
 import io
 
 from typing import Optional, Tuple
-from PIL import Image, ImageOps, ImageDraw, ImageFont
+
+try:
+    from PIL import Image, ImageOps, ImageDraw, ImageFont
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+    Image = None
+    ImageOps = None
+    ImageDraw = None
+    ImageFont = None
 
 # Local persistent disk cache for rendered panels
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "comic_cache"))
@@ -36,13 +45,35 @@ MODERN_SCHOOL_EXCLUSIONS = (
     "busy highway, traffic, moving cars, outdoor street, city avenue"
 )
 
-def get_master_negative_prompt(genre: str = "school") -> str:
+# Vietnamese Canonical Exclusions: Master negative against Hanfu, Kimono, Hanbok, Samurai, Ninja for cultural purity
+VIETNAMESE_CANONICAL_NEGATIVE_PROMPT = (
+    "hanfu, kimono, yukata, hanbok, samurai, samurai armor, ninja, katana, geisha, "
+    "qing queue, pigtail hairstyle, chinese traditional clothing, japanese traditional clothing, "
+    "korean traditional clothing, tangzhuang, cheongsam, qipao"
+)
+
+def get_master_negative_prompt(
+    genre: str = "school",
+    cultural_tier: Optional[int] = None,
+    narrative_mode: Optional[str] = None
+) -> str:
     """
-    Returns the master negative prompt combining base exclusions with genre-specific exclusions.
+    Returns the master negative prompt combining base exclusions with genre-specific
+    and cultural tier exclusions.
+    - If cultural_tier is 1 or 2 (or historical narrative mode): appends VIETNAMESE_CANONICAL_NEGATIVE_PROMPT
+      to ban foreign distortion (Hanfu, Kimono, Hanbok, Samurai, Ninja).
+    - If genre is 'school': appends MODERN_SCHOOL_EXCLUSIONS.
     """
-    if genre and genre.lower() == "school":
-        return f"{BASE_NEGATIVE_PROMPT}, {MODERN_SCHOOL_EXCLUSIONS}"
-    return BASE_NEGATIVE_PROMPT
+    neg = BASE_NEGATIVE_PROMPT
+    genre_l = (genre or "").lower()
+
+    if cultural_tier in (1, 2) or (narrative_mode and str(narrative_mode).lower() in ("chinh_su", "da_su", "strict_historical", "historical_fiction")):
+        neg = f"{neg}, {VIETNAMESE_CANONICAL_NEGATIVE_PROMPT}"
+
+    if genre_l == "school":
+        neg = f"{neg}, {MODERN_SCHOOL_EXCLUSIONS}"
+
+    return neg
 
 def get_cloudflare_token():
     return os.environ.get("CLOUDFLARE_API_TOKEN", "")
@@ -64,7 +95,10 @@ def generate_image_cf(
     seed: int | None = None,
     negative_prompt_suffix: Optional[str] = None,
     layout_type: str = "square",
-    custom_negative_prompt: Optional[str] = None
+    custom_negative_prompt: Optional[str] = None,
+    cultural_tier: Optional[int] = None,
+    narrative_mode: Optional[str] = None,
+    genre: str = "school"
 ) -> bytes:
     """
     Calls Cloudflare Workers AI Text-to-Image model with fallback chain.
@@ -82,7 +116,11 @@ def generate_image_cf(
         "Content-Type": "application/json"
     }
 
-    negative_prompt = get_master_negative_prompt()
+    negative_prompt = get_master_negative_prompt(
+        genre=genre,
+        cultural_tier=cultural_tier,
+        narrative_mode=narrative_mode
+    )
     suffix = negative_prompt_suffix or custom_negative_prompt
     if suffix:
         negative_prompt = f"{negative_prompt}, {suffix.strip(' ,')}"
@@ -156,7 +194,10 @@ def get_cached_or_generate_image(
     seed: int | None = None,
     story_id: Optional[int] = None,
     negative_prompt_suffix: Optional[str] = None,
-    custom_negative_prompt: Optional[str] = None
+    custom_negative_prompt: Optional[str] = None,
+    cultural_tier: Optional[int] = None,
+    narrative_mode: Optional[str] = None,
+    genre: str = "school"
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
@@ -185,7 +226,14 @@ def get_cached_or_generate_image(
         panel_seed = (4289000 + (panel_id % 1000))
     try:
         suffix = negative_prompt_suffix or custom_negative_prompt
-        img_bytes = generate_image_cf(prompt, seed=panel_seed, negative_prompt_suffix=suffix)
+        img_bytes = generate_image_cf(
+            prompt,
+            seed=panel_seed,
+            negative_prompt_suffix=suffix,
+            cultural_tier=cultural_tier,
+            narrative_mode=narrative_mode,
+            genre=genre
+        )
     except Exception as e:
         print(f"[Comic Image] Cloudflare AI unavailable ({e}). Falling back to Pollinations...")
         try:
@@ -222,48 +270,73 @@ def process_manga_monochrome(image_bytes: bytes) -> bytes:
     """
     Server-side Pillow post-processing to enforce 100% monochrome manga.
     Converts any image to grayscale with autocontrast for clean lineart appearance.
-    Returns JPEG bytes.
+    Returns JPEG bytes. If PIL is not installed, gracefully returns raw image_bytes.
     """
-    img = Image.open(io.BytesIO(image_bytes))
-    # Convert to grayscale (removes all color information)
-    gray = img.convert('L')
-    # Apply autocontrast to enhance lineart contrast (like screentone manga)
-    enhanced = ImageOps.autocontrast(gray, cutoff=1)
-    # Export as high-quality JPEG
-    output = io.BytesIO()
-    enhanced.save(output, format="JPEG", quality=92)
-    return output.getvalue()
+    if not HAS_PIL:
+        return image_bytes
+
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        # Convert to grayscale (removes all color information)
+        gray = img.convert('L')
+        # Apply autocontrast to enhance lineart contrast (like screentone manga)
+        enhanced = ImageOps.autocontrast(gray, cutoff=1)
+        # Export as high-quality JPEG
+        output = io.BytesIO()
+        enhanced.save(output, format="JPEG", quality=92)
+        return output.getvalue()
+    except Exception as e:
+        print(f"[Comic Image] process_manga_monochrome error: {e}")
+        return image_bytes
+
+
+# Valid minimal 1x1 grayscale JPEG bytes for emergency fallback when PIL is absent
+_FALLBACK_1X1_JPEG = (
+    b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06'
+    b'\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14'
+    b'\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x0b'
+    b'\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01'
+    b'\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01'
+    b'\x01\x00\x00?\x00\xbf\x00\xff\xd9'
+)
 
 
 def get_guaranteed_monochrome_fallback(panel_index: int = 0) -> bytes:
     """
-    Generates a guaranteed-available 800x800 monochrome placeholder JPEG
+    Generates a guaranteed-available monochrome placeholder JPEG
     for use when all image generation sources fail.
     Returns JPEG bytes that can be served directly with HTTP 200.
     """
-    img = Image.new('L', (800, 800), color=245)  # Light gray background
+    if not HAS_PIL:
+        return _FALLBACK_1X1_JPEG
 
-    draw = ImageDraw.Draw(img)
-    # Draw manga-style panel border
-    draw.rectangle([10, 10, 789, 789], outline=30, width=3)
-
-    # Draw diagonal screentone-like pattern
-    for y in range(20, 780, 40):
-        for x in range(20, 780, 40):
-            draw.ellipse([x, y, x + 3, y + 3], fill=200)
-
-    # Draw center text
-    text = f"Panel {panel_index + 1}"
     try:
-        font = ImageFont.truetype("arial.ttf", 32)
-    except (IOError, OSError):
-        font = ImageFont.load_default()
+        img = Image.new('L', (800, 800), color=245)  # Light gray background
 
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0]
-    text_h = bbox[3] - bbox[1]
-    draw.text(((800 - text_w) // 2, (800 - text_h) // 2), text, fill=100, font=font)
+        draw = ImageDraw.Draw(img)
+        # Draw manga-style panel border
+        draw.rectangle([10, 10, 789, 789], outline=30, width=3)
 
-    output = io.BytesIO()
-    img.save(output, format="JPEG", quality=90)
-    return output.getvalue()
+        # Draw diagonal screentone-like pattern
+        for y in range(20, 780, 40):
+            for x in range(20, 780, 40):
+                draw.ellipse([x, y, x + 3, y + 3], fill=200)
+
+        # Draw center text
+        text = f"Panel {panel_index + 1}"
+        try:
+            font = ImageFont.truetype("arial.ttf", 32)
+        except (IOError, OSError):
+            font = ImageFont.load_default()
+
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        draw.text(((800 - text_w) // 2, (800 - text_h) // 2), text, fill=100, font=font)
+
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+    except Exception as e:
+        print(f"[Comic Image] get_guaranteed_monochrome_fallback error: {e}")
+        return _FALLBACK_1X1_JPEG

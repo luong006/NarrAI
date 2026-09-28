@@ -11,6 +11,8 @@ import { LandingView } from "@/components/landing/LandingView";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AuthModal } from "@/components/modals/AuthModal";
 import { HistoryModal } from "@/components/modals/HistoryModal";
+import { CoinTopupModal } from "@/components/modals/CoinTopupModal";
+import { MessengerModal } from "@/components/modals/MessengerModal";
 
 import { Phase1Idea } from "@/components/setup/Phase1Idea";
 import { Phase2Interview } from "@/components/setup/Phase2Interview";
@@ -161,6 +163,9 @@ export default function WorkspacePage() {
   // Modals
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isCoinModalOpen, setIsCoinModalOpen] = useState(false);
+  const [isMessengerOpen, setIsMessengerOpen] = useState(false);
+  const [coinBalance, setCoinBalance] = useState<number>(100);
 
   // Setup Flow State
   const [initialPrompt, setInitialPrompt] = useState("");
@@ -201,6 +206,12 @@ export default function WorkspacePage() {
         if (res.status === "success" && res.username) {
           setUser({ username: res.username, fullName: res.full_name || res.username });
           setView("workspace");
+
+          // Load authenticated coin balance
+          api.getCoinsBalance().then((bal) => {
+            if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+            else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+          }).catch(() => {});
         } else {
           storage.removeToken();
         }
@@ -747,7 +758,7 @@ export default function WorkspacePage() {
   // If on landing view
   if (view === "landing") {
     return (
-      <>
+      <div className="relative z-10">
         <LandingView
           lang={lang}
           onLanguageChange={handleLanguageChange}
@@ -759,16 +770,37 @@ export default function WorkspacePage() {
           onSuccess={(u, fn) => {
             setUser({ username: u, fullName: fn || u });
             setView("workspace");
+            api.getCoinsBalance().then((bal) => {
+              if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+              else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+            }).catch(() => {});
           }}
           lang={lang}
         />
-      </>
+        <CoinTopupModal
+          isOpen={isCoinModalOpen}
+          onClose={() => setIsCoinModalOpen(false)}
+          currentBalance={coinBalance}
+          username={user?.username || "creator"}
+          onTopupSuccess={(added) => {
+            setCoinBalance((prev) => prev + added);
+            toast.success(lang === "vi" ? `Nạp thành công +${added} Xu!` : `Successfully added +${added} Coins!`);
+          }}
+          lang={lang}
+        />
+        <MessengerModal
+          isOpen={isMessengerOpen}
+          onClose={() => setIsMessengerOpen(false)}
+          currentUser={user?.username || "creator"}
+          lang={lang}
+        />
+      </div>
     );
   }
 
   // If on workspace view
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50/90 dark:bg-slate-950/90 text-slate-900 dark:text-white relative z-10">
       {/* Left Sidebar */}
       <Sidebar
         username={user?.username || ""}
@@ -784,6 +816,9 @@ export default function WorkspacePage() {
         }}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onLogout={handleLogout}
+        coinBalance={coinBalance}
+        onOpenCoinTopup={() => setIsCoinModalOpen(true)}
+        onOpenMessenger={() => setIsMessengerOpen(true)}
       />
 
       {/* Main Workspace Area */}
@@ -881,7 +916,13 @@ export default function WorkspacePage() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onSuccess={(u, fn) => setUser({ username: u, fullName: fn || u })}
+        onSuccess={(u, fn) => {
+          setUser({ username: u, fullName: fn || u });
+          api.getCoinsBalance().then((bal) => {
+            if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+            else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+          }).catch(() => {});
+        }}
         lang={lang}
       />
 
@@ -889,6 +930,25 @@ export default function WorkspacePage() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         onSelectStory={handleSelectStory}
+        lang={lang}
+      />
+
+      <CoinTopupModal
+        isOpen={isCoinModalOpen}
+        onClose={() => setIsCoinModalOpen(false)}
+        currentBalance={coinBalance}
+        username={user?.username || "creator"}
+        onTopupSuccess={(added) => {
+          setCoinBalance((prev) => prev + added);
+          toast.success(lang === "vi" ? `Nạp thành công +${added} Xu!` : `Successfully added +${added} Coins!`);
+        }}
+        lang={lang}
+      />
+
+      <MessengerModal
+        isOpen={isMessengerOpen}
+        onClose={() => setIsMessengerOpen(false)}
+        currentUser={user?.username || "creator"}
         lang={lang}
       />
     </div>

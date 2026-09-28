@@ -1,9 +1,37 @@
 import os
 import json
 import re
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
+
+try:
+    from services.ontology import (
+        NarrativeMode,
+        CulturalTier,
+        TriTierOntologyResolver,
+        MASTER_NEGATIVE_VIETNAMESE,
+        normalize_narrative_mode,
+        normalize_cultural_tier
+    )
+except ImportError:
+    try:
+        from backend.services.ontology import (
+            NarrativeMode,
+            CulturalTier,
+            TriTierOntologyResolver,
+            MASTER_NEGATIVE_VIETNAMESE,
+            normalize_narrative_mode,
+            normalize_cultural_tier
+        )
+    except ImportError:
+        NarrativeMode = None
+        CulturalTier = None
+        TriTierOntologyResolver = None
+        MASTER_NEGATIVE_VIETNAMESE = "hanfu, kimono, yukata, hanbok, samurai, samurai armor, ninja, katana, geisha"
+        normalize_narrative_mode = lambda x: x
+        normalize_cultural_tier = lambda x: 1
+
 
 # STRICT style prefix and suffix to force Diffusion model attention to Modern Monochrome School Manga
 STYLE_PREFIX = (
@@ -28,7 +56,7 @@ Analyze the Vietnamese story text and extract the EXACT, IMMUTABLE visual physic
 
 CRITICAL VISUAL CONTINUITY SPECIFICATIONS (MANDATORY EXTREME DETAIL):
 1. Signature Identifying Costume (MANDATORY):
-   - Exact garment type & cut: e.g. crisp button-up short-sleeve school uniform shirt, tailored navy blazer, pleated skirt, tailored trousers, knit vest, trench coat.
+   - Exact garment type & cut: e.g. crisp button-up short-sleeve school uniform shirt, tailored navy blazer, pleated skirt, tailored trousers, knit vest, trench coat, or Vietnamese traditional attire (Áo Ngũ Thân, Áo Nhật Bình, Áo Tấc, Khăn Đóng, Áo Bà Ba, Nón Lá).
    - Specific fabric texture & colors: e.g. pure white cotton shirt, dark navy pleated skirt, charcoal grey tailored trousers, dark navy blazer.
    - Collar, Neck & Chest Accessories (ABSOLUTELY REQUIRED): Specify exact collar style (button-down collar, stiff collar, sailor collar) AND neck/chest accessories (ribbon tie, bow tie, school necktie, brooch, collar pin, chest crest badge, uniform pendant).
    - Outerwear & layering: knit cardigan, sweater vest, tailored school blazer.
@@ -41,7 +69,7 @@ CRITICAL VISUAL CONTINUITY SPECIFICATIONS (MANDATORY EXTREME DETAIL):
    - Permanent marks: beauty mark under right eye, faint birthmark, glasses.
 4. Comprehensive Aliases & Pronoun Registry:
    - Must include character names, nicknames.
-   - Vietnamese pronouns & generic terms: "cô bé", "cậu bé", "cô gái", "chàng trai", "cậu ấy", "anh ấy", "cô ấy", "nữ sinh", "nam sinh", "học sinh", "anh bạn cùng bàn", "bạn cùng bàn", "bạn cùng lớp", "bạn học", "người bạn", "chị", "em gái", "bé gái", "thiếu niên", "cậu bạn".
+   - Vietnamese pronouns & generic terms: "cô bé", "cậu bé", "cô gái", "chàng trai", "cậu ấy", "anh ấy", "cô ấy", "nữ sinh", "nam sinh", "học sinh", "anh bạn cùng bàn", "bạn cùng bàn", "bạn cùng lớp", "bạn học", "người bạn", "chị", "em gái", "bé gái", "thiếu niên", "cậu bạn", "chàng", "nàng", "tiểu thư", "công tử", "tướng quân", "nghĩa sĩ", "bệ hạ".
    - English equivalents: "she", "her", "he", "him", "the girl", "the boy", "schoolgirl", "schoolboy", "student", "classmate", "desk mate".
 5. Compact Visual DNA Representation:
    - Keep visual DNA representation compact under 30 words per character to strictly preserve CLIP 77 token budget.
@@ -154,20 +182,78 @@ SPATIAL_ENCLOSURES = {
         "forbidden_spatial_tokens": [
             "indoor", "classroom", "palace", "dungeon", "cave", "sword", "blade", "weapon"
         ]
+    },
+    "vietnamese_village": {
+        "detection_keywords": [
+            "cổng làng", "bến sông", "cây đa", "giếng nước", "mái đình", "làng quê",
+            "con đê", "bờ sông", "thôn dã", "chùa làng", "xóm nhỏ"
+        ],
+        "anchor_description": (
+            "historic Vietnamese village, ancient mossy village gate, banyan tree by the river wharf, "
+            "tranquil communal house curved roof, rustic screentone atmosphere"
+        ),
+        "forbidden_spatial_tokens": [
+            "neon", "car", "bus", "cyberware", "skyscraper", "highway", "traffic"
+        ]
+    },
+    "imperial_palace_vn": {
+        "detection_keywords": [
+            "hoàng thành", "cung điện", "thăng long", "kinh thành", "điện kính thiên",
+            "ngai vàng", "triều đình", "cung đình", "hoàng cung", "tử cấm thành"
+        ],
+        "anchor_description": (
+            "grand Đại Việt imperial palace hall, carved wooden pillars, ornate throne chamber, "
+            "solemn royal court atmosphere, delicate screentone shading"
+        ),
+        "forbidden_spatial_tokens": [
+            "car", "bus", "classroom", "school desk", "blackboard", "neon", "highway", "traffic"
+        ]
+    },
+    "battlefield_vn": {
+        "detection_keywords": [
+            "bạch đằng", "chiến trận", "bãi cọc", "chiến thuyền", "quân reo",
+            "như nguyệt", "ngọc hồi", "đống đa", "sa trường", "chiến trường"
+        ],
+        "anchor_description": (
+            "historic Vietnamese battlefield, wooden stakes rising along the river, war boats, "
+            "fluttering battle banners, dramatic ink lineart"
+        ),
+        "forbidden_spatial_tokens": [
+            "classroom", "blackboard", "school desk", "locker", "traffic", "car", "neon"
+        ]
     }
 }
 
-def resolve_spatial_enclosure(story_text: str = "", setting_dna: dict = None) -> dict:
+def resolve_spatial_enclosure(
+    story_text: str = "",
+    setting_dna: dict = None,
+    cultural_tier: Optional[int] = None,
+    narrative_mode: Optional[str] = None
+) -> dict:
     """Determine dominant Spatial Scene Enclosure to anchor the manga scene."""
     sdna = setting_dna or {}
     matched_enc = None
     combined = f"{sdna.get('setting_anchor', '')} {sdna.get('location_name', '')} {str(story_text)[:1500]}".lower()
+
     for enc_key, enc_data in SPATIAL_ENCLOSURES.items():
         if any(kw in combined for kw in enc_data["detection_keywords"]):
             matched_enc = dict(enc_data)
+            matched_enc["key"] = enc_key
             break
+
+    # If cultural_tier is Tier 3 (Open Domain) or setting_dna provides an explicit setting_anchor outside school
+    tier = cultural_tier or sdna.get("cultural_tier")
+    if not matched_enc and (tier == 3 or (sdna.get("setting_anchor") and any(w in combined for w in ["office", "forest", "space", "street", "city", "room", "castle"]))):
+        matched_enc = {
+            "key": "open_domain",
+            "detection_keywords": [],
+            "anchor_description": sdna.get("setting_anchor") or f"custom open domain setting: {story_text[:60]}",
+            "forbidden_spatial_tokens": sdna.get("forbidden_spatial_tokens", [])
+        }
+
     if not matched_enc:
         matched_enc = dict(SPATIAL_ENCLOSURES["classroom"])
+        matched_enc["key"] = "classroom"
 
     # If setting_dna provides specific forbidden tokens from DSGO, merge them in cleanly
     if sdna.get("forbidden_spatial_tokens"):
@@ -728,17 +814,27 @@ class ComicDirectorAgent:
             cleaned = match.group(0)
         return json.loads(cleaned, strict=False)
 
-    def _validate_panels(self, script_data, character_dna_map=None, setting_dna=None):
+    def _validate_panels(
+        self,
+        script_data,
+        character_dna_map=None,
+        setting_dna=None,
+        cultural_tier: Optional[int] = None,
+        narrative_mode: Optional[str] = None
+    ):
         """Validate, normalize layout, enforce character visual DNA, background anchor, and complete dialogue."""
         if not isinstance(script_data, list):
             raise ValueError("Output is not a JSON array")
 
         dna_map = character_dna_map or {}
         setting_anchor = ""
+        tier = cultural_tier or (setting_dna.get("cultural_tier") if isinstance(setting_dna, dict) else None)
+        mode = narrative_mode or (setting_dna.get("narrative_mode") if isinstance(setting_dna, dict) else None)
+
         if setting_dna and isinstance(setting_dna, dict):
             setting_anchor = setting_dna.get("setting_anchor", "").strip()
 
-        enclosure = resolve_spatial_enclosure("", setting_dna=setting_dna)
+        enclosure = resolve_spatial_enclosure("", setting_dna=setting_dna, cultural_tier=tier, narrative_mode=mode)
         if not setting_anchor:
             setting_anchor = enclosure["anchor_description"]
 
@@ -993,22 +1089,50 @@ class ComicDirectorAgent:
             raw_layout = str(item.get("layout_type") or "square").lower().strip()
             normalized_layout = LAYOUT_MAP.get(raw_layout, "square")
 
-            validated.append({
+            panel_entry = {
                 "panel_index": i + 1,
                 "image_prompt": final_prompt,
                 "dialogue_text": dialogue,
                 "layout_type": normalized_layout
-            })
+            }
+
+            if tier in (1, 2) or (mode and str(mode).lower() in ("chinh_su", "da_su", "strict_historical", "historical_fiction")):
+                panel_entry["negative_prompt"] = MASTER_NEGATIVE_VIETNAMESE
+                panel_entry["master_negative"] = MASTER_NEGATIVE_VIETNAMESE
+                panel_entry["cultural_tier"] = tier or 1
+            elif tier == 3:
+                panel_entry["cultural_tier"] = 3
+
+            validated.append(panel_entry)
         return validated
 
-    def generate_comic_script(self, story_text: str, memory: StoryMemory = None) -> list:
+    def generate_comic_script(
+        self,
+        story_text: str,
+        memory: StoryMemory = None,
+        cultural_tier: Optional[int] = None,
+        narrative_mode: Optional[str] = None
+    ) -> list:
         """
         Adapts the story text into a beat-by-beat sequential manga storyboard.
         Produces detailed sequential panels closely tracking every dialogue and action beat.
         """
         print(f"[Comic] Generating beat-by-beat storyboard for {len(story_text)} chars...")
+        c_tier = cultural_tier
+        n_mode = narrative_mode
+        if memory and memory.story_bible:
+            if c_tier is None:
+                c_tier = getattr(memory.story_bible, "cultural_tier", None)
+            if n_mode is None:
+                n_mode = getattr(memory.story_bible, "narrative_mode", None)
+
         character_dna = self.extract_character_dna(story_text, memory=memory)
         setting_dna = self.extract_setting_dna(story_text, memory=memory)
+        if c_tier is not None and isinstance(setting_dna, dict):
+            setting_dna["cultural_tier"] = c_tier
+        if n_mode is not None and isinstance(setting_dna, dict):
+            setting_dna["narrative_mode"] = n_mode
+
         dna_context = "\n".join([f"- {name}: {dna.get('dna', dna) if isinstance(dna, dict) else dna}" for name, dna in character_dna.items()])
         setting_context = f"Location: {setting_dna.get('location_name', 'Main Setting')}\nAnchor: {setting_dna.get('setting_dna', '')}\nAtmosphere: {setting_dna.get('atmosphere', '')}"
 
@@ -1036,7 +1160,13 @@ STORY TEXT:
                 max_tokens=4000
             )
             panels_raw = self._parse_json_array(response)
-            validated_panels = self._validate_panels(panels_raw, character_dna_map=character_dna, setting_dna=setting_dna)
+            validated_panels = self._validate_panels(
+                panels_raw,
+                character_dna_map=character_dna,
+                setting_dna=setting_dna,
+                cultural_tier=c_tier,
+                narrative_mode=n_mode
+            )
             print(f"[Comic] Successfully created {len(validated_panels)} detailed beat-by-beat panels with background & character consistency.")
             return validated_panels
         except Exception as e:

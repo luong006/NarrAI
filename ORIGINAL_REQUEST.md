@@ -132,3 +132,155 @@ Tối ưu hóa vị trí và cấu trúc Visual DNA trong câu lệnh sinh ảnh
 - [ ] Toàn bộ các khung tranh trong một chương truyện được kiểm tra 100% là ảnh đơn sắc (grayscale/monochrome), 0% tranh màu lọt vào.
 - [ ] Nhân vật giữ nguyên kiểu tóc, trang phục nhận diện và nét mặt xuyên suốt các khung tranh.
 - [ ] 0% lỗi ảnh hỏng (broken image icon) trên trình xem truyện tranh.
+
+## 2026-09-28T01:01:31Z
+
+Nâng cấp toàn diện nền tảng NarrAI trở thành Nền Tảng Sáng Tác & Mạng Xã Hội Văn Học Đẳng Cấp Cao:
+1. Kiến trúc **Adaptive Open-Ontology** (Vừa tôn vinh văn hóa Việt Nam, vừa linh hoạt xử lý 100% dữ liệu ngoài miền OOD/ngoại lai mà không bị gò bó hay gãy vỡ).
+2. Hệ thống **Mạng Xã Hội với Thuật Toán Đề Xuất Thông Minh 3 Giai Đoạn** (Two-Tower Embedding, Multi-Armed Bandit giải quyết Cold-Start, MMR chống Echo Chamber, phân tích tín hiệu ẩn Dwell-time và ngữ nghĩa comment).
+3. Hệ thống **Open Messenger** kết nối chat tự do giữa mọi người dùng.
+4. **Kinh Tế Xu & An Ninh Tiền Tệ Chuẩn Ngân Hàng** (Chống Race Condition, Double-Spending, bù trừ tự động, sổ cái SHA-256 bất biến) kết hợp **Anti-Clone Đa Lớp (Browser Fingerprint + IP Subnet)**.
+5. **Kiến Trúc Frontend Phân Lớp Không Xung Đột** (Render Pipeline Isolation kết hợp mượt mà giữa ThreeUI WebGL Canvas 3D và Morphicons SVG Spring Physics, tối ưu 60 FPS, chống context loss).
+
+Working directory: e:\NarrAI
+Integrity mode: demo
+
+---
+
+## Technical Specifications & Architecture
+
+### R1. Kiến Trúc Sáng Tác Linh Động: Adaptive Open-Ontology, Phân Ranh Lịch Sử Chuẩn & Hư Cấu Cá Nhân
+
+Hệ thống phân định rạch ròi giữa **Sáng tác Lịch sử Dân tộc** và **Sáng tác Cá nhân Tự do**, đảm bảo vừa tôn trọng sự thật lịch sử, vừa chắp cánh tối đa cho trí tưởng tượng cá nhân:
+
+1. **Ba Chế Độ Sáng Tác Lịch Sử & Hư Cấu (3 Narrative Modes):**
+   - **Chế độ 1 — Chính Sử & Tôn Trọng Sự Thật Lịch Sử (Strict Historical Authenticity):**
+     - Áp dụng khi người dùng viết về các nhân vật, sự kiện lịch sử có thật (Hai Bà Trưng, Ngô Quyền, Lý Thường Kiệt, Trần Hưng Đạo, Lê Lợi, Quang Trung, trận Bạch Đằng, Như Nguyệt, Ngọc Hồi...).
+     - Kích hoạt **Historical Grounding Gatekeeper**: Bắt buộc tuân thủ đúng niên đại, tiến trình chiến dịch, tính cách nhân vật lịch sử và đại cục quốc gia. Tuyệt đối cấm xuyên tạc, làm sai lệch lịch sử (ví dụ: không thể viết "Trần Hưng Đạo bại trận Bạch Đằng").
+   - **Chế độ 2 — Dã Sử & Phóng Tác Góc Nhìn Cá Nhân (Historical Fiction / Alternative Lens):**
+     - Bối cảnh và thời đại là có thật (thời Lý, thời Trần, kháng chiến...), nhân vật lịch sử giữ đúng cốt cách, nhưng nhân vật chính và cốt truyện là **hư cấu do người dùng tự nghĩ** (ví dụ: chuyện tình của một đôi trai gái thời chiến, góc nhìn của một người lính vô danh trong đội quân cấm vệ, hoặc một nghĩa sĩ thầm lặng).
+     - Cho phép tự do sáng tạo biến cố vi mô nhưng neo giữ vững chắc không gian và tinh thần thời đại.
+   - **Chế độ 3 — Hư Cấu Cá Nhân Hoàn Toàn Tự Do (Free Personal Fiction / Non-Historical):**
+     - Dành cho các câu chuyện hiện đại, tình cảm đô thị, khoa học viễn tưởng, ma pháp, isekai...
+     - **Cơ chế Thả Lỏng Hoàn Toàn (Complete Semantic Relaxation):** 100% tự do sáng tạo, không áp đặt bất kỳ sự kiện lịch sử, nhân vật lịch sử hay quy chuẩn cổ phong nào.
+
+2. **Cơ Chế Phân Luồng Bản Thảo 3 Cấp Độ (Tri-Tier Ontology Resolver):**
+   - **Tier 1 — Canonical Vietnamese Cultural Domain (Độ tương đồng văn hóa >= 0.7):**
+     - Kích hoạt toàn bộ tri thức lịch sử & truyền thống Việt Nam: Đại từ xưng hô chuẩn mực (*Bệ hạ/khanh, chàng/nàng, u/con, tía/má, đồng chí...*), thực thể văn hóa (*Trống đồng, Nỏ thần, Gươm báu, Cổng làng, Bến sông...*), và Comic Visual DNA cổ phục (*Áo Ngũ Thân, Áo Nhật Bình, Áo Tấc, Khăn Đóng, Áo Bà Ba, Nón Lá*).
+     - Áp dụng Master Negative chặn méo mó văn hóa (*Hanfu, Kimono, Hanbok, Samurai, Ninja*).
+   - **Tier 2 — Cultural Fusion / Hybrid Domain (0.3 <= Tương đồng < 0.7):**
+     - Xử lý các thể loại lai ghép độc đáo (ví dụ: *Cyberpunk Thăng Long 2099*, *Việt Nam Hậu Tận Thế*, *Steampunk Triều Nguyễn*).
+     - Giữ nguyên hồn cốt văn hóa cốt lõi nhưng tự động nới lỏng các ràng buộc thời đại (Era Constraints) để dung nạp công nghệ tương lai hoặc phép thuật giả tưởng.
+   - **Tier 3 — Open-Domain Adaptive Graph (Tương đồng < 0.3 — Hoàn toàn ngoài miền văn hóa Việt):**
+     - Khi người dùng viết truyện trinh thám phương Tây, Cyberpunk New York, Fantasy Ma pháp, hệ thống tự động vô hiệu hóa các bộ lọc phong kiến Việt và không áp đặt trang phục cổ truyền Việt Nam!
+     - Kích hoạt **Dynamic Ephemeral Node Extraction**: Mô hình tự động trích xuất thực thể, không gian và thời đại dựa trên ngữ cảnh tự nhiên của câu chuyện người dùng đưa vào.
+
+3. **Bộ Lọc Ngôn Ngữ Thông Minh Có Chọn Lọc:**
+   - Bộ lọc chỉ loại bỏ sáo ngữ kiếm hiệp/tiên hiệp Tàu dịch sượng (*"tiêu sái", "tà mị", "lãnh khốc", "bản tọa", "đế tôn"*) khi bối cảnh là thuần Việt hoặc văn học nghiêm túc.
+   - Nếu người dùng chủ động chọn thể loại Tiên hiệp hoặc Kiếm hiệp, bộ lọc tự động hạ cấp xuống chế độ cho phép để phục vụ đúng ý đồ sáng tác cá nhân.
+
+---
+
+### R2. Thuật Toán Mạng Xã Hội Văn Học Cấp Cao (Next-Gen Recommendation Engine & Open Messenger)
+
+Xây dựng hệ thống mạng xã hội thông minh tương đương thuật toán hiện đại, vượt xa mức so sánh Cosine thô sơ:
+
+1. **Cấu Trúc Dữ Liệu Đồ Thị & Hồ Sơ Người Dùng Đa Tầng (`db/models.py`):**
+   - Bảng `social_posts`: `id`, `user_id`, `story_id`, `title`, `content_snippet`, `cover_image_url`, `genre`, `tags` (JSON), `concept_vector` (128-dim JSON embedding), `likes_count`, `comments_count`, `views_count`, `dwell_time_avg`, `created_at`.
+   - Bảng `post_interactions`: Lưu vết tín hiệu tương tác chi tiết:
+     - `interaction_type`: Explicit (`LIKE`, `COMMENT`, `BOOKMARK`, `SHARE`) và Implicit (`CLICK`, `SCROLL_50`, `SCROLL_100`, `DWELL_TIME_SECONDS`).
+     - Trọng số tín hiệu: w(Dwell > 60s) = 2.5, w(Scroll_100) = 2.0, w(Like) = 1.5, w(Comment) = 3.0.
+   - Bảng `user_interest_profiles`:
+     - Lưu trữ Vector Sở thích động cập nhật liên tục với cơ chế suy giảm theo thời gian (Exponential Time Decay lambda = 0.05/ngày).
+     - Phân tích cảm xúc và thực thể từ bình luận (Sentiment & Entity Extraction từ nội dung comment).
+
+2. **Thuật Toán Đề Xuất 3 Giai Đoạn (3-Stage Hybrid Recommender System):**
+   - **Giai đoạn 1 — Candidate Generation (Truy hồi ứng viên):**
+     - Kết hợp Content-Based Filtering (Cosine Similarity giữa User vector và Post vector) + Graph-Based DSGO Traversal (gợi ý các truyện chia sẻ chung thực thể hoặc bối cảnh không gian liên đới).
+   - **Giai đoạn 2 — Scoring & Multi-Task Ranking (Chấm điểm & Xếp hạng):**
+     Score(p, u) = w1*CosineSim(U_u, V_p) + w2*ImplicitAffinity(u, p) + w3*Freshness(p) + w4*QualityScore(p)
+     Trong đó QualityScore(p) tính toán dựa trên tỷ lệ đọc hết chương và đánh giá từ độc giả.
+   - **Giai đoạn 3 — Re-ranking, Serendipity & Exploration (Chống Echo-Chamber):**
+     - **Maximal Marginal Relevance (MMR):** Đảm bảo Feed của người dùng có độ đa dạng thể loại (lambda_MMR = 0.7), không bị ngập tràn duy nhất một thể loại.
+     - **Multi-Armed Bandit (Thompson Sampling / epsilon-greedy epsilon=0.15):** Dành 15% vị trí hiển thị trên Feed để thử nghiệm các tác phẩm mới xuất bản (Giải quyết bài toán Cold-Start cho tác giả mới).
+
+3. **Hệ Thống Open Messenger Đẳng Cấp:**
+   - Hỗ trợ chat tự do giữa MỌI người dùng trong hệ thống (User Directory search theo username/họ tên).
+   - Quản lý cuộc hội thoại, lưu trữ tin nhắn bảo mật, hiển thị trạng thái đã đọc và thông báo tin nhắn mới tức thì.
+
+---
+
+### R3. Tiền Tệ Chuẩn Ngân Hàng & Chống Tấn Công Trục Lợi Nguy Hiểm
+
+1. **Mô Hình Kinh Tế 100 Xu:**
+   - 100k VNĐ = 100 xu.
+   - Tạo truyện (Ngắn 8 xu, Vừa 12 xu, Dài 16 xu); Sửa bản thảo 2 xu/lần; Chuyển thể Manga 16 xu/lần.
+   - 100 xu đủ hoàn thành: 2-3 truyện + 10-15 lần sửa + 2-3 lần manga (~95 xu).
+
+2. **Phòng Chống Các Cuộc Tấn Công Trục Lợi Phổ Biến & Nguy Hiểm:**
+   - **Chống Race Condition & Double-Spending:** Sử dụng Atomic Transaction kèm Khóa Luồng Người Dùng (user_mutex = threading.Lock() hoặc SQLite IMMEDIATE TRANSACTION), cô lập hoàn toàn tiến trình đọc số dư và trừ xu. Nếu 2 request tạo truyện gửi đến cùng 1 mili-giây khi tài khoản chỉ còn 8 xu, chỉ duy nhất 1 request thành công, request thứ hai bị từ chối 402 Payment Required ngay lập tức.
+   - **Bảo Vệ Tính Toàn Vẹn Quyền Lực Phía Server (Absolute Server Authority):** Phía client không có bất kỳ quyền hạn nào gửi số xu hay chi phí lên. Server tự phân tích payload, đếm số token/từ dự kiến và áp đặt chi phí.
+   - **Compensating Transaction Rollback (Hoàn Xu Tự Động):** Trường hợp LLM hoặc Diffusion API gặp lỗi 5xx hoặc timeout sau khi đã trừ xu, hệ thống tự động hoàn lại 100% số xu kèm mã giao dịch REFUND_FAILED_GENERATION.
+   - **Sổ Cái Mật Mã Bất Biến (Cryptographic Ledger):** Bảng coin_transactions lưu vết kèm mã băm SHA-256 xâu chuỗi (tx_hash = SHA256(prev_hash + user_id + amount + balance_after + timestamp)), ngăn chặn việc sửa đổi số dư trái phép trực tiếp trong DB.
+
+3. **Hệ Thống Chống Clone & Sybil Đa Lớp (Advanced Anti-Clone Guard):**
+   - Chỉ tặng duy nhất 8 xu dùng thử cho thiết bị và IP mới.
+   - Multi-Signal Fingerprinting: Canvas 2D Hash + WebGL Renderer Hash + AudioContext Frequency Hash + Screen Specs.
+   - IP Subnet Throttling: Theo dõi theo dải mạng (/24 subnet), ngăn chặn việc dùng proxy xoay IP cùng dải để tạo tài khoản clone trục lợi.
+   - Tài khoản clone tạo từ thiết bị/IP đã nhận thưởng sẽ có số dư khởi tạo = 0 xu.
+
+---
+
+### R4. Kiến Trúc Frontend Phân Lớp Không Xung Đột (ThreeUI 3D + Morphicons Pipeline)
+
+Giải quyết triệt để vấn đề: Làm sao tích hợp cả hiệu ứng 3D (ThreeUI) và hoạt họa SVG biến hình (Morphicons) mượt mà 60 FPS, không triệt tiêu nhau, không vỡ layout và không crash WebGL?
+
+1. **Kiến Trúc Phân Lớp Độc Lập (Decoupled Visual Pipeline Architecture):**
+   - **Layer 0 — Ambient 3D Canvas (ThreeUI):**
+     - Nền 3D Canvas chạy nền phía sau (position: fixed; inset: 0; z-index: 0; pointer-events: none;).
+     - **Quản Lý Context WebGL Đơn Nhất (Single Shared Canvas):** Chỉ khởi tạo duy nhất 1 WebGLRenderer cho toàn trang, tái sử dụng scene, triệt tiêu 100% nguy cơ lỗi Too many active WebGL contexts.
+     - **Tối Ưu Hiệu Năng Thông Minh:** Tích hợp IntersectionObserver và requestAnimationFrame có điều kiện: khi người dùng cuộn khỏi viewport hoặc chuyển tab (document.hidden), render loop tự động tạm dừng, CPU/GPU về 0%.
+     - Hiệu ứng thị giác: Mạng lưới hạt ánh sáng 3D lơ lửng tương tác nhẹ theo con trỏ chuột kết hợp họa tiết Trống đồng Đông Sơn mờ ảo sang trọng.
+   - **Layer 1 — Core Semantic DOM & 3D Interactive Cards:**
+     - Sử dụng CSS 3D Transforms (perspective: 1000px, transform-style: preserve-3d) cho hiệu ứng Parallax Tilt trên các Card bài đăng và Khung truyện manga. Tách biệt hoàn toàn với WebGL canvas để bảo đảm hiệu năng 60 FPS ổn định.
+   - **Layer 2 — SVG Morphing Micro-Interactions (Morphicons):**
+     - Hoạt động độc lập trên DOM bằng SVG path interpolation và spring physics:
+       - Biểu tượng Xu (Coin) xoay và morph thành huy hiệu số dư.
+       - Nút Like morphing mượt mà từ đường nét thanh mảnh sang tim rực rỡ kèm micro-burst.
+       - Bộ chọn Model AI morphing icon tương ứng 3 cấp độ (Flash → Versatile → Master).
+     - Morphicons chạy trên luồng vector riêng, không can thiệp hay xung đột với WebGL state hay CSS 3D matrix.
+   - **Layer 3 — Glassmorphism Overlay & Portals:**
+     - Modal Nạp xu, Hộp thoại Messenger và Copilot được gắn vào React Portals với isolation: isolate và z-index: 50+. Ngăn chặn hiện tượng lỗi render layer (z-fighting) và hiện tượng vỡ nền mờ khi kết hợp với CSS 3D.
+2. **Khả Năng Thích Ứng Mọi Thiết Bị (Graceful Degradation):**
+   - Tự động nhận diện thiết bị yếu hoặc người dùng bật prefers-reduced-motion để tự động hạ cấp xuống hiệu ứng CSS thuần túy, đảm bảo trải nghiệm luôn trơn tru trên mọi cấu hình.
+
+---
+
+## Acceptance Criteria
+
+### Adaptive Ontology & Xử Lý Ngoài Miền
+- [ ] Khi chủ đề là Văn hóa/Lịch sử Việt Nam: Áp dụng đúng 100% xưng hô thuần Việt, Dynamic Scene-Graph văn hóa Việt và Comic cổ phục Việt (0% Hanfu, Kimono).
+- [ ] Khi chủ đề là Ngoài Miền (Sci-Fi, Cyberpunk, Tây Âu, Isekai...): Hệ thống tự động nới lỏng ràng buộc, trích xuất thực thể mở linh hoạt, không áp đặt gượng ép cổ phục hay xưng hô phong kiến Việt.
+
+### Mạng Xã Hội, Thuật Toán Gợi Ý & Open Messenger
+- [ ] Bảng social_posts, post_interactions và user_interest_profiles vận hành chuẩn xác.
+- [ ] Thuật toán gợi ý kết hợp đa tín hiệu (Content Cosine, Dwell Time, Comment sentiment, MMR diversity) hoạt động ổn định và giải quyết cold-start với bandit exploration.
+- [ ] Tìm kiếm người dùng và nhắn tin 1-1 tự do giữa BẤT KỲ 2 người dùng nào theo thời gian thực.
+
+### An Ninh Tiền Tệ & Chống Clone
+- [ ] Atomic Transaction loại bỏ 100% rủi ro Race condition / Double spending khi gửi request đồng thời.
+- [ ] Server hoàn toàn độc quyền tính toán chi phí xu; phớt lờ mọi can thiệp từ client.
+- [ ] Tự động hoàn xu (REFUND_FAILED_GENERATION) 100% khi tiến trình gọi AI gặp sự cố.
+- [ ] Bảng coin_transactions lưu vết đầy đủ, có mã băm toàn vẹn tx_hash SHA-256.
+- [ ] Thiết bị hoặc IP đã từng nhận thưởng tân thủ sẽ nhận 0 xu khi đăng ký tài khoản clone.
+
+### Trải Nghiệm Frontend Không Xung Đột (Morphicons + ThreeUI)
+- [ ] Single WebGL context chạy ngầm 60 FPS, tự động pause khi tab ẩn hoặc ra khỏi màn hình.
+- [ ] Morphicons SVG morphing trơn tru trên nút Like, Coin counter và Model switcher.
+- [ ] Thẻ bài truyện tranh có hiệu ứng 3D Parallax Tilt mượt mà, không bị xung đột layer hay vỡ layout khi mở Modal nạp xu hoặc Messenger.
+
+### Kiểm Thử Toàn Vẹn Hệ Thống
+- [ ] Toàn bộ Backend Python (py_compile) biên dịch thành công 0 lỗi.
+- [ ] Toàn bộ Frontend Next.js (npm run build) build sản xuất thành công 0 lỗi.
+- [ ] Bộ test suite tự động kiểm thử toàn diện logic OOD ontology, banking security, recommendation ranking và chat messenger đạt 100% passed.
+

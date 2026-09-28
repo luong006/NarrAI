@@ -3,7 +3,8 @@
 import { translations, Language } from "@/lib/i18n";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { PlusCircle, BookOpen, LogOut, User, Sparkles } from "lucide-react";
+import { PlusCircle, BookOpen, LogOut, User, MessageSquare } from "lucide-react";
+import { CoinBadgeMorphicon } from "@/components/morphicons/CoinBadgeMorphicon";
 
 interface Props {
   username: string;
@@ -13,6 +14,10 @@ interface Props {
   onNewStory: () => void;
   onOpenHistory: () => void;
   onLogout: () => void;
+  coinBalance?: number;
+  onOpenCoinTopup?: () => void;
+  onOpenMessenger?: () => void;
+  unreadCount?: number;
 }
 
 export function Sidebar({
@@ -23,12 +28,16 @@ export function Sidebar({
   onNewStory,
   onOpenHistory,
   onLogout,
+  coinBalance = 100,
+  onOpenCoinTopup,
+  onOpenMessenger,
+  unreadCount = 0,
 }: Props) {
   const t = translations[lang];
   const displayName = fullName || username;
 
   return (
-    <aside className="w-64 h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between p-4 select-none shrink-0 transition-colors">
+    <aside className="w-64 h-screen border-r border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col justify-between p-4 select-none shrink-0 transition-colors z-10">
       <div>
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-2 py-3 mb-4">
@@ -42,7 +51,7 @@ export function Sidebar({
         </div>
 
         {/* User Card */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 mb-5">
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-950 flex items-center justify-center text-brand-700 dark:text-brand-300 shrink-0">
@@ -70,6 +79,17 @@ export function Sidebar({
               </button>
             )}
           </div>
+
+          {/* Coin Badge Micro-Interaction (Layer 2) */}
+          <div className="mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
+            <CoinBadgeMorphicon
+              balance={coinBalance}
+              onClick={onOpenCoinTopup}
+              lang={lang}
+              size="sm"
+              className="w-full justify-between"
+            />
+          </div>
         </div>
 
         {/* Menu Navigation */}
@@ -88,6 +108,28 @@ export function Sidebar({
           >
             <BookOpen className="w-4 h-4 text-slate-500" />
             <span>{t.story_history}</span>
+          </button>
+
+          {/* Open Messenger Trigger Button */}
+          <button
+            onClick={onOpenMessenger}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
+            title={lang === "vi" ? "Mở hộp thư Open Messenger" : "Open Messenger"}
+          >
+            <div className="flex items-center gap-2.5">
+              <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{lang === "vi" ? "Open Messenger" : "Messenger"}</span>
+            </div>
+            {unreadCount > 0 ? (
+              <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold text-white bg-rose-500 rounded-full animate-pulse shadow-sm">
+                {unreadCount}
+              </span>
+            ) : (
+              <span
+                className="w-2 h-2 rounded-full bg-emerald-500 group-hover:scale-125 transition-transform"
+                title={lang === "vi" ? "Đang trực tuyến" : "Online"}
+              />
+            )}
           </button>
         </div>
       </div>

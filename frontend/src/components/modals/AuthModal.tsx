@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { ClientPortal } from "@/components/portals/ClientPortal";
 import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { translations, Language } from "@/lib/i18n";
@@ -184,9 +185,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 my-8">
+    <ClientPortal zIndex={60}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 my-8">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
@@ -404,6 +408,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
         </div>
       </div>
     </div>
+    </ClientPortal>
   );
 }
 

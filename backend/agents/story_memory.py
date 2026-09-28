@@ -48,6 +48,8 @@ class StoryBible:
     writing_style: str = ""
     refined_prompt: str = ""
     narrative_beats: List[str] = field(default_factory=list)
+    narrative_mode: str = "hu_cau_tu_do"
+    cultural_tier: int = 1
 
     def __post_init__(self):
         if self.characters is None:
@@ -70,10 +72,12 @@ class StoryBible:
             for b in self.narrative_beats:
                 beats_text += f"\n  * {b}"
 
+        mode_line = f"\nChe do sang tac: {self.narrative_mode}" if self.narrative_mode else ""
+
         return (
             f"=== STORY BIBLE ===\n"
             f"Tieu de: {self.title}\n"
-            f"The loai: {self.genre}\n"
+            f"The loai: {self.genre}{mode_line}\n"
             f"Boi canh: {self.world_setting}\n"
             f"Nhan vat chinh:{chars_text}\n"
             f"Cot truyen chinh: {self.main_plot}\n"
@@ -90,6 +94,8 @@ class StoryBible:
             "writing_style": self.writing_style,
             "refined_prompt": self.refined_prompt,
             "narrative_beats": list(self.narrative_beats),
+            "narrative_mode": self.narrative_mode,
+            "cultural_tier": self.cultural_tier,
         }
 
     @classmethod
@@ -105,6 +111,8 @@ class StoryBible:
             writing_style=d.get("writing_style", ""),
             refined_prompt=d.get("refined_prompt", ""),
             narrative_beats=d.get("narrative_beats") or [],
+            narrative_mode=d.get("narrative_mode", "hu_cau_tu_do"),
+            cultural_tier=d.get("cultural_tier", 1),
         )
 
 
@@ -139,26 +147,81 @@ class StoryMemory:
         if DynamicSceneGraph is None or CharacterEntity is None or SpaceEnclosure is None:
             return None
 
-        # Build EraGenreConstraint
-        genre_name = self.story_bible.genre or "Modern Campus Light Novel"
-        era_constraint = EraGenreConstraint(
-            era_name="modern_2020s",
-            genre_name=genre_name,
-            world_axioms=["Công nghệ hiện đại, không có ma pháp", "Tuân thủ định luật vật lý"],
-            era_banlist=["hanfu", "robes", "sword", "magic", "cultivation"]
+        # Build EraGenreConstraint & Enclosure based on narrative mode & cultural tier
+        raw_mode = getattr(self.story_bible, "narrative_mode", "HU_CAU_TU_DO")
+        c_tier = getattr(self.story_bible, "cultural_tier", 1)
+        setting_text = self.story_bible.world_setting or ""
+        genre_lower = (self.story_bible.genre or "").lower()
+        setting_lower = setting_text.lower()
+
+        is_historical = (
+            raw_mode in ("CHINH_SU", "DA_SU") or
+            any(k in genre_lower for k in ["lịch sử", "dã sử", "chính sử", "chiến tranh", "cổ trang", "triều đại"]) or
+            any(k in setting_lower for k in ["bạch đằng", "vạn kiếp", "thăng long", "hoa lư", "ngọc hồi", "đại việt", "nhà trần", "nhà lê"])
         )
 
-        # Build initial Enclosure from world setting
-        setting_text = self.story_bible.world_setting or "Lớp học"
         enc_id = "primary_enclosure"
+
+        if is_historical:
+            era_name = "vietnamese_canonical"
+            genre_name = self.story_bible.genre or ("Chính sử Việt Nam" if raw_mode == "CHINH_SU" else "Dã sử Việt Nam")
+            world_axioms = [
+                "Bối cảnh lịch sử Việt Nam, tuân thủ dữ kiện lịch sử và trang phục văn hóa bản địa.",
+                "Tuân thủ chuẩn mực ngôn ngữ và xưng hô thời đại."
+            ]
+            era_banlist = []
+            setting_name = setting_text[:60] if setting_text else "Doanh trại / Phủ đường"
+            is_outdoor = any(w in setting_lower for w in ["sông", "chiến trường", "bạch đằng", "làng", "rừng", "núi", "doanh trại ngoài trời"])
+            boundary_type = BoundaryType.OUTDOOR_BOUNDED if is_outdoor else BoundaryType.INDOOR_ENCLOSED
+            architectural_anchor = f"{setting_name}, bối cảnh lịch sử Việt Nam"
+            persistent_fixtures = (
+                ["bản đồ quân sự", "bàn chỉ huy", "cột gỗ chạm khắc"]
+                if is_outdoor else
+                ["cột gỗ chạm khắc", "ngai vàng hoặc bàn gỗ", "đèn dầu"]
+            )
+            lighting_atm = "ánh lửa bập bùng cùng ánh sáng tự nhiên"
+            negative_drift = ["smartphone", "neon", "car", "modern building", "school uniform", "hanfu", "kimono"]
+        elif c_tier == 3:
+            era_name = "open_domain"
+            genre_name = self.story_bible.genre or "Open Domain Fiction"
+            world_axioms = ["Thế giới giả tưởng / viễn tưởng tự do, tuân thủ logic nội tại của tác phẩm."]
+            era_banlist = []
+            setting_name = setting_text[:60] if setting_text else "Không gian bối cảnh"
+            boundary_type = BoundaryType.INDOOR_ENCLOSED
+            architectural_anchor = f"{setting_name}, bối cảnh tự do"
+            persistent_fixtures = ["nội thất đặc trưng", "thiết bị chuyên dụng"]
+            lighting_atm = "ánh sáng môi trường tự nhiên"
+            negative_drift = []
+        else:
+            # Modern / Campus default for backward compatibility
+            era_name = "modern_2020s"
+            genre_name = self.story_bible.genre or "Modern Campus Light Novel"
+            world_axioms = ["Công nghệ hiện đại, không có ma pháp", "Tuân thủ định luật vật lý"]
+            era_banlist = ["hanfu", "robes", "sword", "magic", "cultivation"]
+            setting_name = setting_text[:60] if setting_text else "Lớp học"
+            boundary_type = BoundaryType.INDOOR_ENCLOSED
+            architectural_anchor = f"inside {setting_name[:50]}, enclosed interior"
+            persistent_fixtures = ["wooden desks", "room door", "chalkboard"]
+            lighting_atm = "diffused daylight streaming through window"
+            negative_drift = ["outdoor", "street", "trees", "cars", "sky"]
+
+        era_constraint = EraGenreConstraint(
+            era_name=era_name,
+            genre_name=genre_name,
+            world_axioms=world_axioms,
+            era_banlist=era_banlist,
+            cultural_tier=c_tier,
+            narrative_mode=raw_mode
+        )
+
         initial_enclosure = SpaceEnclosure(
             id=enc_id,
-            name=setting_text[:60],
-            boundary_type=BoundaryType.INDOOR_ENCLOSED,
-            architectural_anchor=f"inside {setting_text[:50]}, enclosed interior",
-            persistent_fixtures=["wooden desks", "room door", "chalkboard"],
-            lighting_atmosphere="diffused daylight streaming through window",
-            negative_drift_tokens=["outdoor", "street", "trees", "cars", "sky"],
+            name=setting_name,
+            boundary_type=boundary_type,
+            architectural_anchor=architectural_anchor,
+            persistent_fixtures=persistent_fixtures,
+            lighting_atmosphere=lighting_atm,
+            negative_drift_tokens=negative_drift,
             connected_enclosures=[]
         )
 
@@ -191,7 +254,9 @@ class StoryMemory:
             era_genre=era_constraint,
             entities=characters_dict,
             enclosures={enc_id: initial_enclosure},
-            active_enclosure_id=enc_id
+            active_enclosure_id=enc_id,
+            cultural_tier=c_tier,
+            narrative_mode=raw_mode
         )
         self.dynamic_scene_graph = dsg
         return dsg
