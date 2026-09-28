@@ -7,6 +7,7 @@ import { PlusCircle, BookOpen, LogOut, User, Sparkles } from "lucide-react";
 
 interface Props {
   username: string;
+  fullName?: string;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
   onNewStory: () => void;
@@ -14,8 +15,17 @@ interface Props {
   onLogout: () => void;
 }
 
-export function Sidebar({ username, lang, onLanguageChange, onNewStory, onOpenHistory, onLogout }: Props) {
+export function Sidebar({
+  username,
+  fullName,
+  lang,
+  onLanguageChange,
+  onNewStory,
+  onOpenHistory,
+  onLogout,
+}: Props) {
   const t = translations[lang];
+  const displayName = fullName || username;
 
   return (
     <aside className="w-64 h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between p-4 select-none shrink-0 transition-colors">
@@ -38,17 +48,27 @@ export function Sidebar({ username, lang, onLanguageChange, onNewStory, onOpenHi
               <div className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-950 flex items-center justify-center text-brand-700 dark:text-brand-300 shrink-0">
                 <User className="w-4 h-4" />
               </div>
-              <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                {username || t.not_logged_in}
-              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {displayName || t.not_logged_in}
+                </span>
+                {fullName && username && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                    @{username}
+                  </span>
+                )}
+              </div>
             </div>
-            <button
-              onClick={onLogout}
-              className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 p-1"
-              title={t.logout}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            {username && (
+              <button
+                onClick={onLogout}
+                className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 p-1 transition-colors"
+                title={t.logout}
+                aria-label={t.logout}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -75,7 +95,7 @@ export function Sidebar({ username, lang, onLanguageChange, onNewStory, onOpenHi
       {/* Footer controls */}
       <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between px-1">
         <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} />
-        <ThemeToggle />
+        <ThemeToggle lang={lang} />
       </div>
     </aside>
   );

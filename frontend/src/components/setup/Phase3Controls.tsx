@@ -52,7 +52,7 @@ export function Phase3Controls({ lang, onStartWriting, loading }: Props) {
           {t.step3_title}
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          {lang === 'vi' ? "Thiết lập cấu hình văn phong trước khi AI bắt đầu chấp bút chương đầu tiên." : "Configure story parameters before AI begins drafting chapter 1."}
+          {t.step3_sub}
         </p>
       </div>
 

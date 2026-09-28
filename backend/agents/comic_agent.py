@@ -5,9 +5,16 @@ from typing import List, Tuple, Optional
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
-# STRICT style prefix and suffix to force Diffusion model attention to B&W Manga
-STYLE_PREFIX = "black and white manga, Japanese manga comic art, monochrome ink drawing on paper, "
-STYLE_SUFFIX = ", manga panel, screentone shading, bold ink outlines, high contrast black ink, clean lineart, no color, hand drawn 2D illustration, no photograph, no 3D render"
+# STRICT style prefix and suffix to force Diffusion model attention to Modern Monochrome School Manga
+STYLE_PREFIX = (
+    "masterpiece modern monochrome manga, Japanese high school manga comic art style, "
+    "crisp clean black and white ink lineart, professional manga panel layout, "
+)
+STYLE_SUFFIX = (
+    ", clean G-pen lineart, delicate screentone shading, fine dot pattern tones, "
+    "high contrast black ink on bright white paper, no color, pure monochrome, "
+    "studio quality 2D manga illustration, expressive anime aesthetic, sharp contours"
+)
 
 LAYOUT_MAP = {
     "wide": "wide", "horizontal": "wide", "landscape": "wide", "panoramic": "wide", "establishing": "wide",
@@ -21,22 +28,24 @@ Analyze the Vietnamese story text and extract the EXACT, IMMUTABLE visual physic
 
 CRITICAL VISUAL CONTINUITY SPECIFICATIONS (MANDATORY EXTREME DETAIL):
 1. Signature Identifying Costume (MANDATORY):
-   - Exact garment type & cut: e.g. crisp button-up short-sleeve school uniform shirt, tailored blazer, high-collar martial arts robes (huyền bào), trench coat.
-   - Specific fabric texture & colors: e.g. pure white cotton, dark navy pleated skirt, black silk with gold embroidered dragon hem, crimson red mantle.
-   - Collar, Neck & Chest Accessories (ABSOLUTELY REQUIRED): Specify exact collar style (button-down collar, mandarin collar, sailor collar) AND neck/chest accessories (ribbon tie, bow tie, pendant, brooch, collar pin, chest badge, jade pendant on red cord).
-   - Outerwear & layering: cardigan, cape, or sash belt if worn.
+   - Exact garment type & cut: e.g. crisp button-up short-sleeve school uniform shirt, tailored navy blazer, pleated skirt, tailored trousers, knit vest, trench coat.
+   - Specific fabric texture & colors: e.g. pure white cotton shirt, dark navy pleated skirt, charcoal grey tailored trousers, dark navy blazer.
+   - Collar, Neck & Chest Accessories (ABSOLUTELY REQUIRED): Specify exact collar style (button-down collar, stiff collar, sailor collar) AND neck/chest accessories (ribbon tie, bow tie, school necktie, brooch, collar pin, chest crest badge, uniform pendant).
+   - Outerwear & layering: knit cardigan, sweater vest, tailored school blazer.
 2. Exact Hairstyle & Head Details (IMMUTABLE):
-   - Specific cut, length, and texture: e.g. straight jet-black hair reaching collarbones, high ponytail tied with silver clasp, messy textured dark hair.
+   - Specific cut, length, and texture: e.g. straight jet-black hair reaching collarbones, high ponytail tied with ribbon, messy textured dark hair.
    - Bangs & parting: blunt bangs straight across forehead, curtain bangs parted in center, swept back.
    - Hair accessories: ribbon tie, hairpins, clips.
 3. Immutable Facial Features:
-   - Age, facial structure, eye shape and color: e.g. 17yo Vietnamese student, gentle almond dark eyes, sharp defined jawline, piercing cold amber eyes.
-   - Permanent marks: beauty mark under right eye, scar across left eyebrow, glasses.
+   - Age, facial structure, eye shape and color: e.g. 17yo Vietnamese student, gentle almond dark eyes, sharp defined jawline, expressive dark eyes.
+   - Permanent marks: beauty mark under right eye, faint birthmark, glasses.
 4. Comprehensive Aliases & Pronoun Registry:
    - Must include character names, nicknames.
-   - Vietnamese pronouns & generic terms: "cô bé", "cậu bé", "cô gái", "chàng trai", "cậu ấy", "anh ấy", "cô ấy", "hắn", "nàng", "y", "tiểu tử", "nữ sinh", "nam sinh", "học sinh", "anh bạn cùng bàn", "bạn cùng bàn", "bạn cùng lớp", "bạn học", "người bạn", "chị", "em gái", "bé gái", "thiếu niên", "cậu bạn".
+   - Vietnamese pronouns & generic terms: "cô bé", "cậu bé", "cô gái", "chàng trai", "cậu ấy", "anh ấy", "cô ấy", "nữ sinh", "nam sinh", "học sinh", "anh bạn cùng bàn", "bạn cùng bàn", "bạn cùng lớp", "bạn học", "người bạn", "chị", "em gái", "bé gái", "thiếu niên", "cậu bạn".
    - English equivalents: "she", "her", "he", "him", "the girl", "the boy", "schoolgirl", "schoolboy", "student", "classmate", "desk mate".
-5. Metadata: Specify "gender" ("female" or "male") and primary "role" ("lead", "antagonist", "supporting", "student", "desk_mate").
+5. Compact Visual DNA Representation:
+   - Keep visual DNA representation compact under 30 words per character to strictly preserve CLIP 77 token budget.
+6. Metadata: Specify "gender" ("female" or "male") and primary "role" ("lead", "student", "desk_mate", "supporting").
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object:
@@ -44,7 +53,7 @@ Return ONLY a valid JSON object:
   "An": {
     "gender": "female",
     "role": "lead",
-    "aliases": ["An", "cô bé", "nữ sinh", "cô", "cô ấy", "nàng", "cô gái", "she", "girl", "schoolgirl", "female student", "bạn cùng bàn"],
+    "aliases": ["An", "cô bé", "nữ sinh", "cô", "cô ấy", "cô gái", "she", "girl", "schoolgirl", "female student", "bạn cùng bàn"],
     "dna": "17yo Vietnamese schoolgirl, soft oval face, gentle dark almond eyes, sharp jawline, straight jet-black hair with blunt bangs across forehead and shoulder-length bob, wearing crisp white short-sleeve school uniform button-up shirt with stiff collar, small dark navy ribbon tie pinned at collar, pleated dark navy skirt"
   }
 }
@@ -102,11 +111,206 @@ Return ONLY a valid JSON array of panel objects:
   {
     "panel_index": 2,
     "image_prompt": "medium close-up shot of the young student turning around with a bright, curious smile, sitting at the wooden desk near the window",
-    "dialogue_text": "An: \"Chào bạn, chúng ta cùng nhau cố gắng nhé!\"",
+    "dialogue_text": "An: \\\\\"Chào bạn, chúng ta cùng nhau cố gắng nhé!\\\\\"",
     "layout_type": "square"
-  }
 ]
 """
+
+
+# ==================== SPATIAL SCENE ENCLOSURE REGISTRY & QUARANTINE ====================
+SPATIAL_ENCLOSURES = {
+    "classroom": {
+        "detection_keywords": [
+            "lớp học", "phòng học", "bàn học", "bảng đen", "classroom", "schoolroom",
+            "tiết học", "giờ học", "bàn giáo viên", "bàn đầu", "cuối lớp", "bàn cùng bàn"
+        ],
+        "anchor_description": (
+            "modern Japanese high school classroom interior, neat wooden student desks and chairs, "
+            "large green chalkboard mounted on front wall, tall multi-pane glass windows with sunlight "
+            "streaming across wooden floor, peaceful classroom atmosphere"
+        ),
+        "forbidden_spatial_tokens": [
+            "street", "road", "alley", "highway", "traffic", "car", "bus", "store", "shop",
+            "market", "forest", "park", "palace", "temple", "castle", "dungeon", "battlefield",
+            "sword", "blade", "weapon"
+        ]
+    },
+    "school_hallway": {
+        "detection_keywords": ["hành lang", "cửa lớp", "dãy phòng học", "hallway", "corridor"],
+        "anchor_description": (
+            "bright school hallway interior, wooden lockers lining the corridor wall, "
+            "tall rectangular windows overlooking the school courtyard, clean screentone floor"
+        ),
+        "forbidden_spatial_tokens": [
+            "palace", "temple", "castle", "dungeon", "highway", "forest", "sword", "blade", "weapon"
+        ]
+    },
+    "school_rooftop": {
+        "detection_keywords": ["sân thượng", "rooftop"],
+        "anchor_description": (
+            "school rooftop on a clear day, protective chain-link wire fence, "
+            "distant city horizon in clean manga screentone, wide open sky"
+        ),
+        "forbidden_spatial_tokens": [
+            "indoor", "classroom", "palace", "dungeon", "cave", "sword", "blade", "weapon"
+        ]
+    }
+}
+
+def resolve_spatial_enclosure(story_text: str = "", setting_dna: dict = None) -> dict:
+    """Determine dominant Spatial Scene Enclosure to anchor the manga scene."""
+    sdna = setting_dna or {}
+    matched_enc = None
+    combined = f"{sdna.get('setting_anchor', '')} {sdna.get('location_name', '')} {str(story_text)[:1500]}".lower()
+    for enc_key, enc_data in SPATIAL_ENCLOSURES.items():
+        if any(kw in combined for kw in enc_data["detection_keywords"]):
+            matched_enc = dict(enc_data)
+            break
+    if not matched_enc:
+        matched_enc = dict(SPATIAL_ENCLOSURES["classroom"])
+
+    # If setting_dna provides specific forbidden tokens from DSGO, merge them in cleanly
+    if sdna.get("forbidden_spatial_tokens"):
+        merged_tokens = list(matched_enc.get("forbidden_spatial_tokens", []))
+        for tok in sdna["forbidden_spatial_tokens"]:
+            if tok not in merged_tokens:
+                merged_tokens.append(tok)
+        matched_enc["forbidden_spatial_tokens"] = merged_tokens
+    return matched_enc
+
+def sanitize_spatial_prompt(prompt: str, enclosure: dict = None) -> str:
+    """
+    Spatial Quarantine Filter:
+    Strips conflicting/outdoor/traffic/ancient/weapon keywords (street, road, highway, car, bus, traffic, palace, sword)
+    before rendering indoor classroom scenes, while strictly preserving subwords like 'classroom', 'cardigan', and 'scarf'.
+    Handles modifiers, prepositions, irregular plurals, and collapses consecutive commas cleanly.
+    """
+    if not prompt or not isinstance(prompt, str):
+        return ""
+    if enclosure is None:
+        enclosure = SPATIAL_ENCLOSURES["classroom"]
+
+    clean = prompt
+    forbidden = enclosure.get("forbidden_spatial_tokens", [])
+    
+    # Prepositions including compound directions (out at, out to)
+    prepositions = r'(?:on|in|along|across|down|near|beside|by|at|to|through|into|outside|towards|out\s+at|out\s+to|out\s+of)?'
+    # Articles
+    articles = r'(?:the|a|an)?'
+    # Modifiers including ancient, stone, old, abandoned, wooden
+    modifiers = r'(?:(?:\b(?:busy|moving|crowded|noisy|outdoor|distant|speeding|passing|ancient|stone|old|abandoned|wooden)\b)\s+)*'
+
+    for token in forbidden:
+        # Match preposition + article + modifiers + token with singular or plural (-s, -es)
+        clean = re.sub(
+            rf'\b{prepositions}\s*{articles}\s*{modifiers}\b{re.escape(token)}(?:es|s)?\b',
+            '',
+            clean,
+            flags=re.IGNORECASE
+        )
+
+    # Clean dangling prepositions at clause/string boundaries
+    clean = re.sub(
+        r'\b(?:at|to|through|into|outside|towards|on|in|along|across|down|near|beside|by)\s*(?:the|a|an)?(?=,|\.|$)',
+        '',
+        clean,
+        flags=re.IGNORECASE
+    )
+
+    # Collapse consecutive/orphaned commas and whitespace
+    clean = re.sub(r'[,.\s]*,[,.\s]*', ', ', clean).strip(' ,.-')
+    clean = re.sub(r'^(?:and|or|with)\s+', '', clean, flags=re.IGNORECASE)
+    clean = re.sub(r'\s+(?:and|or|with)$', '', clean, flags=re.IGNORECASE)
+    clean = re.sub(r'\s{2,}', ' ', clean).strip(' ,.-')
+    return clean
+
+# ==================== VIETNAMESE NEGATION & PROHIBITION GUARD ====================
+VIETNAMESE_NEGATION_WORDS = {
+    "không", "chẳng", "chưa", "đừng", "cấm", "ngừng", "thôi", "chớ", "ko", "k"
+}
+CLAUSE_DELIMITERS_PATTERN = r'[,;.!?:\—\-"“”\'\(\)\[\]\n]|\b(?:nhưng|mà|song|tuy\s+nhiên|thế\s+nhưng)\b'
+
+def is_action_negated(text: str, match_start: int) -> bool:
+    """
+    Checks if a matched action phrase is preceded by a Vietnamese negation or prohibition word
+    within the same clause (inspects up to 6 words preceding match_start).
+    Prevents negated actions (e.g., 'không nhìn ra cửa sổ') and dialogue reprimands
+    (e.g., 'đừng có quay sang nói chuyện') from triggering visual gestures.
+    """
+    pre_text = text[:match_start]
+    # Split by clause boundaries to isolate the immediate clause containing the match
+    clause_parts = re.split(CLAUSE_DELIMITERS_PATTERN, pre_text, flags=re.IGNORECASE)
+    immediate_clause = clause_parts[-1] if clause_parts else ""
+    # Extract preceding words in the immediate clause
+    words = re.findall(r'\b\w+\b', immediate_clause.lower())
+    window_words = words[-6:] if len(words) > 6 else words
+    return any(w in VIETNAMESE_NEGATION_WORDS for w in window_words)
+
+# ==================== ACTION & GESTURE SEMANTIC MAPPING ====================
+ACTION_GESTURE_MAPPINGS = [
+    # 1. Viết bài, làm việc tại bàn (Strictly requires pairing with viết, chép, ghi, vẽ, làm bài, vở, bài)
+    (
+        r'(?:cúi đầu|cặm cụi|chăm chú|lúi húi)\s*(?:[\w\s]{0,15})\b(?:viết|chép|ghi|vẽ|làm bài|ghi chép|vở|bài)\b',
+        'sitting at wooden student desk, head gently bowed down, writing attentively in a notebook with pen',
+        'medium close-up'
+    ),
+    # 2. Nhìn ra ngoài cửa sổ
+    (
+        r'(?:nhìn|ngắm|hướng mắt|dõi theo)\s*(?:ra|qua)?\s*(?:cửa sổ|bầu trời|mây)',
+        'sitting beside the large classroom window, cheek resting on palm, gazing pensively through the glass at sky',
+        'medium shot'
+    ),
+    # 3. Quay sang nói chuyện với bạn cùng bàn
+    (
+        r'(?:quay|ngoảnh|xoay)\s*(?:người|lại|sang)\s*(?:nhìn|cười|nói|hỏi|trò chuyện)',
+        'turning slightly in chair toward desk mate, gentle warm smile, engaging direct eye contact',
+        'over-the-shoulder shot'
+    ),
+    # 4. Đứng bật dậy, đập bàn (Strict physical action; removes internal feeling 'kinh ngạc' and standalone thoughts)
+    (
+        r'(?:đứng\s*bật\s*dậy|đập\s*tay\s*(?:xuống)?\s*bàn)',
+        'standing up abruptly from desk, hands braced against wooden desktop, wide eyes with sudden realization',
+        'dramatic low angle'
+    ),
+    # 5. Bước vào lớp học, mở cửa
+    (
+        r'(?:bước\s*vào|mở\s*cửa|đứng\s*ở\s*cửa)\s*(?:lớp|phòng)',
+        'standing in the open sliding classroom doorway, holding school backpack strap, stepping inside',
+        'wide establishing shot'
+    ),
+    # 6. Gục đầu xuống bàn (Requires pairing 'thở dài' with gục, bàn, nằm)
+    (
+        r'(?:gục đầu|úp mặt|nằm gục)\s*(?:xuống)?\s*(?:bàn)?|(?:thở dài)\s*(?:[\w\s]{0,15})\b(?:gục|bàn|nằm)\b|\b(?:gục|bàn|nằm)\b\s*(?:[\w\s]{0,15})\b(?:thở dài)\b',
+        'resting head down on folded arms upon wooden desk, soft melancholic expression, delicate hair framing face',
+        'close-up'
+    ),
+    # 7. Chuyền giấy, đưa đồ vật
+    (
+        r'(?:chuyền|đưa|trao|gửi)\s*(?:tờ giấy|mẩu tin|cuốn vở|cây bút|mẩu giấy)',
+        'hand delicately passing a small folded note across the wooden desk space toward classmate',
+        'tight focus on hands and note'
+    ),
+    # 8. Nhìn lên bảng đen
+    (
+        r'(?:nhìn|ngước|chú ý)\s*(?:lên)?\s*(?:bảng đen|bài giảng|thầy|cô)',
+        'looking forward toward the classroom blackboard, attentive expression, sitting upright at desk',
+        'medium shot'
+    ),
+]
+
+def extract_action_from_prose(dialogue_or_prose: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Extracts physical character gesture and camera angle from Vietnamese narrative prose or dialogue.
+    Enforces strict negation checking across all pattern matches to eliminate action hallucinations.
+    """
+    if not dialogue_or_prose:
+        return None, None
+    text_lower = str(dialogue_or_prose).lower()
+    for pattern, action_en, suggested_shot in ACTION_GESTURE_MAPPINGS:
+        for m in re.finditer(pattern, text_lower):
+            if not is_action_negated(text_lower, m.start()):
+                return action_en, suggested_shot
+    return None, None
 
 
 def sanitize_complete_dialogue(text: str) -> str:
@@ -150,8 +354,8 @@ def sanitize_complete_dialogue(text: str) -> str:
     # 3c. Ellipsis after auxiliary/function words (e.g. "sẽ... trả thù", "đã... làm", "rất... nhiều")
     # In Vietnamese narrative, trailing dots after auxiliary/modifier words are awkward stutter artifacts:
     # convert to single space to keep the verbal phrase natural and smooth
-    vn_particles = r'(?:sẽ|đã|đang|sắp|rất|quá|lắm|thực|thật|cực|cũng|vẫn|cứ|đều|lại|vừa|mới|hãy|đừng|chớ|bị|được|bởi|do|tại|vì|để|cho|với|cùng|và|hay|hoặc|của|ở|từ|lên|xuống|ra|vào)'
-    s = re.sub(rf'(?i)\b({vn_particles})\s*(?:-\s*|\.{2,3}\s*|(?:\s*\.\s*){2,3})', r'\1 ', s)
+    vn_particles = r'(?:sẽ|(?<!chờ\s)đã|đang|sắp|rất|quá|lắm|thực|thật|cực|cũng|vẫn|cứ|đều|lại|vừa|mới|hãy|đừng|chớ|bị|được|bởi|do|tại|vì|để|cho|với|cùng|và|hay|hoặc|của|ở|từ|lên|xuống|ra|vào)'
+    s = re.sub(r'(?i)\b(' + vn_particles + r')\s*(?:-\s*|\.{2,3}\s*|(?:\s*\.\s*){2,3})', r'\1 ', s)
 
     # 3d. Pre-normalize any remaining mid-sentence spaced dots or pauses -> ' - '
     # (e.g. "Tôi . . . không biết." or "Chờ đã... cậu là ai?")
@@ -218,59 +422,49 @@ def decompose_story_beats(story_text: str) -> list[str]:
         r'(?<=[.!?])\s*—\s*'
     )
 
-    atomic_units = []
-    for para in paragraphs:
-        raw_sentences = sentence_split_regex.split(para)
-        for s in raw_sentences:
-            s_clean = s.strip()
-            # Do NOT discard short dialogues like "Chào bạn!", "Đi thôi!"
-            # Only ignore if completely empty or lacks letters/digits
-            if s_clean and re.search(r'[\w\dÀ-ỹ]', s_clean):
-                atomic_units.append(s_clean)
-
-    if not atomic_units:
-        return []
-
-    # Group atomic sentences into cohesive beats (1-3 sentences per beat)
-    beats = []
-    current_beat_sentences = []
-    current_beat_len = 0
-
     def is_dialogue_unit(u: str) -> bool:
         return bool(re.search(r'["“”—\-]|:\s*["“]', u)) or u.startswith('-') or u.startswith('—')
 
-    for unit in atomic_units:
-        unit_is_dialogue = is_dialogue_unit(unit)
+    beats = []
+    for para in paragraphs:
+        raw_sentences = sentence_split_regex.split(para)
+        para_units = []
+        for s in raw_sentences:
+            s_clean = s.strip()
+            if s_clean and re.search(r'[\w\dÀ-ỹ]', s_clean):
+                para_units.append(s_clean)
 
-        if current_beat_sentences:
-            curr_has_dialogue = any(is_dialogue_unit(s) for s in current_beat_sentences)
+        if not para_units:
+            continue
 
-            # Dialogue transitions: A dialogue turn should usually be its own beat
-            # or if max 3 sentences reached, or len > 220
-            should_break = (
-                len(current_beat_sentences) >= 3 or
-                (unit_is_dialogue and curr_has_dialogue) or
-                (unit_is_dialogue and current_beat_len > 80) or
-                (not unit_is_dialogue and curr_has_dialogue and current_beat_len > 60) or
-                (current_beat_len + len(unit) > 260)
-            )
+        curr_beat = []
+        curr_len = 0
+        for unit in para_units:
+            unit_is_dialogue = is_dialogue_unit(unit)
+            has_action = bool(extract_action_from_prose(unit)[0])
 
-            if should_break:
-                beat_text = " ".join(current_beat_sentences).strip()
-                sanitized_beat = sanitize_complete_dialogue(beat_text)
-                if sanitized_beat:
-                    beats.append(sanitized_beat)
-                current_beat_sentences = []
-                current_beat_len = 0
+            if curr_beat:
+                curr_has_dialogue = any(is_dialogue_unit(s) for s in curr_beat)
+                curr_has_action = any(bool(extract_action_from_prose(s)[0]) for s in curr_beat)
+                should_break = (
+                    len(curr_beat) >= 3 or
+                    (unit_is_dialogue != curr_has_dialogue) or
+                    (has_action and curr_has_action) or
+                    (curr_len + len(unit) > 200)
+                )
+                if should_break:
+                    b_text = sanitize_complete_dialogue(" ".join(curr_beat).strip())
+                    if b_text:
+                        beats.append(b_text)
+                    curr_beat = []
+                    curr_len = 0
+            curr_beat.append(unit)
+            curr_len += len(unit)
 
-        current_beat_sentences.append(unit)
-        current_beat_len += len(unit)
-
-    if current_beat_sentences:
-        beat_text = " ".join(current_beat_sentences).strip()
-        sanitized_beat = sanitize_complete_dialogue(beat_text)
-        if sanitized_beat:
-            beats.append(sanitized_beat)
+        if curr_beat:
+            b_text = sanitize_complete_dialogue(" ".join(curr_beat).strip())
+            if b_text:
+                beats.append(b_text)
 
     return beats
 
@@ -293,7 +487,73 @@ class ComicDirectorAgent:
         """Extracts immutable visual character DNA with explicit costumes, metadata, and aliases."""
         existing_dna = {}
         prior_context = ""
-        if memory and memory.story_bible and memory.story_bible.characters:
+
+        # Step 1: Query Dynamic Scene-Graph Ontology (DSGO) from StoryMemory
+        dsg = getattr(memory, "dynamic_scene_graph", None) or getattr(memory, "scene_graph", None) if memory else None
+        if dsg and hasattr(dsg, "entities") and dsg.entities:
+            prior_context = "PRIOR KNOWN CHARACTERS FROM DYNAMIC SCENE GRAPH (DSGO):\n"
+            for ent_id, ent in dsg.entities.items():
+                c_name = getattr(ent, "name", ent_id)
+                c_app = getattr(ent, "visual_dna", "") or getattr(ent, "dna", "")
+                c_role_val = getattr(ent, "role", "supporting")
+                c_role = str(getattr(c_role_val, "value", c_role_val)).lower()
+                c_gender = str(getattr(ent, "gender", "unknown")).lower()
+                prior_context += f"- {c_name} ({c_role}): {c_app}\n"
+
+                name_lower = c_name.lower().strip()
+                alias_set = {name_lower}
+                if hasattr(ent, "aliases") and ent.aliases:
+                    for a in ent.aliases:
+                        a_str = str(a).strip().lower()
+                        if a_str:
+                            alias_set.add(a_str)
+                for part in name_lower.split():
+                    if len(part) > 1:
+                        alias_set.add(part)
+
+                app_lower = c_app.lower()
+                is_female = (
+                    c_gender in ["female", "woman", "nữ"] or
+                    bool(re.search(r"\b(?:female|woman)\b", c_gender)) or
+                    "nữ" in c_gender or "nữ" in c_role or
+                    any(re.search(rf"\b{re.escape(cue)}\b", app_lower) for cue in ["schoolgirl", "girl", "woman", "female"])
+                )
+                is_male = (
+                    (
+                        c_gender in ["male", "man", "nam"] or
+                        bool(re.search(r"\b(?:male|man)\b", c_gender)) or
+                        "nam" in c_gender or "nam" in c_role or
+                        any(re.search(rf"\b{re.escape(cue)}\b", app_lower) for cue in ["schoolboy", "boy", "man", "male"])
+                    )
+                    and not is_female
+                )
+
+                if is_female:
+                    alias_set.update([
+                        "cô bé", "nữ sinh", "cô ấy", "nàng", "cô gái", "chị", "em gái", "bé gái",
+                        "she", "her", "girl", "schoolgirl", "female student"
+                    ])
+                elif is_male:
+                    alias_set.update([
+                        "anh bạn", "bạn cùng bàn", "học sinh nam", "cậu ấy", "chàng trai", "anh ấy",
+                        "thiếu niên", "cậu bạn", "cậu bé", "nam sinh", "he", "him", "boy", "schoolboy", "male student"
+                    ])
+
+                if any(k in c_role for k in ["desk", "bàn", "classmate", "bạn"]) or any("bàn" in a for a in alias_set):
+                    alias_set.update(["anh bạn cùng bàn", "bạn cùng bàn", "bạn cùng lớp", "bạn học", "người bạn", "desk mate", "classmate"])
+
+                if any(k in c_role for k in ["student", "học sinh"]) or "student" in app_lower:
+                    alias_set.update(["học sinh", "bạn cùng lớp", "bạn học", "người bạn", "student"])
+
+                existing_dna[c_name] = {
+                    "dna": c_app,
+                    "aliases": list(alias_set),
+                    "gender": c_gender or ("female" if is_female else ("male" if is_male else "unknown")),
+                    "role": c_role or "lead"
+                }
+
+        # Step 2: Graceful fallback to StoryBible characters if DSGO entities absent
+        elif memory and memory.story_bible and memory.story_bible.characters:
             prior_context = "PRIOR KNOWN CHARACTERS FROM STORY BIBLE:\n"
             for c in memory.story_bible.characters:
                 if isinstance(c, dict) and c.get("name") and c.get("appearance"):
@@ -401,7 +661,34 @@ class ComicDirectorAgent:
     def extract_setting_dna(self, story_text: str, memory: StoryMemory = None) -> dict:
         """Extracts immutable spatial setting anchor to lock background consistency across panels."""
         existing_setting = {}
-        if memory and memory.story_bible and memory.story_bible.world_setting:
+
+        # Step 1: Query Dynamic Scene-Graph Ontology (DSGO) active SpaceEnclosure
+        dsg = getattr(memory, "dynamic_scene_graph", None) or getattr(memory, "scene_graph", None) if memory else None
+        if dsg and hasattr(dsg, "get_active_enclosure"):
+            active_enc = dsg.get_active_enclosure()
+            if active_enc:
+                loc_name = getattr(active_enc, "name", "Bối cảnh chính")
+                anchor = ""
+                if hasattr(active_enc, "architectural_anchor") and active_enc.architectural_anchor:
+                    anchor = active_enc.architectural_anchor
+                elif hasattr(active_enc, "build_enclosure_fragment"):
+                    anchor = active_enc.build_enclosure_fragment()
+
+                atmosphere = getattr(active_enc, "lighting_atmosphere", "") or "atmospheric manga screentone background"
+
+                existing_setting["location_name"] = loc_name
+                existing_setting["setting_anchor"] = anchor or loc_name
+                existing_setting["atmosphere"] = atmosphere
+
+                if hasattr(active_enc, "persistent_fixtures") and active_enc.persistent_fixtures:
+                    existing_setting["persistent_fixtures"] = list(active_enc.persistent_fixtures)
+                if hasattr(active_enc, "negative_drift_tokens") and active_enc.negative_drift_tokens:
+                    existing_setting["forbidden_spatial_tokens"] = list(active_enc.negative_drift_tokens)
+                if hasattr(dsg, "get_combined_negative_tokens"):
+                    existing_setting["quarantine_negative_tokens"] = dsg.get_combined_negative_tokens()
+
+        # Step 2: Graceful fallback to StoryBible world_setting if DSGO setting absent
+        if not existing_setting and memory and memory.story_bible and memory.story_bible.world_setting:
             existing_setting["location_name"] = "Bối cảnh chính"
             existing_setting["setting_anchor"] = memory.story_bible.world_setting
             existing_setting["atmosphere"] = "atmospheric manga screentone background"
@@ -450,6 +737,10 @@ class ComicDirectorAgent:
         setting_anchor = ""
         if setting_dna and isinstance(setting_dna, dict):
             setting_anchor = setting_dna.get("setting_anchor", "").strip()
+
+        enclosure = resolve_spatial_enclosure("", setting_dna=setting_dna)
+        if not setting_anchor:
+            setting_anchor = enclosure["anchor_description"]
 
         # Build normalized character lookup list with auto-enriched semantic pronouns
         char_entry_list = []
@@ -530,16 +821,54 @@ class ComicDirectorAgent:
                 "is_male": is_male
             })
 
+        # Feature 17: Map first-person pronouns ("tôi", "mình", "I", "me") to lead protagonist
+        # The first character in dna_map is assumed to be the lead/POV character
+        if char_entry_list:
+            lead = char_entry_list[0]
+            first_person_aliases = [
+                "tôi", "mình", "ta", "tớ",  # Vietnamese first-person
+                "I", "me", "my", "myself",    # English first-person
+            ]
+            existing_aliases = set(a.lower() for a in lead["aliases"])
+            for fp in first_person_aliases:
+                if fp.lower() not in existing_aliases:
+                    lead["aliases"].append(fp)
+
+        # Sequential panel character memory: track last active character across panels
+        last_active_chars = []
+
         validated = []
         for i, item in enumerate(script_data):
-            prompt = str(item.get("image_prompt") or "a detailed manga scene").strip()
+            raw_prompt = str(item.get("image_prompt") or "a detailed manga scene").strip()
             raw_dialogue = str(item.get("dialogue_text") or "").strip()
             if raw_dialogue.lower() in ["none", "null"]:
                 raw_dialogue = ""
-            dialogue = raw_dialogue
-            search_text = f"{prompt} {dialogue}"
+            dialogue = sanitize_complete_dialogue(raw_dialogue)
 
-            # Smart Character DNA injection: Inspect BOTH prompt and dialogue_text
+            raw_narrator = str(item.get("narrator_text") or "").strip()
+            if raw_narrator.lower() in ["none", "null"]:
+                raw_narrator = ""
+            narrator = sanitize_complete_dialogue(raw_narrator)
+
+            if narrator and not dialogue:
+                dialogue = narrator
+
+            if not dialogue:
+                if i == 0:
+                    dialogue = "Khung cảnh mở ra với sự tĩnh lặng đầy cuốn hút."
+                else:
+                    dialogue = "Diễn biến tiếp tục trong không gian đầy cảm xúc."
+
+            # Step 1: Spatial Quarantine Filter - strip conflicting outdoor/ancient keywords
+            clean_prompt = sanitize_spatial_prompt(raw_prompt, enclosure)
+            if not clean_prompt:
+                clean_prompt = "sitting quietly in classroom"
+
+            # Step 2: Semantic Action & Gesture Extraction from Prose/Dialogue
+            action_desc, suggested_shot = extract_action_from_prose(f"{dialogue} {raw_prompt}")
+
+            # Step 3: Smart Character DNA matching
+            search_text = f"{clean_prompt} {dialogue}"
             matched_chars = []
             for c in char_entry_list:
                 for alias in c["aliases"]:
@@ -591,7 +920,7 @@ class ComicDirectorAgent:
                 ]
 
                 # Fallback only triggers if visual prompt depicts a human figure/action
-                has_human = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", prompt, re.IGNORECASE) for k in human_indicators)
+                has_human = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", clean_prompt, re.IGNORECASE) for k in human_indicators)
                 if has_human:
                     has_female_cue = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", search_text, re.IGNORECASE) for k in female_cues)
                     has_male_cue = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", search_text, re.IGNORECASE) for k in male_cues)
@@ -612,51 +941,57 @@ class ComicDirectorAgent:
 
                     matched_chars.append(selected)
 
-            # Inject DNA for ALL matched characters (no premature early break!)
+            # Step 4: Sequential Panel Character Memory
+            # If no characters matched in current panel, carry forward from previous panel
+            if not matched_chars and last_active_chars:
+                matched_chars = list(last_active_chars)  # inherit from previous panel
+
+            # Update sequential memory with current panel's characters
+            if matched_chars:
+                last_active_chars = list(matched_chars)
+
+            # Step 4b: Inject Character Visual DNA for ALL matched characters
             injected_dnas = []
             for c in matched_chars:
                 c_dna = c["dna"].strip()
-                if c_dna and c_dna.lower() not in prompt.lower():
+                if c_dna and c_dna.lower() not in clean_prompt.lower():
                     injected_dnas.append(c_dna)
 
-            if injected_dnas:
-                prompt = f"{', '.join(injected_dnas)}, {prompt}"
+            # Step 5 & 6: CLIP 77-Token Budget Prioritization
+            # Order: Character Visual DNA FIRST -> Core Action -> Setting Anchor -> Scene Nuances
+            # Character DNA at Position 1 (tokens ~15-42) ensures face/hair/outfit consistency
+            # across all panels, as CLIP strongly weights early tokens.
+            prompt_components = []
 
-            # Blend setting anchor to preserve background consistency across panels
-            if setting_anchor and setting_anchor.lower() not in prompt.lower():
-                raw_layout_check = str(item.get("layout_type", "square")).lower()
-                if raw_layout_check == "wide" or i == 0 or "background" not in prompt.lower():
-                    prompt = f"{prompt}, setting: {setting_anchor}"
+            # Component 1: Character Visual DNA (Position 1, tokens ~15-42) — HIGHEST PRIORITY
+            if injected_dnas:
+                prompt_components.append(", ".join(injected_dnas))
+
+            # Component 2: Core Action Gesture (tokens ~42-55)
+            if action_desc and action_desc.lower() not in clean_prompt.lower():
+                prompt_components.append(action_desc)
+
+            # Component 3: Spatial Enclosure Anchor (tokens ~55-70)
+            if setting_anchor and setting_anchor.lower() not in clean_prompt.lower():
+                prompt_components.append(f"setting: {setting_anchor}")
+
+            # Component 4: Remaining Scene / Camera Shot Nuances (tokens ~70-77+)
+            if clean_prompt:
+                prompt_components.append(clean_prompt)
+
+            assembled_prompt = ", ".join(prompt_components)
 
             # Clean duplicate style tags
-            clean_prompt = prompt
             for tag in ["manga panel", "black and white", "monochrome", "screentone", "comic art"]:
-                clean_prompt = re.sub(re.escape(tag), "", clean_prompt, flags=re.IGNORECASE)
-            clean_prompt = clean_prompt.strip(" ,.-")
+                assembled_prompt = re.sub(rf'\b{re.escape(tag)}\b', "", assembled_prompt, flags=re.IGNORECASE)
 
-            final_prompt = f"{STYLE_PREFIX}{clean_prompt}{STYLE_SUFFIX}"
+            # Clean duplicate commas and normalize whitespace
+            assembled_prompt = re.sub(r'[,.\s]*,[,.\s]*', ', ', assembled_prompt).strip(' ,.-')
+
+            final_prompt = f"{STYLE_PREFIX}{assembled_prompt}{STYLE_SUFFIX}"
 
             raw_layout = str(item.get("layout_type") or "square").lower().strip()
             normalized_layout = LAYOUT_MAP.get(raw_layout, "square")
-
-            raw_dialogue = str(item.get("dialogue_text") or "").strip()
-            if raw_dialogue.lower() in ["none", "null"]:
-                raw_dialogue = ""
-            dialogue = sanitize_complete_dialogue(raw_dialogue)
-
-            raw_narrator = str(item.get("narrator_text") or "").strip()
-            if raw_narrator.lower() in ["none", "null"]:
-                raw_narrator = ""
-            narrator = sanitize_complete_dialogue(raw_narrator)
-
-            if narrator and not dialogue:
-                dialogue = narrator
-
-            if not dialogue:
-                if i == 0:
-                    dialogue = "Khung cảnh mở ra với sự tĩnh lặng đầy cuốn hút."
-                else:
-                    dialogue = "Diễn biến tiếp tục trong không gian đầy cảm xúc."
 
             validated.append({
                 "panel_index": i + 1,
@@ -792,7 +1127,14 @@ NEW STORY TEXT:
             else:
                 layout = "square"
 
-            shot_desc = "expressive dialogue close-up, talking intensely" if is_dialogue else "dramatic narrative scene, engaging posture"
+            action_desc, suggested_shot = extract_action_from_prose(beat)
+            if action_desc:
+                shot_desc = action_desc
+            elif is_dialogue:
+                shot_desc = "sitting at wooden desk, talking with expressive emotion"
+            else:
+                shot_desc = "sitting attentively in classroom, natural posture"
+
             prompt = f"{lead_dna}, {shot_desc}, setting: {bg_anchor}"
 
             raw_panels.append({

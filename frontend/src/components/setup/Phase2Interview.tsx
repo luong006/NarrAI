@@ -35,7 +35,7 @@ export function Phase2Interview({ lang, history, onSendMessage, onSkip, loading 
           {t.step2_title}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          {lang === 'vi' ? "Trả lời các câu hỏi để AI định hình cốt truyện hoặc bấm bỏ qua để chốt dàn ý ngay." : "Answer AI questions to flesh out your narrative, or skip to finalize immediately."}
+          {t.step2_sub}
         </p>
       </div>
 

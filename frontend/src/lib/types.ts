@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   username: string;
+  full_name?: string;
 }
 
 export interface AuthResponse {
@@ -9,6 +10,7 @@ export interface AuthResponse {
   access_token?: string;
   token_type?: string;
   username?: string;
+  full_name?: string;
   user?: User;
   message?: string;
   detail?: string;

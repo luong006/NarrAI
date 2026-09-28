@@ -45,6 +45,9 @@ body {
   object-fit: cover;
   display: block;
   min-height: 360px;
+  /* Multi-layer monochrome defense: CSS grayscale as final safety net */
+  filter: grayscale(100%) contrast(1.05);
+  -webkit-filter: grayscale(100%) contrast(1.05);
 }
 
 .panel-wide {

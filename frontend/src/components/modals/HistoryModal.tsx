@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { StoryDetail } from "@/lib/types";
 import { translations, Language } from "@/lib/i18n";
+import { useToast } from "@/lib/toast";
 import { X, BookOpen, Clock, FileText } from "lucide-react";
 
 interface Props {
@@ -19,6 +20,7 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
   const [error, setError] = useState("");
 
   const t = translations[lang];
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
@@ -37,7 +39,7 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
         setStories([]);
       }
     } catch (e: any) {
-      setError(e.message || "Lỗi tải lịch sử truyện.");
+      setError(e.message || (lang === 'vi' ? "Lỗi tải lịch sử truyện." : "Failed to load story history."));
     } finally {
       setLoading(false);
     }
@@ -51,10 +53,10 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
         onSelectStory(res.story);
         onClose();
       } else {
-        alert("Không thể tải chi tiết truyện.");
+        toast.error(t.unknown_error || (lang === 'vi' ? "Không thể tải chi tiết truyện." : "Failed to load story details."));
       }
     } catch (e: any) {
-      alert("Lỗi tải truyện: " + e.message);
+      toast.error(e.message || t.network_error);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@ export type Language = 'vi' | 'en';
 
 export const translations = {
   vi: {
+    // App & Common
     app_title: "NarrAI Workspace",
     app_sub: "Nền tảng Sáng tác Tiểu thuyết & Truyện tranh AI",
     not_logged_in: "Chưa đăng nhập",
@@ -14,37 +15,77 @@ export const translations = {
     register_now: "Đăng ký ngay",
     has_account: "Đã có tài khoản?",
     login_now: "Đăng nhập ngay",
-    
+    pro_badge: "Chuyên nghiệp",
+
+    // Theme Toggle
+    theme_light: "Chuyển sang giao diện Sáng",
+    theme_dark: "Chuyển sang giao diện Tối",
+    theme_toggle_aria: "Đổi giao diện",
+
+    // Auth Modal Overhaul
+    full_name: "Họ và tên",
+    full_name_placeholder: "Nhập họ và tên đầy đủ...",
+    confirm_password: "Xác nhận mật khẩu",
+    confirm_password_placeholder: "Nhập lại mật khẩu...",
+    pass_match_err: "Mật khẩu xác nhận không khớp.",
+    pass_match_ok: "Mật khẩu xác nhận đã khớp.",
+    strength_meter_title: "Độ mạnh mật khẩu:",
+    strength_very_weak: "Rất yếu",
+    strength_weak: "Yếu",
+    strength_fair: "Trung bình",
+    strength_strong: "Mạnh",
+    strength_very_strong: "Rất mạnh (Chuẩn ngân hàng)",
+    rule_length: "Tối thiểu 8 ký tự",
+    rule_uppercase: "Ít nhất 1 chữ in hoa (A-Z)",
+    rule_lowercase: "Ít nhất 1 chữ thường (a-z)",
+    rule_digit: "Ít nhất 1 chữ số (0-9)",
+    rule_special: "Ít nhất 1 ký tự đặc biệt (!@#$%...)",
+    rule_no_space: "Không chứa khoảng trắng",
+    lockout_notice: "Tài khoản bị tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau:",
+    auth_login_desc: "Đăng nhập để lưu trữ và tiếp tục bản thảo của bạn.",
+    auth_register_desc: "Tạo tài khoản miễn phí chuẩn bảo mật ngân hàng để bắt đầu sáng tác ngay.",
+
     // Landing
+    hero_badge: "Hệ Thống Sáng Tác Tiểu Thuyết & Manga AI Chuyên Nghiệp",
     hero_title: "Khởi Tạo Tác Phẩm Của Bạn Bằng Trí Tuệ Nhân Tạo",
     hero_sub: "Nền tảng Co-creation Workspace hiện đại giúp bạn biến mọi ý tưởng độc đáo nhất thành cuốn tiểu thuyết hoàn chỉnh và chuyển thể truyện tranh chỉ trong vài phút.",
     hero_cta: "Bắt đầu sáng tác miễn phí",
+    features_section_title: "Tính Năng Trọng Tâm Của NarrAI",
     feat1_title: "AI Plot Interview",
     feat1_desc: "Trợ lý AI phỏng vấn đa chiều để khai thác và xây dựng cốt truyện mạch lạc trước khi viết.",
     feat2_title: "Interactive Editing",
     feat2_desc: "Bôi đen trực tiếp bất kỳ đoạn văn nào và yêu cầu AI viết lại, mở rộng hoặc tóm lược tức thì.",
     feat3_title: "Manga Adaptation",
     feat3_desc: "Chuyển thể từng phân cảnh tiểu thuyết thành trang truyện tranh Manga đen trắng chuyên nghiệp.",
-    
+    footer_copyright: "Hệ thống đồng sáng tác NarrAI © 2026. Thiết kế vì nghệ thuật kể chuyện đích thực.",
+
     // Navigation
     new_story: "Viết truyện mới",
     story_history: "Lịch sử truyện",
     loading: "Đang tải...",
-    
+
     // Setup Steps
     step1_title: "Bước 1: Khởi nguồn ý tưởng",
+    step1_sub: "Nhập ý tưởng cốt truyện hoặc kết hợp các thể loại & chủ đề thịnh hành bên dưới.",
     genres_label: "Thể loại truyện (chọn nhiều):",
     search_genre: "Tìm kiếm thể loại...",
     themes_label: "Chủ đề thịnh hành (kết hợp tự do):",
     prompt_placeholder: "Ví dụ: Một thế giới viễn tưởng nơi công nghệ AI hòa trộn với phép thuật cổ xưa...",
     continue_btn: "Tiếp tục ➔",
-    
+    selected_count: "đã chọn",
+    your_premise: "Ý tưởng cốt truyện của bạn:",
+    idea_validation_error: "Vui lòng nhập ý tưởng khởi đầu hoặc chọn ít nhất 1 thể loại/chủ đề!",
+    tag_genre_prefix: "Thể loại: ",
+    tag_theme_prefix: "Chủ đề: ",
+
     step2_title: "Bước 2: Phỏng vấn Cốt truyện với AI",
+    step2_sub: "Trả lời các câu hỏi để AI định hình cốt truyện hoặc bấm bỏ qua để chốt dàn ý ngay.",
     chat_placeholder: "Nhập câu trả lời của bạn... (Nhấn Enter để gửi)",
     send_btn: "Gửi",
     skip_chat_btn: "Bỏ qua hỏi đáp, chốt dàn ý luôn",
-    
+
     step3_title: "Bước 3: Chốt cấu hình & Viết truyện",
+    step3_sub: "Thiết lập cấu hình văn phong trước khi AI bắt đầu chấp bút chương đầu tiên.",
     story_length: "Độ dài truyện",
     creativity: "Độ sáng tạo",
     pacing: "Nhịp độ cốt truyện",
@@ -60,7 +101,7 @@ export const translations = {
     val_slow: "Chậm rãi, Miêu tả kỹ",
     val_fast: "Nhanh, Kịch tính",
     start_writing_btn: "Bắt đầu Chấp bút ✍️",
-    
+
     // Editor
     editor_title: "Bản Thảo Đang Sáng Tác",
     words: "từ",
@@ -71,8 +112,8 @@ export const translations = {
     tool_expand: "Mở rộng",
     tool_shorten: "Rút gọn",
     tool_ai: "🤖 Tùy chỉnh với AI",
-    
-    // Copilot
+
+    // Copilot Panel
     ai_copilot: "🤖 Trợ lý AI Co-pilot",
     ai_welcome_1: "Chào mừng bạn đến với không gian đồng sáng tác NarrAI.",
     ai_welcome_2: "Mẹo: Bôi đen một đoạn văn trên bản thảo để sửa nhanh hoặc ra lệnh trực tiếp cho Copilot bên dưới!",
@@ -89,14 +130,53 @@ export const translations = {
     continue_chapter_btn: "✍️ Viết tiếp chương mới",
     end_story_btn: "🔚 Kết thúc truyện",
     istartup_badge: "MVP for ISTARTUP2026 - Đội thi Những ngôi sao mộng mơ",
-    
+    live_editor_title: "Trực tiếp sửa bản thảo",
+    undo_btn: "Hoàn tác",
+    undo_tooltip: "Hoàn tác chỉnh sửa gần nhất",
+    chars_count: "ký tự",
+    live_drafting: "AI đang chấp bút thời gian thực...",
+    quick_commands_label: "Lệnh can thiệp nhanh bản thảo:",
+    quick_cmd_intro: "Viết đoạn mở đầu hoàn toàn mới",
+    quick_cmd_outro: "Làm cái kết kịch tính và hồi hộp hơn",
+    quick_cmd_tone: "Đổi sang phong cách giật gân, hồi hộp hơn",
+    quick_cmd_depth: "Tăng cường độc thoại nội tâm & hội thoại",
+
     // Comic
     comic_view_title: "Truyện Tranh Manga (AI Director)",
     btn_continue_comic: "📖 Viết tiếp truyện tranh",
     back_to_editor: "🔙 Quay lại bản chữ",
     loading_comic: "Đang phân rã kịch bản và khắc họa nét vẽ manga...",
+    panel_load_error: "Chưa tải được khung tranh",
+    retry_btn: "Thử lại",
+    comic_need_content: "Bản thảo cần có nội dung chữ để chuyển thể truyện tranh.",
+    comic_no_new_text: "Chưa có thêm nội dung chữ mới để vẽ tiếp tranh!",
+    comic_id_not_ready: "Chưa có mã bản thảo trên máy chủ. Hãy chờ AI tạo xong bản thảo hoặc lưu truyện trước khi chuyển thể.",
+
+    // Error Boundary
+    error_boundary_title: "Đã xảy ra sự cố giao diện",
+    error_boundary_desc: "Ngoại lệ phía client. Vui lòng tải lại trang hoặc bấm Thử lại.",
+    error_boundary_retry: "Thử lại",
+    error_boundary_home: "Về trang chủ",
+
+    // Toasts & Notifications
+    toast_success: "Thành công",
+    toast_error: "Lỗi",
+    toast_warning: "Cảnh báo",
+    toast_info: "Thông báo",
+    chapter_completed: "Chương 1 đã hoàn tất! Bạn có thể ra lệnh cho Copilot bên dưới, ấn 'Viết tiếp chương mới' hoặc 'Chuyển thể Truyện tranh'.",
+    draft_completed: "Bản thảo đã hoàn tất! Bạn có thể bôi đen văn bản để sửa nhanh, ra lệnh cho Copilot hoặc chuyển thể sang truyện tranh.",
+    next_chapter_done: "Đã viết xong chương mới! Bạn có thể tiếp tục ra lệnh hoặc kết thúc truyện.",
+    story_concluded: "Câu chuyện đã kết thúc trọn vẹn! Bạn có thể tải xuống bản thảo hoặc chuyển thể sang truyện tranh.",
+    conclude_confirm: "Bạn có chắc muốn kết thúc câu chuyện? AI sẽ chấp bút đoạn kết trọn vẹn.",
+    changes_summary_prefix: "📝 Chi tiết thay đổi: ",
+    action_processed: "Đã xử lý tác vụ: ",
+    loaded_story_prefix: "Đã tải bản thảo ",
+    loaded_story_suffix: ". Bạn có thể tiếp tục chỉnh sửa, ra lệnh cho Copilot hoặc chuyển thể sang truyện tranh.",
+    network_error: "Không thể kết nối tới máy chủ (Network Error)",
+    unknown_error: "Đã xảy ra lỗi không xác định",
   },
   en: {
+    // App & Common
     app_title: "NarrAI Workspace",
     app_sub: "AI Novel & Manga Co-creation Platform",
     not_logged_in: "Not logged in",
@@ -109,34 +189,77 @@ export const translations = {
     register_now: "Register now",
     has_account: "Already have an account?",
     login_now: "Log in now",
-    
+    pro_badge: "Pro",
+
+    // Theme Toggle
+    theme_light: "Switch to Light theme",
+    theme_dark: "Switch to Dark theme",
+    theme_toggle_aria: "Toggle theme",
+
+    // Auth Modal Overhaul
+    full_name: "Full Name",
+    full_name_placeholder: "Enter your full name...",
+    confirm_password: "Confirm Password",
+    confirm_password_placeholder: "Re-enter your password...",
+    pass_match_err: "Passwords do not match.",
+    pass_match_ok: "Passwords match.",
+    strength_meter_title: "Password strength:",
+    strength_very_weak: "Very Weak",
+    strength_weak: "Weak",
+    strength_fair: "Fair",
+    strength_strong: "Strong",
+    strength_very_strong: "Very Strong (Bank-Grade)",
+    rule_length: "At least 8 characters",
+    rule_uppercase: "At least 1 uppercase letter (A-Z)",
+    rule_lowercase: "At least 1 lowercase letter (a-z)",
+    rule_digit: "At least 1 digit (0-9)",
+    rule_special: "At least 1 special character (!@#$%...)",
+    rule_no_space: "No whitespace allowed",
+    lockout_notice: "Account temporarily locked due to multiple failed attempts. Try again in:",
+    auth_login_desc: "Log in to save and resume your manuscripts.",
+    auth_register_desc: "Create a free bank-grade secure account and start writing today.",
+
+    // Landing
+    hero_badge: "Professional AI Novel & Manga Co-creation Platform",
     hero_title: "Co-create Your Masterpiece with Artificial Intelligence",
     hero_sub: "A modern workspace helping you transform your wildest ideas into complete novels and serialized manga in minutes.",
     hero_cta: "Start creating for free",
+    features_section_title: "Core Highlights of NarrAI",
     feat1_title: "AI Plot Interview",
     feat1_desc: "Interactive multi-turn AI interview to refine and structure your plot before writing.",
     feat2_title: "Interactive Editing",
     feat2_desc: "Highlight any sentence or paragraph to rewrite, expand, or summarize on demand.",
     feat3_title: "Manga Adaptation",
     feat3_desc: "Adapt chapters into authentic Japanese-style black & white manga pages.",
-    
+    footer_copyright: "NarrAI Co-creation System © 2026. Designed for deep narrative craftsmanship.",
+
+    // Navigation
     new_story: "New Story",
     story_history: "Story History",
     loading: "Loading...",
-    
+
+    // Setup Steps
     step1_title: "Step 1: Idea Inception",
+    step1_sub: "Enter your narrative concept or combine trending genres & themes below.",
     genres_label: "Story Genres (Select multiple):",
     search_genre: "Search genres...",
     themes_label: "Trending Themes (Combine freely):",
     prompt_placeholder: "Example: A futuristic world where ancient sorcery collides with rogue cybernetics...",
     continue_btn: "Continue ➔",
-    
+    selected_count: "selected",
+    your_premise: "Your story premise:",
+    idea_validation_error: "Please enter your story concept or select at least one genre/theme!",
+    tag_genre_prefix: "Genre: ",
+    tag_theme_prefix: "Theme: ",
+
     step2_title: "Step 2: Plot Interview with AI",
+    step2_sub: "Answer AI questions to flesh out your narrative, or skip to finalize immediately.",
     chat_placeholder: "Type your answer... (Press Enter to send)",
     send_btn: "Send",
     skip_chat_btn: "Skip interview & Finalize outline",
-    
+
     step3_title: "Step 3: Configuration & Writing",
+    step3_sub: "Configure story parameters before AI begins drafting chapter 1.",
     story_length: "Story Length",
     creativity: "Creativity Level",
     pacing: "Story Pacing",
@@ -152,7 +275,7 @@ export const translations = {
     val_slow: "Slow, Descriptive",
     val_fast: "Fast, Action-packed",
     start_writing_btn: "Start Writing ✍️",
-    
+
     // Editor
     editor_title: "Active Manuscript",
     words: "words",
@@ -163,8 +286,8 @@ export const translations = {
     tool_expand: "Expand",
     tool_shorten: "Shorten",
     tool_ai: "🤖 Customize with AI",
-    
-    // Copilot
+
+    // Copilot Panel
     ai_copilot: "🤖 AI Co-pilot Assistant",
     ai_welcome_1: "Welcome to your professional creative co-pilot workspace.",
     ai_welcome_2: "Tip: Select any text to transform it, or command the AI Copilot directly below!",
@@ -181,11 +304,49 @@ export const translations = {
     continue_chapter_btn: "✍️ Write Next Chapter",
     end_story_btn: "🔚 Conclude Story",
     istartup_badge: "MVP for ISTARTUP2026 - Dream Stars Team",
-    
+    live_editor_title: "Live Manuscript Editor",
+    undo_btn: "Undo",
+    undo_tooltip: "Undo recent changes",
+    chars_count: "chars",
+    live_drafting: "AI is drafting live...",
+    quick_commands_label: "Direct manuscript commands:",
+    quick_cmd_intro: "Write a completely different opening",
+    quick_cmd_outro: "Make the ending much more dramatic and suspenseful",
+    quick_cmd_tone: "Rewrite in a darker, more gripping thriller tone",
+    quick_cmd_depth: "Add deeper internal thoughts and character dialogues",
+
     // Comic
     comic_view_title: "Manga Adaptation (AI Director)",
     btn_continue_comic: "📖 Continue Manga Serialization",
     back_to_editor: "🔙 Back to Manuscript",
     loading_comic: "Analyzing narrative beats and drawing manga panels...",
+    panel_load_error: "Failed to load manga panel",
+    retry_btn: "Retry",
+    comic_need_content: "Manuscript needs content to adapt to manga comic.",
+    comic_no_new_text: "No new text written yet to continue comic serialization!",
+    comic_id_not_ready: "Story ID is not ready. Please wait for the draft to finish or save before adapting.",
+
+    // Error Boundary
+    error_boundary_title: "An Interface Error Occurred",
+    error_boundary_desc: "Client-side exception encountered. Please reload or click Retry.",
+    error_boundary_retry: "Try Again",
+    error_boundary_home: "Return Home",
+
+    // Toasts & Notifications
+    toast_success: "Success",
+    toast_error: "Error",
+    toast_warning: "Warning",
+    toast_info: "Notice",
+    chapter_completed: "Chapter 1 completed! You can command Copilot below, click 'Write Next Chapter', or 'Adapt to Manga Comic'.",
+    draft_completed: "Draft completed! Highlight text to quick-edit, command Copilot, or adapt to manga comic.",
+    next_chapter_done: "New chapter drafted successfully! You can continue directing or conclude the story.",
+    story_concluded: "Story successfully concluded! You can download the manuscript or adapt to manga comic.",
+    conclude_confirm: "Are you sure you want to conclude the story? AI will draft a complete ending.",
+    changes_summary_prefix: "📝 Summary of changes: ",
+    action_processed: "Action processed: ",
+    loaded_story_prefix: "Loaded manuscript ",
+    loaded_story_suffix: ". You can continue editing, direct Copilot, or adapt to manga.",
+    network_error: "Cannot connect to server (Network Error)",
+    unknown_error: "An unknown error occurred",
   }
 };

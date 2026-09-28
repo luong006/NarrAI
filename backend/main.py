@@ -66,7 +66,7 @@ from fastapi.responses import StreamingResponse, JSONResponse, Response, Redirec
 from services.cloudflare_ai import generate_image_cf, get_cached_or_generate_image, get_deterministic_comic_seed
 from db.models import Story, User, Comic, ComicPanel, engine
 from sqlalchemy.orm import sessionmaker, Session
-from auth import verify_password, get_password_hash, create_access_token, decode_access_token
+from auth import verify_password, get_password_hash, create_access_token, decode_access_token, validate_bank_password, login_rate_limiter
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -77,8 +77,33 @@ def get_db():
     finally:
         db.close()
 
-# Cache for users to prevent DB hits on every request
-USER_CACHE = {}
+# Cache for users backed by CacheManager
+from services.cache_service import get_cache_manager
+
+class _UserCacheProxy(dict):
+    def __getitem__(self, key):
+        mgr = get_cache_manager()
+        u = mgr.get_user_token(key)
+        if u is None:
+            raise KeyError(key)
+        return User(id=u.get("id"), username=u.get("username"), full_name=u.get("full_name", ""))
+    def __contains__(self, key):
+        mgr = get_cache_manager()
+        return mgr.get_user_token(key) is not None
+    def __setitem__(self, key, value):
+        mgr = get_cache_manager()
+        if hasattr(value, "id"):
+            mgr.set_user_token(key, {"id": value.id, "username": value.username, "full_name": getattr(value, "full_name", "") or ""}, ttl=1800)
+        elif isinstance(value, dict):
+            mgr.set_user_token(key, value, ttl=1800)
+    def get(self, key, default=None):
+        mgr = get_cache_manager()
+        u = mgr.get_user_token(key)
+        if u is None:
+            return default
+        return User(id=u.get("id"), username=u.get("username"), full_name=u.get("full_name", ""))
+
+USER_CACHE = _UserCacheProxy()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
@@ -86,8 +111,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if not token:
         return None
         
-    if token in USER_CACHE:
-        return USER_CACHE[token]
+    cache_mgr = get_cache_manager()
+    cached_user = cache_mgr.get_user_token(token)
+    if cached_user and isinstance(cached_user, dict):
+        return User(
+            id=cached_user.get("id"),
+            username=cached_user.get("username"),
+            full_name=cached_user.get("full_name", "")
+        )
         
     payload = decode_access_token(token)
     if not payload:
@@ -96,7 +127,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     user = db.query(User).filter(User.username == username).first()
     
     if user:
-        USER_CACHE[token] = user
+        cache_mgr.set_user_token(token, {
+            "id": user.id,
+            "username": user.username,
+            "full_name": getattr(user, "full_name", "") or ""
+        }, ttl=1800)
         
     return user
 
@@ -116,10 +151,12 @@ class GenerateStoryRequest(BaseModel):
 class EditTextRequest(BaseModel):
     original_text: str
     instruction: str
+    story_id: int | None = None
 
 class UserCreate(BaseModel):
     username: str
     password: str
+    full_name: str | None = ""
 
 from fastapi import Request
 
@@ -127,6 +164,7 @@ from fastapi import Request
 async def register_user(request: Request, db: Session = Depends(get_db)):
     username = None
     password = None
+    full_name = ""
 
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
@@ -134,6 +172,7 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
             body = await request.json()
             username = body.get("username")
             password = body.get("password")
+            full_name = body.get("full_name", "")
         except Exception:
             pass
     else:
@@ -141,28 +180,34 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
             form = await request.form()
             username = form.get("username")
             password = form.get("password")
+            full_name = form.get("full_name", "")
         except Exception:
             pass
 
     if not username or not password:
-        raise HTTPException(status_code=400, detail="Vui lòng cung cấp đầy đủ tên đăng nhập và mật khẩu")
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp đầy đủ tên đăng nhập và mật khẩu (Please provide username and password)")
 
     username = str(username).strip()
-    password = str(password).strip()
+    password = str(password)
+    full_name = str(full_name).strip() if full_name else ""
 
     if len(username) < 3:
-        raise HTTPException(status_code=400, detail="Tên đăng nhập phải có ít nhất 3 ký tự")
-    if len(password) < 4:
-        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 4 ký tự")
+        raise HTTPException(status_code=400, detail="Tên đăng nhập phải có ít nhất 3 ký tự (Username must be at least 3 characters)")
+
+    # Bank-grade password validation
+    is_valid, err_vi, err_en = validate_bank_password(password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"{err_vi} ({err_en})")
 
     existing = db.query(User).filter(User.username == username).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
+        raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại (Username already exists)")
     
     hashed_password = get_password_hash(password)
-    new_user = User(username=username, password_hash=hashed_password)
+    new_user = User(username=username, full_name=full_name, password_hash=hashed_password)
     db.add(new_user)
     db.commit()
+    db.refresh(new_user)
 
     # Generate token immediately so user is automatically logged in upon registration
     access_token = create_access_token(data={"sub": new_user.username})
@@ -172,13 +217,23 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
         "access_token": access_token,
         "token": access_token,
         "token_type": "bearer",
-        "username": new_user.username
+        "username": new_user.username,
+        "full_name": new_user.full_name or new_user.username
     }
 
 @app.post("/api/login")
 async def login_user(request: Request, db: Session = Depends(get_db)):
     username = None
     password = None
+
+    # Determine client IP for brute-force rate limiting
+    client_ip = request.headers.get("x-forwarded-for")
+    if client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    elif request.client and request.client.host:
+        client_ip = request.client.host
+    else:
+        client_ip = "127.0.0.1"
 
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
@@ -197,29 +252,47 @@ async def login_user(request: Request, db: Session = Depends(get_db)):
             pass
 
     if not username or not password:
-        raise HTTPException(status_code=400, detail="Vui lòng cung cấp đầy đủ tên đăng nhập và mật khẩu")
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp đầy đủ tên đăng nhập và mật khẩu (Please provide username and password)")
 
     username = str(username).strip()
-    password = str(password).strip()
+    password = str(password)
+
+    # Check brute-force rate limit (HTTP 429 lockout)
+    login_rate_limiter.check_rate_limit(client_ip, username)
 
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Sai tên đăng nhập hoặc mật khẩu")
+        is_locked, remaining = login_rate_limiter.record_failure(client_ip, username)
+        if is_locked:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Đăng nhập thất bại quá nhiều lần. Vui lòng thử lại sau {remaining} giây. (Too many failed login attempts. Please try again in {remaining} seconds.)"
+            )
+        raise HTTPException(status_code=400, detail="Sai tên đăng nhập hoặc mật khẩu (Invalid username or password)")
     
+    # Successful login: reset failure counter
+    login_rate_limiter.record_success(client_ip, username)
+
     access_token = create_access_token(data={"sub": user.username})
     return {
         "status": "success",
         "access_token": access_token,
         "token": access_token,
         "token_type": "bearer",
-        "username": user.username
+        "username": user.username,
+        "full_name": user.full_name or user.username
     }
 
 @app.get("/api/me")
+@app.get("/api/users/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     if not current_user:
-        raise HTTPException(status_code=401, detail="Chưa đăng nhập")
-    return {"status": "success", "username": current_user.username}
+        raise HTTPException(status_code=401, detail="Chưa đăng nhập (Not logged in)")
+    return {
+        "status": "success",
+        "username": current_user.username,
+        "full_name": current_user.full_name or current_user.username
+    }
 
 # ============ CORE ENDPOINTS ============
 
@@ -251,6 +324,9 @@ async def edit_text(request: EditTextRequest):
         from agents.editor_agent import EditorAgent
         editor = EditorAgent()
         revised = editor.edit_text(request.original_text, request.instruction)
+        if request.story_id:
+            cache_mgr = get_cache_manager()
+            cache_mgr.delete_draft(request.story_id)
         return {"status": "success", "revised_text": revised}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -337,21 +413,35 @@ async def get_story_detail(story_id: int, current_user: User = Depends(get_curre
         return {"status": "error", "message": "Yêu cầu đăng nhập"}
         
     try:
+        cache_mgr = get_cache_manager()
+        cached_draft = cache_mgr.get_draft(story_id)
+        if cached_draft and cached_draft.get("user_id") == current_user.id:
+            story_res = {k: v for k, v in cached_draft.items() if k != "user_id"}
+            return {
+                "status": "success",
+                "story": story_res
+            }
+
         story = db.query(Story).filter(Story.id == story_id, Story.user_id == current_user.id).first()
         if not story:
             return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền xem"}
+            
+        story_dict = {
+            "id": story.id,
+            "user_id": story.user_id,
+            "session_id": story.session_id,
+            "refined_prompt": story.refined_prompt,
+            "story_content": story.story_content,
+            "word_count": story.word_count,
+            "bible_data": story.bible_data,
+            "memory_data": story.memory_data,
+            "created_at": story.created_at.strftime("%H:%M %d/%m/%Y") if story.created_at else ""
+        }
+        cache_mgr.set_draft(story_id, story_dict, ttl=3600)
+        story_res = {k: v for k, v in story_dict.items() if k != "user_id"}
         return {
             "status": "success",
-            "story": {
-                "id": story.id,
-                "session_id": story.session_id,
-                "refined_prompt": story.refined_prompt,
-                "story_content": story.story_content,
-                "word_count": story.word_count,
-                "bible_data": story.bible_data,
-                "memory_data": story.memory_data,
-                "created_at": story.created_at.strftime("%H:%M %d/%m/%Y") if story.created_at else ""
-            }
+            "story": story_res
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -359,10 +449,13 @@ async def get_story_detail(story_id: int, current_user: User = Depends(get_curre
 @app.get("/api/health")
 async def health():
     missing = [name for name in REQUIRED_API_KEYS if not os.environ.get(name)]
+    cache_mgr = get_cache_manager()
+    cache_stats = cache_mgr.get_stats()
     return {
         "status": "ok" if not missing else "degraded",
         "message": "Backend is running!",
         "missing_keys": missing,
+        "cache": cache_stats,
     }
 
 # ================= COMIC ENDPOINTS =================
@@ -612,13 +705,15 @@ def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
         img_bytes, media_type = get_cached_or_generate_image(panel.id, panel.image_prompt, seed=comic_seed, story_id=story_id)
         return Response(content=img_bytes, media_type=media_type)
     except Exception as e:
-        print(f"[Comic Image] Generation failed ({e}), fallback redirect...")
-        story_id = (panel.comic.story_id if panel.comic else None) or panel.comic_id or 1
-        comic_seed = get_deterministic_comic_seed(story_id)
-        bw_prompt = f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {panel.image_prompt[:300]}, screentone, no color"
-        safe_prompt = urllib.parse.quote(bw_prompt)
-        fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={comic_seed}"
-        return RedirectResponse(url=fallback_url)
+        print(f"[Comic Image] Generation failed ({e}), serving local monochrome fallback...")
+        try:
+            from services.cloudflare_ai import get_guaranteed_monochrome_fallback
+            panel_index = getattr(panel, 'panel_index', 0) or 0
+            fallback_bytes = get_guaranteed_monochrome_fallback(panel_index)
+            return Response(content=fallback_bytes, media_type="image/jpeg", status_code=200)
+        except Exception as fb_err:
+            print(f"[Comic Image] Even fallback generation failed: {fb_err}")
+            return Response(status_code=500)
 
 
 @app.post("/api/chat")
@@ -651,10 +746,23 @@ from agents.story_memory import StoryBible, StoryMemory
 from agents.memory_extractor import MemoryExtractor
 from agents.copilot_agent import CopilotAgent
 
-# In-memory session store for story memories
+# Dual-tier session store backed by CacheManager
 STORY_SESSIONS = {}
 
 def get_story_session(session_id: str, current_user: User):
+    if not session_id:
+        return None
+
+    cache_mgr = get_cache_manager()
+    cached_data = cache_mgr.get_session(session_id)
+    if cached_data and isinstance(cached_data, dict):
+        try:
+            mem = StoryMemory.from_dict(cached_data)
+            STORY_SESSIONS[session_id] = mem
+            return mem
+        except Exception as e:
+            print(f"[Cache] Deserialization error for session {session_id}: {e}")
+
     memory = STORY_SESSIONS.get(session_id)
     if memory or not current_user:
         return memory
@@ -670,6 +778,7 @@ def get_story_session(session_id: str, current_user: User):
 
         memory = StoryMemory.from_dict(json.loads(story.memory_data))
         STORY_SESSIONS[session_id] = memory
+        cache_mgr.set_session(session_id, memory.to_dict(), ttl=86400)
         return memory
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         print(f"Session restore error: {e}")
@@ -792,6 +901,10 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
                             story.story_content = updated_content
                             story.word_count = len(updated_content.split())
                             db.commit()
+                            cache_mgr = get_cache_manager()
+                            cache_mgr.delete_draft(story.id)
+                            if memory:
+                                cache_mgr.set_session(request.session_id, memory.to_dict(), ttl=86400)
                     except Exception as e:
                         print(f"[Copilot DB Update Error] {e}")
                     finally:
@@ -810,6 +923,8 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
                 if story:
                     story.memory_data = memory_json(memory)
                     db.commit()
+                    cache_mgr = get_cache_manager()
+                    cache_mgr.set_session(request.session_id, memory.to_dict(), ttl=86400)
             except Exception as e:
                 pass
             finally:
@@ -855,6 +970,8 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
 
             # Store session
             STORY_SESSIONS[session_id] = memory
+            cache_mgr = get_cache_manager()
+            cache_mgr.set_session(session_id, memory.to_dict(), ttl=86400)
 
             # Save to DB
             word_count = len(chapter_text.split())
@@ -934,6 +1051,8 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
 
             # Update session
             STORY_SESSIONS[request.session_id] = memory
+            cache_mgr = get_cache_manager()
+            cache_mgr.set_session(request.session_id, memory.to_dict(), ttl=86400)
 
             # Update story in DB
             if current_user:
@@ -945,6 +1064,7 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
                         story.word_count = len(story.story_content.split())
                         story.memory_data = memory_json(memory)
                         db.commit()
+                        cache_mgr.delete_draft(story.id)
                 except Exception as e:
                     print(f"DB Error: {e}")
                 finally:
@@ -1000,13 +1120,18 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
                         story.word_count = len(story.story_content.split())
                         story.memory_data = memory_json(memory)
                         db.commit()
+                        cache_mgr = get_cache_manager()
+                        cache_mgr.delete_draft(story.id)
                 except Exception as e:
                     print(f"DB Error: {e}")
                 finally:
                     db.close()
 
             # Clean up session
-            del STORY_SESSIONS[request.session_id]
+            if request.session_id in STORY_SESSIONS:
+                del STORY_SESSIONS[request.session_id]
+            cache_mgr = get_cache_manager()
+            cache_mgr.delete_session(request.session_id)
 
         return StreamingResponse(stream_ending(), media_type="text/plain")
     except Exception as e:

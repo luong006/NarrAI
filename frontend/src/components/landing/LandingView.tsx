@@ -3,7 +3,7 @@
 import { translations, Language } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { Sparkles, Bot, Edit3, Image as ImageIcon, ArrowRight, ShieldCheck } from "lucide-react";
+import { Sparkles, Bot, Edit3, Image as ImageIcon, ArrowRight } from "lucide-react";
 
 interface Props {
   lang: Language;
@@ -22,12 +22,17 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
           <div className="w-9 h-9 rounded-xl bg-brand-700 flex items-center justify-center text-white font-bold text-lg shadow-md">
             N
           </div>
-          <span className="font-bold text-xl tracking-tight">NarrAI <span className="text-xs uppercase font-extrabold px-1.5 py-0.5 rounded bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300">Pro</span></span>
+          <span className="font-bold text-xl tracking-tight">
+            NarrAI{" "}
+            <span className="text-xs uppercase font-extrabold px-1.5 py-0.5 rounded bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300">
+              {t.pro_badge}
+            </span>
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
           <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} />
-          <ThemeToggle />
+          <ThemeToggle lang={lang} />
           <button
             onClick={onOpenAuth}
             className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-950 text-white dark:hover:bg-slate-200 shadow-sm transition-all"
@@ -41,7 +46,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
       <section className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-900 mb-6">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Hệ Thống Sáng Tác Tiểu Thuyết & Manga AI Chuyên Nghiệp</span>
+          <span>{t.hero_badge}</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.15] mb-6 text-slate-900 dark:text-white max-w-4xl mx-auto">
@@ -66,7 +71,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
       {/* Features Grid */}
       <section className="max-w-6xl mx-auto px-6 py-16">
         <h2 className="text-xs uppercase font-extrabold text-brand-700 dark:text-brand-400 tracking-widest text-center mb-10">
-          Tính Năng Trọng Tâm Của NarrAI
+          {t.features_section_title}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
@@ -97,7 +102,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto px-6 py-10 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">
-        <p>NarrAI Co-creation System © 2026. Designed for deep narrative craftsmanship.</p>
+        <p>{t.footer_copyright}</p>
       </footer>
     </div>
   );

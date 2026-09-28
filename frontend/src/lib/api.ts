@@ -24,14 +24,14 @@ function authHeaders(): Record<string, string> {
 }
 
 function parseErrorDetail(data: any): string {
-  if (!data) return "Lỗi không xác định từ máy chủ";
+  if (!data) return "Lỗi máy chủ / Server error";
   if (typeof data === "string") return data;
   if (typeof data.detail === "string") return data.detail;
   if (Array.isArray(data.detail)) {
     return data.detail.map((e: any) => e.msg || JSON.stringify(e)).join(", ");
   }
   if (data.message && typeof data.message === "string") return data.message;
-  return "Đã xảy ra lỗi không xác định";
+  return "Đã xảy ra lỗi không xác định / An unexpected error occurred";
 }
 
 export const api = {
@@ -64,6 +64,7 @@ export const api = {
         token,
         access_token: token,
         username: data.username || username.trim(),
+        full_name: data.full_name || data.username || username.trim(),
       };
     } catch (err: any) {
       const msg = err?.message || "Không thể kết nối tới máy chủ (Network Error)";
@@ -75,12 +76,16 @@ export const api = {
     }
   },
 
-  async register(username: string, password: string): Promise<AuthResponse> {
+  async register(username: string, password: string, fullName?: string): Promise<AuthResponse> {
     try {
       const res = await fetch(`${API_BASE_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password }),
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+          full_name: fullName ? fullName.trim() : "",
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -100,6 +105,7 @@ export const api = {
         token,
         access_token: token,
         username: data.username || username.trim(),
+        full_name: data.full_name || data.username || username.trim(),
       };
     } catch (err: any) {
       const msg = err?.message || "Không thể kết nối tới máy chủ (Network Error)";
@@ -118,7 +124,11 @@ export const api = {
       if (!res.ok) {
         return { status: 'error', message: parseErrorDetail(data) };
       }
-      return { status: 'success', username: data.username };
+      return {
+        status: 'success',
+        username: data.username,
+        full_name: data.full_name || data.username,
+      };
     } catch (err: any) {
       return { status: 'error', message: err?.message || "Network Error" };
     }

@@ -1,8 +1,11 @@
 import os
+import re
 import requests
 import urllib.parse
+import io
 
-from typing import Optional
+from typing import Optional, Tuple
+from PIL import Image, ImageOps, ImageDraw, ImageFont
 
 # Local persistent disk cache for rendered panels
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "comic_cache"))
@@ -14,6 +17,32 @@ CF_MODELS = [
     "@cf/lykon/dreamshaper-8-lcm",
     "@cf/stabilityai/stable-diffusion-xl-base-1.0",
 ]
+
+# Universal Base Negative Prompt: Banning colors, photorealism, Western comics, speech bubbles, and text/watermarks
+BASE_NEGATIVE_PROMPT = (
+    "color, colorful, vibrant, saturated, hue, tint, red, blue, green, yellow, pink, purple, "
+    "photorealistic, photograph, photo, realistic, 3d render, CGI, digital painting, oil painting, "
+    "watercolor, warm skin tones, western comic, american comic book style, superhero art style, "
+    "heavy crosshatching, grunge, text, watermark, signature, font, letters, speech bubble, "
+    "dialog balloon, bad anatomy, deformed hands, extra fingers, missing fingers, mutated limbs, "
+    "distorted face, blurry, low resolution, messy draft, sketch lines"
+)
+
+# Modern School Exclusions: Banning historical robes, hanfu, kimono, armor, swords, palaces, and busy streets/cars
+MODERN_SCHOOL_EXCLUSIONS = (
+    "historical clothing, ancient robes, hanfu, kimono, yukata, martial arts costume, "
+    "huyền bào, armor, knight armor, fantasy robes, cape, sword, blade, magical aura, "
+    "supernatural glow, ancient temple, palace, castle, dungeon, battlefield, "
+    "busy highway, traffic, moving cars, outdoor street, city avenue"
+)
+
+def get_master_negative_prompt(genre: str = "school") -> str:
+    """
+    Returns the master negative prompt combining base exclusions with genre-specific exclusions.
+    """
+    if genre and genre.lower() == "school":
+        return f"{BASE_NEGATIVE_PROMPT}, {MODERN_SCHOOL_EXCLUSIONS}"
+    return BASE_NEGATIVE_PROMPT
 
 def get_cloudflare_token():
     return os.environ.get("CLOUDFLARE_API_TOKEN", "")
@@ -30,9 +59,16 @@ def get_deterministic_comic_seed(story_id: int | None = 1) -> int:
     anchor_id = int(story_id) if story_id is not None else 1
     return (int(anchor_id) * 7919 + 4289000) % 900000 + 100000
 
-def generate_image_cf(prompt: str, seed: int | None = None) -> bytes:
+def generate_image_cf(
+    prompt: str,
+    seed: int | None = None,
+    negative_prompt_suffix: Optional[str] = None,
+    layout_type: str = "square",
+    custom_negative_prompt: Optional[str] = None
+) -> bytes:
     """
     Calls Cloudflare Workers AI Text-to-Image model with fallback chain.
+    Applies master negative prompt and deterministic seed.
     Returns binary image data (bytes).
     """
     token = get_cloudflare_token()
@@ -45,10 +81,15 @@ def generate_image_cf(prompt: str, seed: int | None = None) -> bytes:
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
-    
+
+    negative_prompt = get_master_negative_prompt()
+    suffix = negative_prompt_suffix or custom_negative_prompt
+    if suffix:
+        negative_prompt = f"{negative_prompt}, {suffix.strip(' ,')}"
+
     payload = {
         "prompt": prompt,
-        "negative_prompt": "color, colorful, vibrant, saturated, photorealistic, photograph, photo, realistic, 3d render, digital painting, oil painting, watercolor, bright colors, rainbow, neon, warm tones, cool tones, skin color, blue sky, green grass, red, blue, yellow, orange, purple, pink, colored, CGI, real person, real face, real photo, camera"
+        "negative_prompt": negative_prompt
     }
     if seed is not None:
         payload["seed"] = int(seed)
@@ -73,11 +114,49 @@ def generate_image_cf(prompt: str, seed: int | None = None) -> bytes:
     raise Exception(f"All Cloudflare models failed. Last error: {last_error}")
 
 
+def format_pollinations_prompt(prompt: str, max_len: int = 500) -> str:
+    """
+    Prepares a clean, semantic-safe prompt for Pollinations fallback image generation.
+    - Slices cleanly at comma/sentence boundaries instead of arbitrary character cuts.
+    - Preserves setting anchor, action gesture, and character DNA without mid-word truncations.
+    - Fits within safe URL length limits for HTTP GET requests.
+    """
+    if not prompt or not isinstance(prompt, str):
+        return "black and white manga drawing, monochrome ink on white paper, Japanese manga style, screentone, no color"
+
+    clean_p = prompt.strip()
+    if len(clean_p) <= max_len:
+        target = clean_p
+    else:
+        # Extract setting anchor if present to guarantee spatial preservation
+        setting_match = re.search(r'\bsetting:\s*([^,]+(?:,[^,]+){0,2})', clean_p, re.IGNORECASE)
+        setting_clause = setting_match.group(0).strip() if setting_match else ""
+
+        # Slice cleanly at last comma or period within max_len
+        cutoff = clean_p[:max_len]
+        last_delim = max(cutoff.rfind(','), cutoff.rfind('.'))
+        if last_delim > max_len // 2:
+            target = cutoff[:last_delim].strip(' ,.-')
+        else:
+            last_space = cutoff.rfind(' ')
+            target = cutoff[:last_space].strip(' ,.-') if last_space > 0 else cutoff
+
+        # Guarantee setting anchor is preserved
+        if setting_clause and setting_clause.lower() not in target.lower():
+            target = f"{target}, {setting_clause}"
+
+    # Clean double commas and trailing punctuation
+    target = re.sub(r'[,.\s]*,[,.\s]*', ', ', target).strip(' ,.-')
+    return f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {target}, screentone, no color"
+
+
 def get_cached_or_generate_image(
     panel_id: int,
     prompt: str,
     seed: int | None = None,
-    story_id: Optional[int] = None
+    story_id: Optional[int] = None,
+    negative_prompt_suffix: Optional[str] = None,
+    custom_negative_prompt: Optional[str] = None
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
@@ -105,11 +184,12 @@ def get_cached_or_generate_image(
     else:
         panel_seed = (4289000 + (panel_id % 1000))
     try:
-        img_bytes = generate_image_cf(prompt, seed=panel_seed)
+        suffix = negative_prompt_suffix or custom_negative_prompt
+        img_bytes = generate_image_cf(prompt, seed=panel_seed, negative_prompt_suffix=suffix)
     except Exception as e:
         print(f"[Comic Image] Cloudflare AI unavailable ({e}). Falling back to Pollinations...")
         try:
-            bw_prompt = f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {prompt[:300]}, screentone, no color"
+            bw_prompt = format_pollinations_prompt(prompt)
             safe_prompt = urllib.parse.quote(bw_prompt)
             fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_seed}"
             resp = requests.get(fallback_url, timeout=20)
@@ -121,6 +201,12 @@ def get_cached_or_generate_image(
     if not img_bytes:
         raise Exception(f"Could not render image for panel {panel_id}")
 
+    # 2.5: Server-side Pillow monochrome enforcement — eliminates color leak from ANY source
+    try:
+        img_bytes = process_manga_monochrome(img_bytes)
+    except Exception as mono_err:
+        print(f"[Comic Image] Monochrome post-processing failed ({mono_err}), using raw bytes")
+
     # 3. Save to disk cache
     try:
         with open(cache_path, "wb") as f:
@@ -130,3 +216,54 @@ def get_cached_or_generate_image(
 
     media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
     return img_bytes, media_type
+
+
+def process_manga_monochrome(image_bytes: bytes) -> bytes:
+    """
+    Server-side Pillow post-processing to enforce 100% monochrome manga.
+    Converts any image to grayscale with autocontrast for clean lineart appearance.
+    Returns JPEG bytes.
+    """
+    img = Image.open(io.BytesIO(image_bytes))
+    # Convert to grayscale (removes all color information)
+    gray = img.convert('L')
+    # Apply autocontrast to enhance lineart contrast (like screentone manga)
+    enhanced = ImageOps.autocontrast(gray, cutoff=1)
+    # Export as high-quality JPEG
+    output = io.BytesIO()
+    enhanced.save(output, format="JPEG", quality=92)
+    return output.getvalue()
+
+
+def get_guaranteed_monochrome_fallback(panel_index: int = 0) -> bytes:
+    """
+    Generates a guaranteed-available 800x800 monochrome placeholder JPEG
+    for use when all image generation sources fail.
+    Returns JPEG bytes that can be served directly with HTTP 200.
+    """
+    img = Image.new('L', (800, 800), color=245)  # Light gray background
+
+    draw = ImageDraw.Draw(img)
+    # Draw manga-style panel border
+    draw.rectangle([10, 10, 789, 789], outline=30, width=3)
+
+    # Draw diagonal screentone-like pattern
+    for y in range(20, 780, 40):
+        for x in range(20, 780, 40):
+            draw.ellipse([x, y, x + 3, y + 3], fill=200)
+
+    # Draw center text
+    text = f"Panel {panel_index + 1}"
+    try:
+        font = ImageFont.truetype("arial.ttf", 32)
+    except (IOError, OSError):
+        font = ImageFont.load_default()
+
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    draw.text(((800 - text_w) // 2, (800 - text_h) // 2), text, fill=100, font=font)
+
+    output = io.BytesIO()
+    img.save(output, format="JPEG", quality=90)
+    return output.getvalue()

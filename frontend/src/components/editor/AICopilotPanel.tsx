@@ -59,16 +59,27 @@ export function AICopilotPanel({
     onSendCopilotMessage(prompt);
   };
 
-  const quickPrompts = lang === "vi" ? [
-    { icon: Wand2, text: "Tạo phần mở đầu khác đi", label: "🪄 Mở đầu mới" },
-    { icon: Zap, text: "Sửa lại đoạn kết kịch tính và bất ngờ hơn", label: "⚡ Kết kịch tính" },
-    { icon: Palette, text: "Viết lại giọng văn u tối và hồi hộp hơn", label: "🎭 Đổi văn phong" },
-    { icon: Users, text: "Bổ sung thêm diễn biến tâm lý và thoại cho nhân vật", label: "👥 Thêm tâm lý" },
-  ] : [
-    { icon: Wand2, text: "Write a completely different opening for this story", label: "🪄 New Intro" },
-    { icon: Zap, text: "Make the ending much more dramatic and suspenseful", label: "⚡ Dramatic Outro" },
-    { icon: Palette, text: "Rewrite in a darker, more gripping thriller tone", label: "🎭 Change Tone" },
-    { icon: Users, text: "Add deeper internal thoughts and character dialogues", label: "👥 Deepen Characters" },
+  const quickPrompts = [
+    {
+      icon: Wand2,
+      text: lang === "vi" ? "Tạo phần mở đầu khác đi" : "Write a completely different opening for this story",
+      label: `🪄 ${t.quick_cmd_intro}`,
+    },
+    {
+      icon: Zap,
+      text: lang === "vi" ? "Sửa lại đoạn kết kịch tính và bất ngờ hơn" : "Make the ending much more dramatic and suspenseful",
+      label: `⚡ ${t.quick_cmd_outro}`,
+    },
+    {
+      icon: Palette,
+      text: lang === "vi" ? "Viết lại giọng văn u tối và hồi hộp hơn" : "Rewrite in a darker, more gripping thriller tone",
+      label: `🎭 ${t.quick_cmd_tone}`,
+    },
+    {
+      icon: Users,
+      text: lang === "vi" ? "Bổ sung thêm diễn biến tâm lý và thoại cho nhân vật" : "Add deeper internal thoughts and character dialogues",
+      label: `👥 ${t.quick_cmd_depth}`,
+    },
   ];
 
   return (
@@ -85,7 +96,7 @@ export function AICopilotPanel({
             </h3>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {lang === "vi" ? "Trực tiếp sửa bản thảo" : "Live Manuscript Editor"}
+              {t.live_editor_title}
             </span>
           </div>
         </div>
@@ -94,10 +105,10 @@ export function AICopilotPanel({
           <button
             onClick={onUndo}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 transition-colors border border-amber-300 dark:border-amber-800 shadow-xs"
-            title="Hoàn tác chỉnh sửa gần nhất"
+            title={t.undo_tooltip}
           >
             <RotateCcw className="w-3 h-3" />
-            <span>Hoàn tác</span>
+            <span>{t.undo_btn}</span>
           </button>
         )}
       </div>
@@ -112,7 +123,7 @@ export function AICopilotPanel({
                 {t.selected_text}
               </span>
               <span className="text-[10px] font-mono text-slate-400">
-                {selectedText.length} chars
+                {selectedText.length} {t.chars_count}
               </span>
             </div>
             <p className="text-xs italic text-slate-600 dark:text-slate-300 line-clamp-2 border-l-2 border-brand-500 pl-2">
@@ -182,11 +193,7 @@ export function AICopilotPanel({
           <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-brand-200 dark:border-brand-900 flex items-center gap-2 text-xs text-brand-700 dark:text-brand-300">
             <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
             <span>
-              {streaming
-                ? lang === "vi"
-                  ? "AI đang chấp bút thời gian thực..."
-                  : "AI is drafting live..."
-                : t.ai_thinking}
+              {streaming ? t.live_drafting : t.ai_thinking}
             </span>
           </div>
         )}
@@ -214,7 +221,7 @@ export function AICopilotPanel({
       {/* Quick Command Chips */}
       <div className="pt-2 border-t border-slate-200 dark:border-slate-800 shrink-0">
         <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 block mb-1">
-          {lang === "vi" ? "Lệnh can thiệp nhanh bản thảo:" : "Direct manuscript commands:"}
+          {t.quick_commands_label}
         </span>
         <div className="flex flex-wrap gap-1 mb-2">
           {quickPrompts.map((qp, idx) => (

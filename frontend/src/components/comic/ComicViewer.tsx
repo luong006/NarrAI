@@ -15,7 +15,7 @@ interface Props {
   loadingMore: boolean;
 }
 
-function ComicPanelCard({ panel, t }: { panel: ComicPanel; t: any }) {
+function ComicPanelCard({ panel, t, lang }: { panel: ComicPanel; t: any; lang?: Language }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -41,13 +41,13 @@ function ComicPanelCard({ panel, t }: { panel: ComicPanel; t: any }) {
       )}
       {error && (
         <div className="comic-panel-skeleton text-center p-4 flex flex-col items-center justify-center">
-          <span className="text-red-500 text-xs font-semibold mb-2">Chưa tải được khung tranh #{panel.panel_index}</span>
+          <span className="text-red-500 text-xs font-semibold mb-2">{t.panel_load_error || (lang === 'vi' ? "Chưa tải được khung tranh" : "Failed to load panel")} #{panel.panel_index}</span>
           <button
             onClick={handleManualRetry}
             className="px-3 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded text-xs font-medium transition-colors shadow flex items-center gap-1"
           >
             <RefreshCw className="w-3 h-3" />
-            <span>Thử lại</span>
+            <span>{t.retry_btn || (lang === 'vi' ? "Thử lại" : "Retry")}</span>
           </button>
         </div>
       )}
@@ -131,7 +131,7 @@ export function ComicViewer({
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="comic-grid">
           {panels.map((panel, idx) => (
-            <ComicPanelCard key={panel.panel_id || idx} panel={panel} t={t} />
+            <ComicPanelCard key={panel.panel_id || idx} panel={panel} t={t} lang={lang} />
           ))}
         </div>
 

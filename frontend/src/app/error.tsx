@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { translations, Language } from "@/lib/i18n";
+import { storage } from "@/lib/storage";
 
 export default function ErrorBoundary({
   error,
@@ -10,9 +12,17 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [lang, setLang] = useState<Language>("vi");
+
   useEffect(() => {
     console.error("NarrAI Client Exception:", error);
+    const saved = storage.getLanguage() as Language;
+    if (saved === "en" || saved === "vi") {
+      setLang(saved);
+    }
   }, [error]);
+
+  const t = translations[lang] || translations.vi;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white p-6">
@@ -21,10 +31,10 @@ export default function ErrorBoundary({
           <AlertTriangle className="w-7 h-7" />
         </div>
         <h2 className="text-xl font-bold mb-2 text-slate-900 dark:text-white">
-          Đã xảy ra sự cố giao diện
+          {t.error_boundary_title}
         </h2>
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed font-mono bg-slate-100 dark:bg-slate-800/80 p-3 rounded-lg text-left break-words max-h-36 overflow-y-auto">
-          {error?.message || "Ngoại lệ phía client. Vui lòng tải lại trang hoặc bấm Thử lại."}
+          {error?.message || t.error_boundary_desc}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
@@ -32,14 +42,14 @@ export default function ErrorBoundary({
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-semibold text-sm bg-brand-700 hover:bg-brand-800 text-white shadow flex items-center justify-center gap-2 transition-all"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Thử lại</span>
+            <span>{t.error_boundary_retry}</span>
           </button>
           <button
             onClick={() => (window.location.href = "/")}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-semibold text-sm bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 transition-all"
           >
             <Home className="w-4 h-4" />
-            <span>Về trang chủ</span>
+            <span>{t.error_boundary_home}</span>
           </button>
         </div>
       </div>
