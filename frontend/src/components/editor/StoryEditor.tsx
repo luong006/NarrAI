@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { translations, Language } from "@/lib/i18n";
-import { Sparkles, Download, Palette, Wand2, Maximize2, Minimize2, Check, X, FileText } from "lucide-react";
+import { Sparkles, Download, Palette, Wand2, Maximize2, Minimize2, Check, X, FileText, Share2 } from "lucide-react";
 
 interface Props {
   content: string;
@@ -10,6 +10,7 @@ interface Props {
   lang: Language;
   onAdaptToComic: () => void;
   onDownload: () => void;
+  onPublish?: () => void;
   onSelectText: (text: string) => void;
   onQuickAction: (action: 'rewrite' | 'expand' | 'shorten', targetText?: string) => void;
   onOpenCustomAI?: (text: string) => void;
@@ -99,6 +100,7 @@ export function StoryEditor({
   lang,
   onAdaptToComic,
   onDownload,
+  onPublish,
   onSelectText,
   onQuickAction,
   onOpenCustomAI,
@@ -170,6 +172,17 @@ export function StoryEditor({
         </div>
 
         <div className="flex items-center gap-2">
+          {onPublish && (
+            <button
+              onClick={onPublish}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 shadow-sm flex items-center gap-1.5 transition-all"
+              title={lang === "vi" ? "Lưu bản thảo và xuất bản lên Bảng tin cộng đồng" : "Save and publish to community feed"}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{t.btn_publish}</span>
+            </button>
+          )}
+
           <button
             onClick={onAdaptToComic}
             className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 shadow-sm flex items-center gap-1.5 transition-all"

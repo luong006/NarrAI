@@ -284,3 +284,106 @@ Giải quyết triệt để vấn đề: Làm sao tích hợp cả hiệu ứng
 - [ ] Toàn bộ Frontend Next.js (npm run build) build sản xuất thành công 0 lỗi.
 - [ ] Bộ test suite tự động kiểm thử toàn diện logic OOD ontology, banking security, recommendation ranking và chat messenger đạt 100% passed.
 
+## Follow-up — 2026-09-29T03:08:30Z
+
+Nâng cấp toàn diện trải nghiệm sáng tác và mạng xã hội văn học NarrAI:
+1. **Biên tập Bản thảo Đa mục tiêu Linh hoạt (Copilot Flexible Manuscript Surgery):** Không cứng nhắc chỉ xử lý mỗi phần mở đầu, mà xử lý mượt mà và chuẩn xác mọi yêu cầu can thiệp: đổi tên/tính cách nhân vật, viết lại đối thoại, chèn/sửa cảnh giữa, đẩy cao trào, đổi phong cách/giọng văn, sửa đoạn kết hoặc viết lại toàn bộ mà không làm mất mát, cụt lủn hay gãy mạch bản thảo.
+2. **Giao diện Chat Tiếp nhận Tối giản Chuẩn ChatGPT / Gemini (Unified Intake Chat):** Loại bỏ hoàn toàn lưới chọn thể loại và chủ đề thịnh hành rườm rà. Người dùng bước vào là trò chuyện trực tiếp ngay lập tức với mô hình Q&A sáng tác. Mô hình được tích hợp sâu toàn bộ tri thức thể loại, quy tắc hư cấu cá nhân (tự do sáng tạo), quy tắc lịch sử Việt Nam (tôn trọng sự thật) và quy tắc bản quyền/sở hữu trí tuệ.
+3. **Chuyển giao Liền mạch Sang Chấp bút Bản thảo:** Không còn phân tách Bước 1 - Bước 2 cứng nhắc. Sau khi trò chuyện cô đọng đủ ý tưởng hoặc khi người dùng bấm yêu cầu, hệ thống tự động tổng hợp dàn ý và chuyển thẳng sang màn hình tạo truyện chữ.
+4. **Chuyên mục "Bài đăng" & Nút "Lưu và đăng bài":** Bổ sung tab/chuyên mục "Bài đăng" hiển thị các tác phẩm xuất bản của cộng đồng (bao gồm cả truyện chữ và truyện tranh manga liên kết). Bổ sung nút "Lưu và đăng bài" trực tiếp trên thanh công cụ soạn thảo truyện chữ để xuất bản lên mạng xã hội với 1 chạm.
+5. **Kiến trúc Frontend Phân lớp Chống Xung đột Tuyệt đối:** Tối ưu hóa render giữa WebGL 3D, Spring SVG Morphicons, DOM Cards và Modal Glassmorphism; loại bỏ hoàn toàn hiện tượng đè lớp (z-fighting), giật lag hoặc triệt tiêu hiệu ứng.
+
+Working directory: e:\NarrAI
+Integrity mode: demo
+
+---
+
+## Technical Specifications & Architecture
+
+### R1. Bộ Máy Biên Tập Bản Thảo Linh Hoạt Đa Mục Tiêu (Copilot Smart Manuscript Surgery)
+
+Loại bỏ tư duy xử lý cục bộ cứng nhắc chỉ cho phần mở đầu. Hệ thống Co-pilot Agent nâng cấp cơ chế phẫu thuật văn bản theo ngữ cảnh đa tầng (Context-Aware Targeted Manuscript Surgery):
+
+1. **Bộ Phân Loại Ý Định Biên Tập Đa Chiều (Multi-Dimensional Intent Classifier):**
+   - **Target 1 — Sửa Mở đầu (Opening/Hook):** Viết lại cảnh khởi đầu giật gân (In Medias Res), giữ nguyên tiêu đề và nối liền mạch với các chương sau.
+   - **Target 2 — Sửa/Đổi Nhân vật & Lời thoại (Character & Dialogue Surgery):** Thay tên, đổi đại từ xưng hô, cập nhật khẩu ngữ hiện đại giàu subtext và phản ứng sinh lý cho nhân vật cụ thể trong toàn bộ hoặc một phân đoạn bản thảo.
+   - **Target 3 — Sửa/Chèn Diễn biến Thân bài (Middle Beats & Scene Insertion):** Thêm biến cố, đẩy nhanh nhịp độ (Pacing), chèn tình huống nguy nan hoặc đào sâu độc thoại nội tâm ở giữa truyện mà không làm xáo trộn mở đầu và kết thúc.
+   - **Target 4 — Sửa Đoạn Kết (Climax & Ending):** Xây dựng Lingering Cliffhanger nghẹt thở hoặc kết thúc dâng trào cảm xúc, giữ vững logic đã thiết lập từ các chương trước.
+   - **Target 5 — Chuyển Đổi Phong Cách & Giọng Văn Toàn Bản Thảo (Tone Shift & Style Restyling):** Viết lại toàn bộ truyện theo phong cách chỉ định (u tối, giật gân, hài hước, trinh thám, cổ trang) với cơ chế bảo toàn nguyên vẹn chuỗi sự kiện chính (core plot progression) và nhân vật.
+
+2. **Cơ Chế Định Vị Khối Cắt Lát Động (Dynamic Semantic Chunk Slicing):**
+   - Tự động quét và định vị chính xác phân đoạn cần tác động: `prefix` (phần giữ nguyên trước) -> `window_to_edit` (khối cần phẫu thuật) -> `suffix` (phần giữ nguyên sau).
+   - Nếu tác vụ tác động toàn bản thảo (Tone rewrite / Character rename): Áp dụng chiến lược Rolling Context với bộ kiểm tra độ dài đầu ra, bảo đảm không bị mất cụt văn bản hay rớt nhãn tiêu đề.
+   - Luôn áp dụng chốt chặn bảo vệ tiêu đề `**[TÊN TIÊU ĐỀ]**` và các phân đoạn chương `## Chương X`.
+
+---
+
+### R2. Giao Diện Chat Tiếp Nhận Tối Giản & Trợ Lý Q&A Đa Tri Thức (Gemini/ChatGPT-Style Intake Chat)
+
+1. **Loại Bỏ Hoàn Toàn Lưới Thể Loại & Thẻ Chủ Đề Phức Tạp:**
+   - Xóa bỏ giao diện chọn thể loại/chủ đề thịnh hành dạng lưới tĩnh (Phase 1 Idea chips cũ) và bỏ bước phỏng vấn chia giai đoạn (Phase 2 Interview cũ).
+   - Thay thế bằng giao diện **AI Intake Chat** đơn giản, tinh tế, sang trọng theo chuẩn thiết kế Gemini / ChatGPT: Khung trò chuyện toàn màn hình thanh lịch, thanh nhập liệu nổi bật ở đáy, bong bóng chat thoáng đãng.
+
+2. **Trợ Lý Q&A Đồng Sáng Tác Tích Hợp Đầy Đủ Tri Thức & Quy Tắc:**
+   - **Tri thức thể loại tự nhiên:** Mô hình am hiểu sâu sắc mọi thể loại (Mạt thế, Tiên hiệp, Đô thị, Trinh thám, Kinh dị dân gian, Lịch sử, Khoa học viễn tưởng, Xuyên thư, Điền văn, Lãng mạn...). Khi người dùng nói ý tưởng tự do, AI tự động nhận diện và phân tích thể loại ngầm mà không ép người dùng phải chọn thủ công.
+   - **Quy tắc Sáng tác Hư cấu Cá nhân (Personal Fiction Rules):** Khuyến khích tối đa trí tưởng tượng phóng khoáng, tự do sáng tạo bối cảnh, ma pháp, công nghệ tương lai; không áp đặt bất kỳ quy chuẩn gò bó nào.
+   - **Quy tắc Lịch sử Dân tộc (Vietnamese Historical Integrity Rules):** Nếu người dùng nhắc tới nhân vật hoặc sự kiện lịch sử Việt Nam, AI tự động kích hoạt tư vấn chuẩn mực: tôn trọng sự thật lịch sử, giữ đúng niên đại, đại cục chiến thắng của dân tộc (Bạch Đằng, Như Nguyệt, Ngọc Hồi...), định hướng người dùng chọn viết theo Chính sử (chuẩn xác) hay Dã sử (nhân vật hư cấu trong thời đại có thật).
+   - **Quy tắc Bản quyền & Tác quyền (Copyright & IP Guardrails):** Hướng dẫn tác giả tạo ra các nhân vật, pháp bảo và thế giới độc bản; nhắc nhở khéo léo tránh sao chép y nguyên các tác phẩm có bản quyền thương mại đang được bảo hộ (như Harry Potter, Marvel, Naruto...) để bảo vệ tính thương mại và quyền tác giả của chính người dùng.
+
+---
+
+### R3. Chuyển Đổi Liền Mạch Từ Trò Chuyện Sang Chấp Bút Bản Thảo
+
+1. **Chuyển Giao Trực Tiếp Không Qua Bước Trung Gian:**
+   - Trong quá trình trò chuyện, khi người dùng đã cung cấp đủ ý tưởng (hoặc bất kỳ lúc nào người dùng bấm nút *"Bắt đầu viết truyện ngay"* / *"Chốt cốt truyện"*), AI Intake Chat sẽ cô đọng lại một bản Dàn ý Phác thảo (Refined Narrative Bible) chỉ trong 1-2 giây.
+   - Tự động chuyển thẳng sang màn hình **Story Editor** và kích hoạt tiến trình chấp bút thời gian thực (Streaming Generation).
+   - Tự động lưu bản thảo vào hệ thống và cấp phát `story_id` ngay lập tức, bảo đảm người dùng có thể chuyển thể sang manga hay thực hiện bất kỳ tác vụ nào mà không bị gián đoạn.
+
+---
+
+### R4. Chuyên Mục "Bài Đăng" (Community Feed) & Tính Năng "Lưu Và Đăng Bài"
+
+1. **Chuyên Mục "Bài Đăng" (Posts / Community Feed Tab):**
+   - Bổ sung tab điều hướng *"Bài đăng"* (bên cạnh *"Sáng tác"* và *"Truyện tranh"*).
+   - Hiển thị danh sách các tác phẩm đã xuất bản của cộng đồng và cá nhân:
+     - Thẻ bài đăng 3D Parallax Tilt hiển thị: Tiêu đề truyện, ảnh bìa manga minh họa (nếu đã chuyển thể truyện tranh), trích đoạn truyện chữ hấp dẫn, thể loại, tác giả, lượt xem, lượt thích, và số bình luận.
+     - Cho phép độc giả bấm vào để đọc toàn văn truyện chữ hoặc lướt xem các khung tranh manga chuyển thể.
+     - Tương tác trực tiếp: Nút thích (Like Morphicon), bình luận (phân tích cảm xúc & thực thể ngầm), và chia sẻ.
+   - Kết nối trực tiếp với Thuật toán đề xuất 3 giai đoạn (Two-Tower Cosine + Multi-Armed Bandit 15% Cold-Start + MMR lambda=0.7).
+
+2. **Nút "Lưu Và Đăng Bài" Trên Story Editor:**
+   - Trên thanh công cụ trên cùng của màn hình soạn thảo văn bản (StoryEditor.tsx), bổ sung nút nổi bật: **"Lưu & Đăng bài"** (Save & Publish).
+   - Khi bấm: Hệ thống tự động lưu bản thảo chữ mới nhất, đồng bộ hình ảnh đại diện từ truyện tranh (nếu có), xuất bản thành một bài đăng trong bảng `social_posts` qua API `POST /api/social/publish`, và hiển thị thông báo thành công kèm đường dẫn xem ngay bài đăng.
+
+---
+
+### R5. Kiến Trúc Frontend Phân Lớp Chống Xung Đột & Trải Nghiệm Mượt Mà
+
+1. **Tách Biệt Triệt Để Render Pipeline:**
+   - **Layer 0 (ThreeUI 3D):** Nền không gian 3D đơn nhất chạy ngầm, tự động pause khi ẩn tab hoặc ra khỏi màn hình, GPU 0%.
+   - **Layer 1 (Semantic DOM & Cards):** Sử dụng CSS 3D Transforms (perspective: 1000px) độc lập cho các thẻ bài đăng và khung tranh comic.
+   - **Layer 2 (Morphicons SVG):** Hiệu ứng vector spring physics mượt mà cho icon Like, Xu (Coin) và Bộ chọn Model.
+   - **Layer 3 (Modals & Chat Portals):** Toàn bộ Hộp thoại Messenger, Modal Nạp xu, Modal Đăng nhập và Modal Đọc bài đăng sử dụng React Portals với `isolation: isolate` và `z-index: 50+`, triệt tiêu 100% hiện tượng xung đột layer (z-fighting) hay giật khung hình.
+
+---
+
+## Acceptance Criteria
+
+### Copilot Flexible Manuscript Surgery
+- [ ] Xử lý chính xác các yêu cầu sửa đổi đa dạng: đổi tên/lời thoại nhân vật, chèn cảnh kịch tính ở thân bài, đổi giọng văn toàn truyện, sửa mở đầu hoặc cái kết.
+- [ ] Không làm mất tiêu đề `**...**`, không làm rớt các tiêu đề chương `## Chương X`, không làm mất cụt văn bản khi ghép lát.
+
+### Unified Intake Chat (ChatGPT/Gemini Style)
+- [ ] Giao diện khởi tạo tối giản, thanh lịch, bỏ 100% các nút/chip thể loại và chủ đề thịnh hành rườm rà cũ.
+- [ ] Trợ lý Q&A đối thoại trực tiếp ngay từ câu đầu tiên, am hiểu sâu sắc thể loại văn học, quy tắc hư cấu tự do, quy tắc lịch sử Việt Nam và tư vấn tránh vi phạm bản quyền.
+- [ ] Nút hoặc lệnh kích hoạt chuyển sang tạo truyện chữ hoạt động trơn tru, truyền dàn ý cô đọng vào Editor và bắt đầu chấp bút tức thì.
+
+### Chuyên Mục "Bài Đăng" & Nút "Lưu Và Đăng Bài"
+- [ ] Có chuyên mục "Bài đăng" hiển thị danh sách các tác phẩm truyện chữ & truyện tranh của người dùng.
+- [ ] Nút "Lưu & Đăng bài" trên thanh công cụ Editor xuất bản tác phẩm lên mạng xã hội thành công, hiển thị tức thì trên tab "Bài đăng".
+- [ ] Người dùng có thể đọc truyện chữ và xem tranh manga liên kết trực tiếp từ bài đăng.
+
+### Kiểm Thử Toàn Vẹn Hệ Thống
+- [ ] Backend Python (py_compile) không có bất kỳ lỗi cú pháp nào.
+- [ ] Frontend Next.js 14 (npm run build) biên dịch thành công 0 lỗi.
+- [ ] Toàn bộ test suite tự động kiểm thử đạt 100% PASS.

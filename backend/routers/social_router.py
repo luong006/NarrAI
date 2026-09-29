@@ -92,6 +92,7 @@ class PublishPostRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Tiêu đề bài đăng")
     content_snippet: str = Field(..., min_length=1, description="Trích đoạn tác phẩm")
     story_id: Optional[int] = Field(None, description="ID truyện gốc liên kết nếu có")
+    story_text: Optional[str] = Field(None, description="Toàn văn tác phẩm để tự động lưu/cập nhật Story")
     genre: Optional[str] = Field("Chung", description="Thể loại văn học")
     tags: Optional[List[str]] = Field(default_factory=list, description="Danh sách nhãn")
     cover_image_url: Optional[str] = Field(None, description="URL ảnh bìa")
@@ -157,6 +158,7 @@ async def publish_social_post(
             title=req.title,
             content_snippet=req.content_snippet,
             story_id=req.story_id,
+            story_text=req.story_text,
             genre=req.genre,
             tags=req.tags,
             cover_image_url=req.cover_image_url,

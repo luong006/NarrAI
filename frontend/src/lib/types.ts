@@ -49,6 +49,15 @@ export interface ComicResponse {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  is_ready?: boolean;
+  timestamp?: number;
+}
+
+export interface IntakeChatOptions {
+  modelTier: 'flash' | 'versatile' | 'master';
+  length: StoryLength;
+  refinedPrompt?: string;
+  chatHistory?: ChatMessage[];
 }
 
 export interface TrendingTopic {
@@ -112,3 +121,92 @@ export interface CopilotEventResponse {
 export type StoryLength = 'short' | 'medium' | 'long';
 export type CreativityLevel = 1 | 2 | 3;
 export type PacingLevel = 1 | 2 | 3;
+
+export interface SocialPostAuthor {
+  id: number;
+  username: string;
+  full_name?: string;
+}
+
+export interface SocialComment {
+  id: number;
+  user_id: number;
+  username: string;
+  full_name?: string;
+  comment_text: string;
+  sentiment_score?: number;
+  created_at?: string;
+}
+
+export interface SocialPost {
+  id: number;
+  story_id?: number;
+  title: string;
+  content_snippet: string;
+  story_content?: string;
+  story_full_text?: string;
+  comic_panels?: ComicPanel[];
+  cover_image_url?: string;
+  genre?: string;
+  tags?: string[];
+  dsgo_entities?: string[];
+  dsgo_spaces?: string[];
+  likes_count: number;
+  comments_count: number;
+  views_count: number;
+  completion_count?: number;
+  dwell_time_avg?: number;
+  created_at?: string;
+  author?: SocialPostAuthor;
+  comments?: SocialComment[];
+  is_cold_start_exploration?: boolean;
+  score?: number;
+  liked_by_me?: boolean;
+}
+
+export interface PublishSocialPostPayload {
+  title: string;
+  content_snippet: string;
+  story_id?: number | null;
+  story_text?: string;
+  genre?: string;
+  tags?: string[];
+  cover_image_url?: string | null;
+  dsgo_entities?: string[];
+  dsgo_spaces?: string[];
+  concept_vector?: number[];
+}
+
+export interface InteractSocialPostPayload {
+  post_id: number;
+  interaction_type: 'LIKE' | 'COMMENT' | 'BOOKMARK' | 'SHARE' | 'CLICK' | 'SCROLL_50' | 'SCROLL_100' | 'DWELL_TIME' | string;
+  dwell_seconds?: number;
+  scroll_depth?: number;
+  comment_text?: string;
+}
+
+export interface SocialFeedParams {
+  genre?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SocialFeedResponse {
+  success: boolean;
+  data: {
+    items: SocialPost[];
+    total: number;
+    page_limit: number;
+    offset: number;
+    has_more: boolean;
+  };
+}
+
+export interface SocialPostDetailResponse {
+  success: boolean;
+  data?: SocialPost;
+  message?: string;
+  detail?: string;
+}
+
+

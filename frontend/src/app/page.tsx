@@ -14,9 +14,8 @@ import { HistoryModal } from "@/components/modals/HistoryModal";
 import { CoinTopupModal } from "@/components/modals/CoinTopupModal";
 import { MessengerModal } from "@/components/modals/MessengerModal";
 
-import { Phase1Idea } from "@/components/setup/Phase1Idea";
-import { Phase2Interview } from "@/components/setup/Phase2Interview";
-import { Phase3Controls } from "@/components/setup/Phase3Controls";
+import { UnifiedIntakeChat, IntakeTransitionOptions } from "@/components/setup/UnifiedIntakeChat";
+import { CommunityFeedView } from "@/components/social/CommunityFeedView";
 
 import { StoryEditor } from "@/components/editor/StoryEditor";
 import { AICopilotPanel } from "@/components/editor/AICopilotPanel";
@@ -154,8 +153,7 @@ export default function WorkspacePage() {
   const [user, setUser] = useState<{ username: string; fullName?: string } | null>(null);
   const [lang, setLang] = useState<Language>("vi");
   const [view, setView] = useState<"landing" | "workspace">("landing");
-  const [activeTab, setActiveTab] = useState<"setup" | "editor" | "comic">("setup");
-  const [setupPhase, setSetupPhase] = useState<1 | 2 | 3>(1);
+  const [activeTab, setActiveTab] = useState<"setup" | "editor" | "comic" | "posts">("setup");
 
   const t = translations[lang] || translations.vi;
   const { toast } = useToast();
@@ -233,121 +231,50 @@ export default function WorkspacePage() {
     setUser(null);
     setView("landing");
     setActiveTab("setup");
-    setSetupPhase(1);
+    setInitialPrompt("");
+    setChatHistory([]);
+    setRefinedPrompt("");
     setStoryContent("");
+    setStoryId(null);
+    setSessionId(null);
+    setComicPanels([]);
+    setComicId(null);
     setCopilotMessages([]);
   };
 
-  // Phase 1 -> Phase 2 (Immediately switch screen & send user prompt to AI)
-  const handlePhase1Continue = async (combinedPrompt: string, genres: string[], themes: string[]) => {
-    setInitialPrompt(combinedPrompt);
-    const initialUserMsg: ChatMessage = { role: "user", content: combinedPrompt };
-    setChatHistory([initialUserMsg]);
-    setSetupPhase(2);
+  // Seamless Unified Intake Transition to Story Drafting
+  const handleIntakeStartWriting = async (options: IntakeTransitionOptions) => {
     setLoading(true);
 
-    try {
-      const res = await api.chatInterview([initialUserMsg]);
-      if (res.status === "success" && res.message) {
-        setChatHistory([
-          initialUserMsg,
-          { role: "assistant", content: res.message }
-        ]);
-        if (res.is_ready) {
-          handleSkipInterview();
+    let finalPrompt = options.refinedPrompt || "";
+    // If not yet refined, call api.refinePrompt(chatHistory) (1-2s compression into Refined Narrative Bible)
+    if (!finalPrompt && options.chatHistory && options.chatHistory.length > 0) {
+      try {
+        const refineRes = await api.refinePrompt(options.chatHistory);
+        if (refineRes.status === "success" && refineRes.refined_prompt) {
+          finalPrompt = refineRes.refined_prompt;
         }
-      } else {
-        setChatHistory([
-          initialUserMsg,
-          {
-            role: "assistant",
-            content: lang === "vi"
-              ? "Ý tưởng của bạn rất cuốn hút! Hãy chia sẻ thêm về nhân vật chính và bối cảnh câu chuyện nhé."
-              : "Fascinating concept! Could you tell me more about the main protagonist and setting?"
-          }
-        ]);
+      } catch (err) {
+        console.error("Refine prompt error:", err);
       }
-    } catch (e: any) {
-      console.error(e);
-      setChatHistory([
-        initialUserMsg,
-        {
-          role: "assistant",
-          content: lang === "vi"
-            ? "Đang kết nối lại với AI. Bạn có thể gõ câu trả lời bên dưới hoặc bấm 'Bỏ qua hỏi đáp' để tiếp tục."
-            : "Reconnecting to AI. You can reply below or skip to proceed."
-        }
-      ]);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  // Phase 2 Chat
-  const handleSendMessage = async (msg: string) => {
-    const updatedHistory: ChatMessage[] = [...chatHistory, { role: "user", content: msg }];
-    setChatHistory(updatedHistory);
-    setLoading(true);
-    try {
-      const res = await api.chatInterview(updatedHistory);
-      if (res.status === "success" && res.message) {
-        setChatHistory([...updatedHistory, { role: "assistant", content: res.message }]);
-        if (res.is_ready) {
-          handleSkipInterview();
-        }
-      } else {
-        toast.error(res.message || t.unknown_error);
-      }
-    } catch (e: any) {
-      toast.error(e.message || t.network_error);
-    } finally {
-      setLoading(false);
+    if (!finalPrompt) {
+      const userTexts = options.chatHistory ? options.chatHistory.filter((m) => m.role === "user").map((m) => m.content) : [];
+      finalPrompt = userTexts.join("\n\n") || (lang === "vi" ? "Một câu chuyện lôi cuốn, kịch tính." : "A captivating, thrilling story.");
     }
-  };
 
-  // Phase 2 Skip / Finalize
-  const handleSkipInterview = async () => {
-    setLoading(true);
-    try {
-      const res = await api.refinePrompt(chatHistory);
-      if (res.status === "success" && res.refined_prompt) {
-        setRefinedPrompt(res.refined_prompt);
-        setSetupPhase(3);
-      } else {
-        setRefinedPrompt(initialPrompt);
-        setSetupPhase(3);
-      }
-    } catch (e: any) {
-      setRefinedPrompt(initialPrompt);
-      setSetupPhase(3);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setRefinedPrompt(finalPrompt);
 
-  // Phase 3 -> Start Writing
-  const handleStartWriting = async (length: StoryLength, creativity: CreativityLevel, pacing: PacingLevel) => {
-    setLoading(true);
-    setStreaming(true);
+    // Instantly set activeTab = "editor", clear manuscript canvas, set streaming = true
     setActiveTab("editor");
     setStoryContent("");
     setStoryId(null);
     setSessionId(null);
+    setStreaming(true);
 
-    let extraPrompt = "";
-    if (creativity === 1) {
-      extraPrompt += lang === "vi" ? " Hãy giữ cốt truyện cực kỳ logic, thực tế." : " Maintain strictly realistic, logical narrative continuity.";
-    } else if (creativity === 3) {
-      extraPrompt += lang === "vi" ? " Hãy bùng nổ sáng tạo, thêm những tình tiết bất ngờ (plot twist) điên rồ." : " Unleash wild creativity with unexpected, gripping plot twists.";
-    }
-
-    if (pacing === 1) {
-      extraPrompt += lang === "vi" ? " Nhịp độ truyện chậm rãi, miêu tả nội tâm và bối cảnh thật chi tiết." : " Keep a deliberate, descriptive pacing with rich introspective depth.";
-    } else if (pacing === 3) {
-      extraPrompt += lang === "vi" ? " Nhịp độ truyện nhanh, dồn dập, tập trung vào hành động và hội thoại kịch tính." : " Deliver fast-paced, high-stakes action and dramatic dialogues.";
-    }
-
-    const finalPrompt = (refinedPrompt || initialPrompt) + (extraPrompt ? "\n" + extraPrompt : "");
+    const length = options.storyLength || "long";
+    // Trigger api.streamStory with Chapter 1 generation and lock story_id & session_id
     const endpoint = length === "long" ? "init-story" : "generate-story";
 
     await api.streamStory(
@@ -382,6 +309,72 @@ export default function WorkspacePage() {
         toast.error(err.message || t.unknown_error);
       }
     );
+  };
+
+  // Publish Story to Community Feed
+  const handlePublishStory = async () => {
+    if (!storyContent || storyContent.trim().length < 20) {
+      toast.warning(lang === "vi" ? "Bản thảo cần có nội dung trước khi xuất bản!" : "Story needs content before publishing!");
+      return;
+    }
+
+    if (!user) {
+      toast.warning(lang === "vi" ? "Vui lòng đăng nhập để đăng bài lên cộng đồng." : "Please log in to publish your story.");
+      setIsAuthOpen(true);
+      return;
+    }
+
+    // Extract title from first line or markdown header
+    let title = "Tác phẩm NarrAI";
+    const titleMatch = storyContent.match(/^\s*(?:\*\*|#{1,3}\s*)([^\*\n#]+)(?:\*\*|\n|$)/);
+    if (titleMatch && titleMatch[1]) {
+      title = titleMatch[1].trim();
+    }
+
+    // Extract clean content snippet (first 300 chars without markdown symbols)
+    const cleanSnippet = storyContent
+      .replace(/[#\*_`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .substring(0, 320);
+
+    const coverImageUrl = comicPanels.length > 0 && comicPanels[0].image_url
+      ? api.getComicImageUrl(comicPanels[0].image_url)
+      : null;
+
+    try {
+      const res = await api.publishPost({
+        title,
+        content_snippet: cleanSnippet + (storyContent.length > 320 ? "..." : ""),
+        story_id: storyId || null,
+        genre: "Tiểu thuyết",
+        tags: ["NarrAI", "VănHọcMới"],
+        cover_image_url: coverImageUrl,
+      });
+
+      if (res.success) {
+        toast.success(t.publish_success || (lang === "vi" ? "Đã xuất bản tác phẩm lên Bảng tin cộng đồng thành công!" : "Story published to community feed successfully!"));
+        setActiveTab("posts");
+      } else {
+        toast.error(res.message || t.unknown_error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || t.unknown_error);
+    }
+  };
+
+  // Open Story from Community Feed in Editor
+  const handleReadStoryInEditor = (content: string, title?: string) => {
+    setStoryContent(content);
+    setActiveTab("editor");
+    if (title) {
+      setCopilotMessages([
+        {
+          role: "assistant",
+          content: `${t.loaded_story_prefix}"${title}"${t.loaded_story_suffix}`
+        }
+      ]);
+    }
   };
 
   // Quick Action on Selected Text (Rewrite, Expand, Shorten)
@@ -709,8 +702,9 @@ export default function WorkspacePage() {
       return;
     }
 
-    if (!storyId) {
-      toast.warning(t.comic_id_not_ready);
+    if (!user) {
+      toast.warning(lang === "vi" ? "Vui lòng đăng nhập để chuyển thể truyện tranh." : "Please log in to adapt to comic.");
+      setIsAuthOpen(true);
       return;
     }
 
@@ -723,8 +717,19 @@ export default function WorkspacePage() {
         setComicId(res.comic_id || null);
         setComicPanels(res.panels);
         setComicHasMore(!!res.has_more);
+        // Refresh coin balance after 16 xu deduction
+        api.getCoinsBalance().then((b) => {
+          if (b.balance !== undefined) setCoinBalance(b.balance);
+          else if (b.coins !== undefined) setCoinBalance(b.coins);
+        });
       } else {
-        toast.error(res.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Failed to adapt to comic"));
+        const errMsg = res.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Failed to adapt to comic");
+        toast.error(errMsg);
+        if ((res as any).code === 402 || errMsg.toLowerCase().includes("xu") || errMsg.toLowerCase().includes("coin")) {
+          setIsCoinModalOpen(true);
+        } else if ((res as any).code === 401) {
+          setIsAuthOpen(true);
+        }
         setActiveTab("editor");
       }
     } catch (e: any) {
@@ -809,9 +814,14 @@ export default function WorkspacePage() {
         onLanguageChange={handleLanguageChange}
         onNewStory={() => {
           setActiveTab("setup");
-          setSetupPhase(1);
+          setInitialPrompt("");
+          setChatHistory([]);
+          setRefinedPrompt("");
           setStoryContent("");
+          setStoryId(null);
+          setSessionId(null);
           setComicPanels([]);
+          setComicId(null);
           setCopilotMessages([]);
         }}
         onOpenHistory={() => setIsHistoryOpen(true)}
@@ -819,36 +829,26 @@ export default function WorkspacePage() {
         coinBalance={coinBalance}
         onOpenCoinTopup={() => setIsCoinModalOpen(true)}
         onOpenMessenger={() => setIsMessengerOpen(true)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        hasActiveStory={!!storyContent}
+        hasActiveComic={comicPanels.length > 0}
       />
 
       {/* Main Workspace Area */}
       <main className="flex-1 flex overflow-hidden">
         {activeTab === "setup" && (
-          <div className="flex-1 overflow-y-auto">
-            {setupPhase === 1 && (
-              <Phase1Idea
-                lang={lang}
-                onContinue={handlePhase1Continue}
-                loading={loading}
-              />
-            )}
-            {setupPhase === 2 && (
-              <Phase2Interview
-                lang={lang}
-                history={chatHistory}
-                onSendMessage={handleSendMessage}
-                onSkip={handleSkipInterview}
-                loading={loading}
-              />
-            )}
-            {setupPhase === 3 && (
-              <Phase3Controls
-                lang={lang}
-                onStartWriting={handleStartWriting}
-                loading={loading}
-              />
-            )}
-          </div>
+          <UnifiedIntakeChat
+            lang={lang}
+            onStartWriting={handleIntakeStartWriting}
+            isGenerating={streaming || loading}
+            initialChatHistory={chatHistory}
+            onClearHistory={() => {
+              setInitialPrompt("");
+              setChatHistory([]);
+              setRefinedPrompt("");
+            }}
+          />
         )}
 
         {activeTab === "editor" && (
@@ -876,6 +876,7 @@ export default function WorkspacePage() {
                 lang={lang}
                 onAdaptToComic={handleAdaptToComic}
                 onDownload={handleDownload}
+                onPublish={handlePublishStory}
                 onSelectText={setSelectedText}
                 onQuickAction={handleQuickAction}
                 onOpenCustomAI={(txt) => setSelectedText(txt)}
@@ -908,6 +909,14 @@ export default function WorkspacePage() {
             onBackToEditor={() => setActiveTab("editor")}
             onContinueComic={handleContinueComic}
             loadingMore={comicLoading}
+          />
+        )}
+
+        {activeTab === "posts" && (
+          <CommunityFeedView
+            lang={lang}
+            currentUsername={user?.username}
+            onReadInEditor={handleReadStoryInEditor}
           />
         )}
       </main>

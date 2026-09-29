@@ -886,6 +886,7 @@ def publish_post(
     title: str,
     content_snippet: str,
     story_id: Optional[int] = None,
+    story_text: Optional[str] = None,
     genre: Optional[str] = None,
     tags: Optional[List[str]] = None,
     cover_image_url: Optional[str] = None,
@@ -895,11 +896,76 @@ def publish_post(
 ) -> SocialPost:
     """
     Publishes a literary story to the SocialPost network.
+    Accepts story_text and auto-saves/updates Story.
+    Auto-extracts first panel from Comic as cover_image_url if missing.
     Extracts DSGO entities/spaces and computes 128-dim concept vector.
     """
     tags = tags or []
     dsgo_entities = dsgo_entities or []
     dsgo_spaces = dsgo_spaces or []
+
+    # 1. Handle story_text and auto-save/update Story
+    if story_text:
+        clean_text = story_text.strip()
+        word_count = len(clean_text.split())
+        if story_id:
+            existing_story = db.query(Story).filter(Story.id == story_id).first()
+            if existing_story:
+                existing_story.story_content = clean_text
+                existing_story.word_count = word_count
+                if not existing_story.refined_prompt:
+                    existing_story.refined_prompt = title
+                if genre and not existing_story.genre:
+                    existing_story.genre = genre
+                db.commit()
+                db.refresh(existing_story)
+            else:
+                new_story = Story(
+                    id=story_id,
+                    user_id=user_id,
+                    refined_prompt=title,
+                    genre=genre or "Chung",
+                    story_content=clean_text,
+                    word_count=word_count
+                )
+                db.add(new_story)
+                db.commit()
+                db.refresh(new_story)
+        else:
+            new_story = Story(
+                user_id=user_id,
+                refined_prompt=title,
+                genre=genre or "Chung",
+                story_content=clean_text,
+                word_count=word_count
+            )
+            db.add(new_story)
+            db.commit()
+            db.refresh(new_story)
+            story_id = new_story.id
+
+    # 2. Auto-extract first panel from Comic as cover_image_url if missing
+    if not cover_image_url:
+        try:
+            try:
+                from db.models import Comic, ComicPanel
+            except ImportError:
+                from backend.db.models import Comic, ComicPanel
+
+            comic = None
+            if story_id:
+                comic = db.query(Comic).filter(Comic.story_id == story_id).first()
+            if not comic:
+                comic = db.query(Comic).filter(Comic.user_id == user_id).order_by(Comic.created_at.desc()).first()
+
+            if comic and comic.panels:
+                sorted_panels = sorted(comic.panels, key=lambda p: p.panel_index or 0)
+                for panel in sorted_panels:
+                    if panel.image_url and panel.image_url.strip():
+                        cover_image_url = panel.image_url.strip()
+                        break
+        except Exception as comic_err:
+            pass
 
     # If linked to a Story, extract DSGO nodes from memory_data if not explicitly provided
     if story_id and (not dsgo_entities or not dsgo_spaces):
@@ -1082,11 +1148,40 @@ def get_post_details(db: Session, post_id: int, current_user_id: Optional[int] =
         pass
 
     author = post.author
+
+    # Retrieve full story text and any linked comic panels
+    story_full_text = None
+    comic_panels = []
+    if post.story_id:
+        story = db.query(Story).filter(Story.id == post.story_id).first()
+        if story and story.story_content:
+            story_full_text = story.story_content
+        try:
+            try:
+                from db.models import Comic, ComicPanel
+            except ImportError:
+                from backend.db.models import Comic, ComicPanel
+            comic = db.query(Comic).filter(Comic.story_id == post.story_id).first()
+            if comic and comic.panels:
+                for cp in sorted(comic.panels, key=lambda x: x.panel_index or 0):
+                    comic_panels.append({
+                        "id": cp.id,
+                        "panel_index": cp.panel_index,
+                        "image_url": cp.image_url,
+                        "dialogue_text": cp.dialogue_text,
+                        "layout_type": cp.layout_type or "square"
+                    })
+        except Exception:
+            pass
+
     return {
         "id": post.id,
         "story_id": post.story_id,
         "title": post.title,
         "content_snippet": post.content_snippet,
+        "story_content": story_full_text or post.content_snippet,
+        "story_full_text": story_full_text or post.content_snippet,
+        "comic_panels": comic_panels,
         "cover_image_url": post.cover_image_url,
         "genre": post.genre,
         "tags": tags,

@@ -167,8 +167,324 @@ CẤU TRÚC JSON PHẢI TRẢ VỀ (CHỈ JSON, KHÔNG CÓ MARKDOWN HAY CHỮ TH
 }
 """
 
+from enum import Enum
+from collections import namedtuple
+from typing import Tuple, List, Optional, Dict, Any
+
+ChunkSlice = namedtuple("ChunkSlice", ["prefix", "window_to_edit", "suffix"])
+
+class SurgeryTarget(str, Enum):
+    TARGET_1_OPENING = "opening_hook"
+    TARGET_2_CHARACTER_DIALOGUE = "character_dialogue"
+    TARGET_3_MIDDLE_BEATS = "middle_beats"
+    TARGET_4_CLIMAX_ENDING = "climax_ending"
+    TARGET_5_TONE_STYLE = "tone_style"
+    GENERAL_SURGERY = "general_surgery"
+
+    def __eq__(self, other):
+        if hasattr(other, "value"):
+            return self.value == other.value or self.name == getattr(other, "name", None)
+        if isinstance(other, str):
+            return self.value == other or self.name == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.value)
+
+# Direct module-level aliases
+TARGET_1_OPENING = SurgeryTarget.TARGET_1_OPENING
+TARGET_2_CHARACTER_DIALOGUE = SurgeryTarget.TARGET_2_CHARACTER_DIALOGUE
+TARGET_3_MIDDLE_BEATS = SurgeryTarget.TARGET_3_MIDDLE_BEATS
+TARGET_4_CLIMAX_ENDING = SurgeryTarget.TARGET_4_CLIMAX_ENDING
+TARGET_5_TONE_STYLE = SurgeryTarget.TARGET_5_TONE_STYLE
+GENERAL_SURGERY = SurgeryTarget.GENERAL_SURGERY
+
+
+def classify_surgery_intent(instruction: str) -> SurgeryTarget:
+    """
+    Classifies bilingual instructions into one of the 5 surgery targets or general surgery.
+    Evaluates specific verbs, nouns, and intent indicators in both Vietnamese and English.
+    """
+    if not instruction:
+        return SurgeryTarget.GENERAL_SURGERY
+    text = instruction.lower().strip()
+
+    # 1. Target 1: Opening / Hook Rewrite
+    t1_patterns = [
+        r"mở đầu", r"đoạn mở", r"mở bài", r"khởi đầu", r"cảnh đầu",
+        r"opening", r"intro", r"hook", r"beginning", r"prologue",
+        r"write a completely different opening"
+    ]
+    if any(re.search(p, text) for p in t1_patterns):
+        return SurgeryTarget.TARGET_1_OPENING
+
+    # 2. Target 4: Climax & Ending
+    t4_patterns = [
+        r"kết thúc", r"đoạn kết", r"cái kết", r"kết bài", r"hạ màn", r"vĩ thanh",
+        r"cao trào", r"ending", r"outro", r"conclusion", r"cliffhanger", r"climax",
+        r"make the ending much more dramatic"
+    ]
+    if any(re.search(p, text) for p in t4_patterns):
+        return SurgeryTarget.TARGET_4_CLIMAX_ENDING
+
+    # 3. Target 3: Middle Beats & Scene Insertion
+    t3_patterns = [
+        r"thân bài", r"ở giữa", r"đoạn giữa", r"giữa truyện", r"thêm cảnh",
+        r"chèn cảnh", r"thêm đoạn", r"chèn đoạn", r"tăng kịch tính",
+        r"đẩy nhanh nhịp", r"nhịp độ", r"biến cố", r"va chạm", r"tình huống mới",
+        r"middle", r"middle beats", r"scene insertion", r"insert scene", r"add scene",
+        r"pacing", r"stakes", r"turning point"
+    ]
+    if any(re.search(p, text) for p in t3_patterns):
+        return SurgeryTarget.TARGET_3_MIDDLE_BEATS
+
+    # 4. Target 5: Tone Shift & Style Restyling
+    t5_patterns = [
+        r"phong cách", r"giọng văn", r"đổi giọng", r"đổi phong cách",
+        r"u tối", r"giật gân", r"hài hước", r"kinh dị", r"trinh thám",
+        r"cổ trang", r"lãng mạn", r"hồi hộp", r"tone", r"style", r"restyling",
+        r"darker", r"thriller", r"comedy", r"mystery", r"historical", r"gripping",
+        r"rewrite in a darker"
+    ]
+    if any(re.search(p, text) for p in t5_patterns):
+        return SurgeryTarget.TARGET_5_TONE_STYLE
+
+    # 5. Target 2: Character & Dialogue Surgery
+    t2_patterns = [
+        r"nhân vật", r"đổi tên", r"thay tên", r"lời thoại", r"đối thoại",
+        r"xưng hô", r"tính cách", r"khẩu ngữ", r"subtext", r"tâm lý",
+        r"character", r"characters", r"dialogue", r"dialogues", r"rename",
+        r"pronoun", r"pronouns", r"add deeper internal thoughts", r"internal thought"
+    ]
+    if any(re.search(p, text) for p in t2_patterns):
+        return SurgeryTarget.TARGET_2_CHARACTER_DIALOGUE
+
+    return SurgeryTarget.GENERAL_SURGERY
+
+
+class HeadingPreservationEngine:
+    @staticmethod
+    def preserve_headings(
+        original_story: str,
+        window_text: str,
+        revised_window: str,
+        target: SurgeryTarget = SurgeryTarget.GENERAL_SURGERY
+    ) -> str:
+        """
+        Guarantees 100% preservation of **[TITLE]** and ## Chương X across all surgery targets.
+        """
+        if not revised_window:
+            return revised_window
+
+        cleaned = revised_window.strip()
+
+        # 1. Title Preservation (**[TITLE]** or **TITLE**)
+        title_pattern = r'^\s*(\*\*(?:\[[^\]\n]+\]|[^\*\n]+)\*\*)\s*'
+        orig_title_m = re.search(title_pattern, original_story) if original_story else None
+        win_title_m = re.search(title_pattern, window_text) if window_text else None
+        target_title = win_title_m or orig_title_m
+
+        if target_title:
+            title_str = target_title.group(1).strip()
+            # If cleaned does not already start with a markdown bold title
+            if not cleaned.startswith("**"):
+                orig_starts = original_story.strip().startswith(title_str) if original_story else False
+                win_starts = window_text.strip().startswith(title_str) if window_text else False
+                if orig_starts and (win_starts or target in (SurgeryTarget.TARGET_1_OPENING, SurgeryTarget.GENERAL_SURGERY)):
+                    cleaned = f"{title_str}\n\n{cleaned}"
+
+        # 2. Section Header Preservation (e.g. ## Mở đầu, Phần mở đầu) for Target 1
+        if target == SurgeryTarget.TARGET_1_OPENING and window_text:
+            header_match = re.search(r'(#{1,3}\s*Mở\s*đầu[^\n]*|Phần\s+mở\s+đầu[^\n]*)', window_text, re.IGNORECASE)
+            if header_match:
+                header_tag = header_match.group(1).strip()
+                if not re.search(r'(#{1,3}\s*Mở\s*đầu|Phần\s+mở\s+đầu)', cleaned, re.IGNORECASE):
+                    if cleaned.startswith("**"):
+                        parts_cs = cleaned.split("\n\n", 1)
+                        if len(parts_cs) == 2:
+                            cleaned = f"{parts_cs[0]}\n\n{header_tag}\n\n{parts_cs[1]}"
+                        else:
+                            cleaned = f"{cleaned}\n\n{header_tag}"
+                    else:
+                        cleaned = f"{header_tag}\n\n{cleaned}"
+
+        # 3. Chapter Heading Preservation (## Chương X: [Tên chương], ### Chương Cuối: Hồi Kết, etc.)
+        if window_text:
+            orig_ch_headings = re.findall(
+                r'(#{1,3}\s+(?:Chương|Hồi|Tiết|Phần|Chapter)[^\n]*)',
+                window_text,
+                re.IGNORECASE
+            )
+            for ch_h in orig_ch_headings:
+                ch_h_clean = ch_h.strip()
+                # Check if this heading or its identifier is already in cleaned
+                ch_num_m = re.search(r'(?:Chương|Chapter|Hồi|Tiết|Phần)\s+([^\n:\-]+)', ch_h_clean, re.IGNORECASE)
+                has_heading = False
+                if ch_num_m:
+                    ch_num = ch_num_m.group(1).strip()
+                    if re.search(rf'#{1,3}\s+(?:Chương|Chapter|Hồi|Tiết|Phần)\s+{re.escape(ch_num)}\b', cleaned, re.IGNORECASE):
+                        has_heading = True
+                if not has_heading and ch_h_clean in cleaned:
+                    has_heading = True
+
+                if not has_heading:
+                    if cleaned.startswith("**"):
+                        parts = cleaned.split("\n\n", 1)
+                        if len(parts) == 2:
+                            cleaned = f"{parts[0]}\n\n{ch_h_clean}\n\n{parts[1]}"
+                        else:
+                            cleaned = f"{cleaned}\n\n{ch_h_clean}"
+                    else:
+                        cleaned = f"{ch_h_clean}\n\n{cleaned}"
+
+        return cleaned
+
+
+class SemanticChunkSlicer:
+    MAX_WINDOW_CHARS = 8000
+
+    @classmethod
+    def slice_manuscript(cls, story: str, target: Any, instruction: str = "") -> ChunkSlice:
+        """
+        Dynamically slices manuscript into prefix, window_to_edit, and suffix
+        respecting chapter markers (## Chương X) and semantic paragraph boundaries.
+        Guarantees: when untouched, prefix + window_to_edit + suffix == story.
+        Returns ChunkSlice(prefix, window_to_edit, suffix).
+        """
+        if not story:
+            return ChunkSlice("", "", "")
+
+        # 1. Target 1: Opening / Hook Rewrite
+        if target == SurgeryTarget.TARGET_1_OPENING:
+            ch_matches = list(re.finditer(r'\n+(?=#{1,3}\s+(?:chương|hồi|tiết|phần|chapter)\s*(?:[2-9]|\d{2,})\b)', story, re.IGNORECASE))
+            if ch_matches:
+                split_idx = ch_matches[0].start()
+                if 10 <= split_idx <= 8000:
+                    return ChunkSlice("", story[:split_idx].strip(), "\n\n" + story[split_idx:].strip())
+
+            paras = [p.strip() for p in story.split("\n\n") if p.strip()]
+            if len(paras) >= 4:
+                start_offset = 1 if paras[0].startswith("**") else 0
+                n_paras = start_offset + min(3, max(1, len(paras) - start_offset - 1))
+                opening = "\n\n".join(paras[:n_paras])
+                rest = "\n\n".join(paras[n_paras:])
+                return ChunkSlice("", opening, "\n\n" + rest)
+
+            return ChunkSlice("", story, "")
+
+        # 2. Target 4: Climax & Ending
+        elif target == SurgeryTarget.TARGET_4_CLIMAX_ENDING:
+            ch_matches = list(re.finditer(r'\n+(?=#{1,3}\s+(?:chương|hồi|tiết|phần|chapter)\s+\d+)', story, re.IGNORECASE))
+            if ch_matches and len(ch_matches) >= 2:
+                last_ch = ch_matches[-1].start()
+                return ChunkSlice(story[:last_ch].strip() + "\n\n", story[last_ch:].strip(), "")
+
+            paras = [p.strip() for p in story.split("\n\n") if p.strip()]
+            if len(paras) >= 3:
+                n_end = min(3, max(1, len(paras) - 2))
+                prefix = "\n\n".join(paras[:-n_end])
+                ending = "\n\n".join(paras[-n_end:])
+                return ChunkSlice(prefix + "\n\n", ending, "")
+
+            return ChunkSlice("", story, "")
+
+        # 3. Target 3: Middle Beats & Scene Insertion
+        elif target == SurgeryTarget.TARGET_3_MIDDLE_BEATS:
+            ch_matches = list(re.finditer(r'\n+(?=#{1,3}\s+(?:chương|hồi|chapter)\s+\d+)', story, re.IGNORECASE))
+            if len(ch_matches) >= 3:
+                start_win = ch_matches[0].start()
+                end_win = ch_matches[-1].start()
+                return ChunkSlice(story[:start_win].strip() + "\n\n", story[start_win:end_win].strip(), "\n\n" + story[end_win:].strip())
+
+            paras = [p.strip() for p in story.split("\n\n") if p.strip()]
+            if len(paras) >= 4:
+                start_p = max(1, len(paras) // 3)
+                end_p = min(len(paras) - 1, start_p + max(2, len(paras) // 3))
+                prefix_t = "\n\n".join(paras[:start_p])
+                mid_t = "\n\n".join(paras[start_p:end_p])
+                suf_t = "\n\n".join(paras[end_p:])
+                return ChunkSlice(prefix_t + "\n\n", mid_t, "\n\n" + suf_t)
+
+            return ChunkSlice("", story, "")
+
+        # 4. Target 2 & Target 5: Whole story or rolling window
+        else:
+            if len(story) <= cls.MAX_WINDOW_CHARS:
+                return ChunkSlice("", story, "")
+            cut_idx = cls.MAX_WINDOW_CHARS
+            last_p = story[:cut_idx].rfind("\n\n## ")
+            if last_p < 2000:
+                last_p = story[:cut_idx].rfind("\n\n")
+            if last_p > 2000:
+                cut_idx = last_p
+            return ChunkSlice("", story[:cut_idx].strip(), "\n\n" + story[cut_idx:].strip())
+
+
 DIRECT_EDIT_PROMPT = """Bạn là Bút vàng Trưởng ban Biên tập Light Novel & Web Novel thịnh hành.
 Tác giả muốn can thiệp trực tiếp vào bản thảo truyện chữ của họ.
+
+YÊU CẦU CỦA TÁC GIẢ:
+{user_instruction}
+
+BẢN THẢO HIỆN TẠI (HOẶC PHÂN ĐOẠN ĐANG ĐƯỢC CHỈ ĐỊNH ĐỂ BIÊN TẬP):
+{current_story}
+
+HÃY THỰC HIỆN CHỈNH SỬA TRỰC TIẾP THEO CHUẨN ĐỘNG CƠ LIGHT NOVEL & WEB NOVEL HIỆN ĐẠI:
+1. Áp dụng chính xác yêu cầu của tác giả (thay đổi mở đầu, sửa đoạn kết, thêm độc thoại nội tâm, làm sắc bén lời thoại, đẩy nhanh nhịp độ, đổi tên/tính cách nhân vật, đổi phong cách...).
+2. ĐẶC BIỆT KHI SỬA PHẦN MỞ ĐẦU (OPENING / INTRO):
+   - TUYỆT ĐỐI KHÔNG ĐƯỢC CẮT BỎ, XÓA HOẶC BỎ QUA PHẦN MỞ ĐẦU.
+   - BẮT BUỘC PHẢI VIẾT LẠI MỘT PHẦN MỞ ĐẦU MỚI HOÀN CHỈNH (2-4 đoạn văn xuôi giàu cảm xúc hoặc hành động kịch tính, kết nối tự nhiên với phần sau).
+   - NẾU BẢN THẢO GỐC CÓ TIÊU ĐỀ (ví dụ: `**TIÊU ĐỀ**`, `### Mở đầu`, `## Mở đầu`, `Phần mở đầu:` hoặc `## Chương 1:`): BẮT BUỘC PHẢI GIỮ NGUYÊN TIÊU ĐỀ ĐÓ và viết nội dung mở đầu mới ngay dưới tiêu đề.
+   - Bắt buộc tạo In Medias Res Hook giật gân ngay câu đầu, ném nhân vật vào tình thế nan giải, 0% tả cảnh thời tiết mây gió dông dài.
+3. KHI SỬA ĐỐI THOẠI & NHÂN VẬT (DIALOGUE & CHARACTERS):
+   - Đổi tên/tính cách nhân vật theo đúng chỉ thị, cập nhật mọi câu thoại và đại từ xưng hô liên quan một cách nhất quán.
+   - Làm câu thoại tự nhiên, gãy gọn, khẩu ngữ giới trẻ hiện đại, giàu subtext (thao túng, che giấu, mỉa mai), đan xen vi hành động và phản ứng sinh lý (siết ngón tay, nuốt khan, nhếch môi).
+4. KHI SỬA HOẶC CHÈN BIẾN CỐ THÂN BÀI (MIDDLE BEATS & SCENE INSERTION):
+   - Đưa tình huống va chạm, biến cố đảo chiều hoặc đào sâu nội tâm giằng xé vào đúng mạch diễn biến.
+   - Bám sát Tight POV, câu văn co giãn staccato, đoạn văn thoáng đãng (2-4 câu/đoạn).
+   - Ráp nối mượt mà với phần trước và phần sau, không làm đứt đoạn cốt truyện.
+5. KHI SỬA ĐOẠN KẾT (CLIMAX & ENDING):
+   - Xây dựng cao trào cảm xúc dâng trào hoặc Lingering Cliffhanger nghẹt thở, gút lại các khúc mắc hợp lý.
+6. KHI ĐỔI PHONG CÁCH / GIỌNG VĂN TOÀN TRUYỆN (TONE SHIFT):
+   - Chuyển đổi triệt để sắc thái văn phong (u tối, hài hước, hồi hộp, trinh thám...) nhưng bảo toàn 100% các tình tiết cốt lõi và mối quan hệ nhân vật.
+7. Ráp nối đoạn chỉnh sửa với phần còn lại của bản thảo một cách hoàn hảo, liền mạch, không để lại vết gãy ngữ nghĩa.
+8. Xuất ra TOÀN BỘ nội dung hoàn chỉnh của phần được yêu cầu sau khi đã chỉnh sửa (kèm đầy đủ tiêu đề nếu có).
+
+ĐỊNH DẠNG ĐẦU RA (CHỈ JSON HỢP LỆ, KHÔNG CÓ MARKDOWN HAY CHỮ THỪA NGOÀI KHỐI JSON):
+{{
+  "updated_story_content": "Toàn văn nội dung mới hoàn chỉnh sau khi chỉnh sửa",
+  "summary_of_changes": "Tóm tắt ngắn gọn 1-2 câu về các chi tiết đã được thay đổi trong bản thảo",
+  "message": "Lời nhắn gửi tác giả về sự thay đổi"
+}}
+"""
+
+SURGERY_PROMPTS = {
+    SurgeryTarget.TARGET_1_OPENING: """Bạn là Bút vàng Trưởng ban Biên tập Light Novel & Web Novel.
+Tác giả muốn VIẾT LẠI HOÀN TOÀN PHẦN MỞ ĐẦU (OPENING / HOOK) của câu chuyện.
+
+YÊU CẦU CỦA TÁC GIẢ:
+{user_instruction}
+
+PHÂN ĐOẠN MỞ ĐẦU HIỆN TẠI:
+{current_story}
+
+QUY TẮC PHẪU THUẬT MỞ ĐẦU (TARGET 1):
+1. BẮT BUỘC KHỞI ĐẦU IN MEDIAS RES: Ném nhân vật thẳng vào xung đột, tình thế hiểm nghèo hoặc biến cố bùng nổ từ câu đầu tiên.
+2. TUYỆT ĐỐI 0% tả cảnh thời tiết, mây trời gió thoảng hay thuyết minh bối cảnh dài dòng ở mở đầu.
+3. BẢO TỒN NGUYÊN VẸN TIÊU ĐỀ: Nếu phân đoạn gốc có tiêu đề dạng `**[TÊN TIÊU ĐỀ]**` hoặc `**TIÊU ĐỀ**`, BẮT BUỘC giữ nguyên ở dòng đầu tiên.
+4. BẢO TỒN TIÊU ĐỀ CHƯƠNG: Nếu có `## Chương 1: ...` hoặc `### Mở đầu`, hãy giữ nguyên hoặc cập nhật tên chương cho kịch tính.
+5. KẾT NỐI LIỀN MẠCH: Đoạn kết của phần mở đầu phải nối khớp hoàn hảo với diễn biến tiếp theo của truyện.
+6. ĐỘ DÀI: Viết 2-4 đoạn văn xuôi giàu cảm xúc, điểm nhìn bám sát (Tight POV), nhịp văn staccato nhanh gọn.
+
+ĐỊNH DẠNG ĐẦU RA (CHỈ JSON HỢP LỆ, KHÔNG CÓ MARKDOWN HAY CHỮ THỪA NGOÀI KHỐI JSON):
+{{
+  "updated_story_content": "Toàn văn phần mở đầu mới hoàn chỉnh kèm tiêu đề",
+  "summary_of_changes": "Tóm tắt ngắn gọn 1-2 câu về những thay đổi trong phần mở đầu",
+  "message": "Lời nhắn gửi tác giả về mở đầu mới"
+}}""",
+
+    SurgeryTarget.TARGET_2_CHARACTER_DIALOGUE: """Bạn là Chuyên gia Biên kịch & Đối thoại Light Novel & Web Novel.
+Tác giả yêu cầu PHẪU THUẬT NHÂN VẬT & LỜI THOẠI (CHARACTER & DIALOGUE SURGERY).
 
 YÊU CẦU CỦA TÁC GIẢ:
 {user_instruction}
@@ -176,27 +492,97 @@ YÊU CẦU CỦA TÁC GIẢ:
 BẢN THẢO HIỆN TẠI:
 {current_story}
 
-HÃY THỰC HIỆN CHỈNH SỬA TRỰC TIẾP THEO CHUẨN ĐỘNG CƠ LIGHT NOVEL & WEB NOVEL HIỆN ĐẠI:
-1. Áp dụng chính xác yêu cầu của tác giả (thay đổi mở đầu, sửa đoạn kết, thêm độc thoại nội tâm, làm sắc bén lời thoại, đẩy nhanh nhịp độ...).
-2. TUYỆT ĐỐI KHÔNG ĐỂ VĂN PHONG BỊ THỤT LÙI VỀ MIÊU TẢ TĨNH HOẶC SÁO RỖNG:
-   - Nếu sửa mở đầu: Bắt buộc tạo In Medias Res Hook giật gân ngay câu đầu, ném nhân vật vào tình thế nan giải, 0% tả cảnh thời tiết mây gió dông dài.
-   - Nếu sửa đối thoại: Làm câu thoại tự nhiên, gãy gọn, khẩu ngữ giới trẻ hiện đại, giàu subtext và vi hành động, không ngữ điệu dịch thuật.
-   - Nếu sửa diễn biến: Bám sát Tight POV, tăng cường độc thoại nội tâm sắc bén (tính toán, lo âu, tự giễu), câu văn co giãn staccato, đoạn văn thoáng đãng (2-4 câu/đoạn).
-   - Nếu sửa kết thúc: Xây dựng Lingering Cliffhanger nghẹt thở hoặc cao trào cảm xúc dâng trào.
-3. Ráp nối đoạn chỉnh sửa với phần còn lại của bản thảo một cách hoàn hảo, liền mạch, không để lại vết gãy ngữ nghĩa.
-4. Xuất ra TOÀN BỘ bản thảo hoàn chỉnh sau khi đã chỉnh sửa.
+QUY TẮC PHẪU THUẬT NHÂN VẬT & THOẠI (TARGET 2):
+1. NHẤT QUÁN ĐỔI TÊN & ĐẠI TỪ: Thay đổi tên nhân vật và đại từ xưng hô trên TOÀN BỘ các câu thoại và lời dẫn chuyện một cách triệt để, không để sót tên cũ.
+2. ĐỐI THOẠI SẮC BÉN & KHẨU NGỮ HIỆN ĐẠI: Lời thoại tự nhiên, gãy gọn, punchy, mang phong cách giới trẻ đương đại; loại bỏ 100% ngữ điệu dịch thuật sến súa ("ngươi/ta", "chẳng hay").
+3. SUBTEXT & VI HÀNH ĐỘNG (MICRO-ACTIONS): Mỗi câu thoại phải chứa ẩn ý (thao túng, che giấu, mỉa mai ngầm) và đan xen vi hành động thực tế (siết chặt đầu ngón tay, khựng lại nửa nhịp, nuốt khan, nhếch mép).
+4. GIỮ NGUYÊN BỐI CẢNH & TÌNH TIẾT: Không làm xáo trộn các biến cố đã xảy ra trong cảnh.
+5. BẢO TOÀN CÁC TIÊU ĐỀ `**...**` VÀ `## Chương X` NẾU CÓ TRONG ĐOẠN.
 
 ĐỊNH DẠNG ĐẦU RA (CHỈ JSON HỢP LỆ, KHÔNG CÓ MARKDOWN HAY CHỮ THỪA NGOÀI KHỐI JSON):
 {{
-  "updated_story_content": "Toàn văn bản thảo mới hoàn chỉnh sau khi chỉnh sửa",
-  "summary_of_changes": "Tóm tắt ngắn gọn 1-2 câu về các chi tiết đã được thay đổi trong bản thảo",
-  "message": "Lời nhắn gửi tác giả về sự thay đổi"
-}}
-"""
+  "updated_story_content": "Toàn văn phân đoạn sau khi đã phẫu thuật nhân vật và lời thoại",
+  "summary_of_changes": "Tóm tắt ngắn gọn các chi tiết nhân vật/lời thoại đã sửa",
+  "message": "Lời nhắn gửi tác giả"
+}}""",
+
+    SurgeryTarget.TARGET_3_MIDDLE_BEATS: """Bạn là Bút vàng Trưởng ban Cấu trúc Kịch bản Light Novel.
+Tác giả muốn CHÈN THÊM CẢNH / SỬA DIỄN BIẾN THÂN BÀI (MIDDLE BEATS & SCENE INSERTION).
+
+YÊU CẦU CỦA TÁC GIẢ:
+{user_instruction}
+
+PHÂN ĐOẠN THÂN BÀI HIỆN TẠI:
+{current_story}
+
+QUY TẮC PHẪU THUẬT THÂN BÀI (TARGET 3):
+1. NÂNG CAO STAKES & PACING: Chèn thêm tình huống hiểm nghèo, trở ngại leo thang (Rising Friction) hoặc biến cố đảo chiều (Turning Point).
+2. ĐỘC THOẠI NỘI TÂM DỒN NÉN: Khắc họa sự giằng xé tâm lý, suy luận chiến thuật hoặc áp lực sinh tồn.
+3. KHÔNG XÁO TRỘN ĐẦU VÀ CUỐI: Cảnh chèn vào phải ăn khớp tuyệt đối với diễn biến trước và sau của mạch truyện.
+4. TRÌNH BÀY THÔNG THOÁNG: Đoạn văn ngắn 2-4 câu, ngắt nhịp dứt khoát.
+5. BẢO TOÀN NGUYÊN VẸN CÁC TIÊU ĐỀ `## Chương X`.
+
+ĐỊNH DẠNG ĐẦU RA (CHỈ JSON HỢP LỆ, KHÔNG CÓ MARKDOWN HAY CHỮ THỪA NGOÀI KHỐI JSON):
+{{
+  "updated_story_content": "Toàn văn phân đoạn thân bài hoàn chỉnh sau khi chèn/sửa cảnh",
+  "summary_of_changes": "Tóm tắt cảnh hoặc biến cố vừa được bổ sung/chỉnh sửa",
+  "message": "Lời nhắn gửi tác giả"
+}}""",
+
+    SurgeryTarget.TARGET_4_CLIMAX_ENDING: """Bạn là Bút vàng Chuyên gia Kết thúc & Cao trào Light Novel.
+Tác giả muốn SỬA CAO TRÀO & ĐOẠN KẾT (CLIMAX & ENDING).
+
+YÊU CẦU CỦA TÁC GIẢ:
+{user_instruction}
+
+PHÂN ĐOẠN KẾT HIỆN TẠI:
+{current_story}
+
+QUY TẮC PHẪU THUẬT ĐOẠN KẾT (TARGET 4):
+1. CAO TRÀO DÂNG TRÀO HOẶC LINGERING CLIFFHANGER: Xây dựng khoảnh khắc bùng nổ nghẹt thở hoặc cái kết lửng gợi mở bí mật mới khiến độc giả không thể rời mắt.
+2. TUÂN THỦ CHẶT CHẼ LOGIC ĐÃ THIẾT LẬP: Không tạo ra plot twist vô lý, tôn trọng tính cách nhân vật đã phát triển.
+3. KHÔNG DÙNG ĐOẠN TRIẾT LÝ SUÔNG: Bỏ qua các tuyên ngôn đạo đức sáo rỗng cuối truyện; để cảm xúc tự bộc lộ qua hình ảnh và hành động đọng lại.
+4. BẢO TOÀN TIÊU ĐỀ CHƯƠNG `## Chương X` NẾU ĐOẠN GỐC CÓ.
+
+ĐỊNH DẠNG ĐẦU RA (CHỈ JSON HỢP LỆ, KHÔNG CÓ MARKDOWN HAY CHỮ THỪA NGOÀI KHỐI JSON):
+{{
+  "updated_story_content": "Toàn văn đoạn kết mới hoàn chỉnh",
+  "summary_of_changes": "Tóm tắt sự thay đổi ở đoạn kết",
+  "message": "Lời nhắn gửi tác giả"
+}}""",
+
+    SurgeryTarget.TARGET_5_TONE_STYLE: """Bạn là Bậc thầy Phong cách & Ngôn ngữ Văn học Light Novel / Web Novel.
+Tác giả yêu cầu CHUYỂN ĐỔI PHONG CÁCH & GIỌNG VĂN TOÀN BỘ (TONE SHIFT & RESTYLING).
+
+PHONG CÁCH YÊU CẦU:
+{user_instruction}
+
+NỘI DUNG BẢN THẢO CẦN CHUYỂN ĐỔI:
+{current_story}
+
+QUY TẮC CHUYỂN ĐỔI PHONG CÁCH (TARGET 5):
+1. BẢO TOÀN 100% CỐT TRUYỆN & SỰ KIỆN CHÍNH: Giữ nguyên chuỗi nhân quả, hành động của nhân vật, không làm lệch mạch truyện.
+2. THAY ĐỔI TRIỆT ĐỂ BẦU KHÔNG KHÍ & TỪ VỰNG:
+   - U tối/Giật gân (Dark/Thriller): Gia tăng miêu tả giác quan thể xác cụ thể, nhịp văn staccato dồn dập, bóng tối tâm lý.
+   - Hài hước (Comedy): Thêm độc thoại tự giễu cợt (dry wit), tình huống trớ trêu, tương tác dí dỏm.
+   - Trinh thám (Mystery): Tăng cường chi tiết quan sát, suy luận sắc bén, bầu không khí ngờ vực.
+   - Cổ trang (Historical): Sử dụng ngôn từ trang trọng, phong vị thời đại nhưng tự nhiên, không dịch thô.
+3. BẢO TỒN TUYỆT ĐỐI TIÊU ĐỀ `**[TÊN TIÊU ĐỀ]**` VÀ TẤT CẢ TIÊU ĐỀ CHƯƠNG `## Chương X`.
+
+ĐỊNH DẠNG ĐẦU RA (CHỈ JSON HỢP LỆ, KHÔNG CÓ MARKDOWN HAY CHỮ THỪA NGOÀI KHỐI JSON):
+{{
+  "updated_story_content": "Toàn văn nội dung đã được chuyển đổi phong cách hoàn chỉnh",
+  "summary_of_changes": "Tóm tắt phong cách và sắc thái mới vừa áp dụng",
+  "message": "Lời nhắn gửi tác giả"
+}}""",
+
+    SurgeryTarget.GENERAL_SURGERY: DIRECT_EDIT_PROMPT
+}
+
 
 class CopilotAgent:
     MAX_MANUSCRIPT_CHARS = 8000
-    MODELS = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
 
     def __init__(self):
         # Master Controller uses VIP Key or standard key
@@ -335,50 +721,27 @@ class CopilotAgent:
 
     def _get_windowed_manuscript(self, user_instruction: str, story: str) -> tuple:
         """
-        Enforces maximum 8,000 characters context window (MAX_MANUSCRIPT_CHARS = 8000),
-        leaving >= 4,000 tokens for Groq completion.
-        Applies section-targeted sliding window:
-        - Opening: head slice up to 8,000 chars.
-        - Ending: tail slice last 8,000 chars.
-        - Tone / Dialogue: active window up to 8,000 chars.
+        Enforces intelligent section-targeted sliding window via SemanticChunkSlicer.
+        Dynamically slices manuscript into prefix, window_to_edit, and suffix
+        respecting chapter markers (## Chương X) and semantic paragraph boundaries.
         Returns (prefix, window_to_edit, suffix).
         """
-        if len(story) <= self.MAX_MANUSCRIPT_CHARS:
-            return "", story, ""
-
-        inst_lower = user_instruction.lower()
-        is_opening = any(k in inst_lower for k in [
-            "mở đầu", "đoạn mở", "mở bài", "opening", "intro", "beginning"
-        ])
-        is_ending = any(k in inst_lower for k in [
-            "kết thúc", "đoạn kết", "kết bài", "ending", "outro", "conclusion", "cliffhanger"
-        ])
-
-        if is_opening:
-            cut_idx = self.MAX_MANUSCRIPT_CHARS
-            last_para = story[:cut_idx].rfind("\n\n")
-            if last_para > 3000:
-                cut_idx = last_para
-            return "", story[:cut_idx], story[cut_idx:]
-        elif is_ending:
-            start_idx = len(story) - self.MAX_MANUSCRIPT_CHARS
-            first_para = story[start_idx:].find("\n\n")
-            if first_para != -1 and first_para < 3000:
-                start_idx = start_idx + first_para + 2
-            return story[:start_idx], story[start_idx:], ""
-        else:
-            cut_idx = self.MAX_MANUSCRIPT_CHARS
-            last_para = story[:cut_idx].rfind("\n\n")
-            if last_para > 3000:
-                cut_idx = last_para
-            return "", story[:cut_idx], story[cut_idx:]
+        if not story:
+            return "", "", ""
+        target = classify_surgery_intent(user_instruction)
+        return SemanticChunkSlicer.slice_manuscript(story, target, user_instruction)
 
     def _perform_direct_manuscript_edit(self, user_instruction: str, current_story: str) -> dict:
-        """Executes targeted manuscript modification directly on the text with windowing and fallback."""
+        """
+        Executes targeted manuscript modification directly on the text with dynamic chunk slicing,
+        5 targeted Light Novel prompt templates, and structural heading preservation.
+        """
         is_en = self._is_english_text(user_instruction)
+        target = classify_surgery_intent(user_instruction)
         prefix, window_text, suffix = self._get_windowed_manuscript(user_instruction, current_story)
 
-        prompt = DIRECT_EDIT_PROMPT.format(
+        prompt_template = SURGERY_PROMPTS.get(target, DIRECT_EDIT_PROMPT)
+        prompt = prompt_template.format(
             user_instruction=user_instruction,
             current_story=window_text
         )
@@ -431,16 +794,25 @@ class CopilotAgent:
                     clean_story = direct_prose
 
             if clean_story:
+                # Structural Heading Preservation Engine: Zero-loss guarantee for **[TITLE]** and ## Chương X
+                clean_story = HeadingPreservationEngine.preserve_headings(
+                    original_story=current_story,
+                    window_text=window_text,
+                    revised_window=clean_story,
+                    target=target
+                )
+
                 if prefix or suffix:
-                    parts = [p for p in [prefix, clean_story, suffix] if p]
+                    parts = [p.strip() for p in [prefix, clean_story, suffix] if p.strip()]
                     final_story = "\n\n".join(parts).strip()
                 else:
-                    final_story = clean_story
+                    final_story = clean_story.strip()
 
+                target_name = target.value if hasattr(target, "value") else str(target)
                 thought_msg = (
-                    f"Directly modified manuscript ({used_model}): {user_instruction[:50]}"
+                    f"Directly modified manuscript ({used_model}, {target_name}): {user_instruction[:50]}"
                     if is_en else
-                    f"Đã thực hiện can thiệp trực tiếp vào bản thảo ({used_model}): {user_instruction[:50]}"
+                    f"Đã thực hiện can thiệp trực tiếp vào bản thảo ({used_model}, {target_name}): {user_instruction[:50]}"
                 )
 
                 return {

@@ -19,6 +19,7 @@ from pydantic import BaseModel
 import json
 import os
 import re
+import uuid
 from typing import Tuple, Optional, List, Dict, Any
 from dotenv import load_dotenv
 
@@ -182,6 +183,13 @@ class ChatRequest(BaseModel):
 class GenerateStoryRequest(BaseModel):
     refined_prompt: str
     story_length: str = "medium"
+
+class StoryAllocateRequest(BaseModel):
+    refined_prompt: Optional[str] = ""
+    story_length: Optional[str] = "medium"
+    genre: Optional[str] = None
+    tone: Optional[str] = None
+    session_id: Optional[str] = None
 
 class EditTextRequest(BaseModel):
     original_text: str
@@ -421,6 +429,35 @@ async def edit_text(
                 print(f"Compensating rollback error: {refund_err}")
         return {"status": "error", "message": str(e)}
 
+@app.post("/api/stories/allocate")
+def allocate_story_id(
+    request: StoryAllocateRequest,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Instantly allocates a story_id and creates a draft Story record in DB.
+    Allows frontend to bind story_id immediately upon transitioning from Intake Chat.
+    """
+    session_id = request.session_id or str(uuid.uuid4())
+    new_story = Story(
+        session_id=session_id,
+        user_id=current_user.id if current_user else None,
+        refined_prompt=request.refined_prompt or "",
+        genre=request.genre or "",
+        tone=request.tone or "",
+        story_content="",
+        word_count=0
+    )
+    db.add(new_story)
+    db.commit()
+    db.refresh(new_story)
+    return {
+        "status": "success",
+        "story_id": new_story.id,
+        "session_id": session_id
+    }
+
 @app.post("/api/generate-story")
 def generate_story(
     request: GenerateStoryRequest,
@@ -448,9 +485,34 @@ def generate_story(
 
         gen = get_story_generator()
         
+        # Pre-allocate Story record in DB at stream inception for both guests and authenticated users
+        session_id = str(uuid.uuid4())
+        pre_story_id = None
+        db_pre = SessionLocal()
+        try:
+            pre_story = Story(
+                session_id=session_id,
+                user_id=current_user.id if current_user else None,
+                refined_prompt=request.refined_prompt,
+                story_content="",
+                word_count=0
+            )
+            db_pre.add(pre_story)
+            db_pre.commit()
+            db_pre.refresh(pre_story)
+            pre_story_id = pre_story.id
+        except Exception as db_pre_err:
+            print(f"[Pre-allocate Story DB Error in generate-story] {db_pre_err}")
+        finally:
+            db_pre.close()
+
         async def stream_and_save():
             full_story = ""
-            saved_story_id = None
+            saved_story_id = pre_story_id
+            # Yield pre-allocated story_id immediately at stream inception
+            if pre_story_id:
+                yield f"[STORY_ID:{pre_story_id}]\n\n"
+
             try:
                 for chunk in gen.generate_story_stream(request.refined_prompt, request.story_length):
                     full_story += chunk
@@ -476,11 +538,18 @@ def generate_story(
                 return
                 
             word_count = len(full_story.split())
-            if word_count > 10 and current_user:
-                db_save = SessionLocal()
-                try:
+            db_save = SessionLocal()
+            try:
+                if pre_story_id:
+                    existing_story = db_save.query(Story).filter(Story.id == pre_story_id).first()
+                    if existing_story:
+                        existing_story.story_content = full_story
+                        existing_story.word_count = word_count
+                        db_save.commit()
+                elif word_count > 10:
                     new_story = Story(
-                        user_id=current_user.id,
+                        session_id=session_id,
+                        user_id=current_user.id if current_user else None,
                         refined_prompt=request.refined_prompt,
                         story_content=full_story,
                         word_count=word_count
@@ -489,10 +558,10 @@ def generate_story(
                     db_save.commit()
                     db_save.refresh(new_story)
                     saved_story_id = new_story.id
-                except Exception as e:
-                    print(f"DB Error: {e}")
-                finally:
-                    db_save.close()
+            except Exception as e:
+                print(f"DB Error: {e}")
+            finally:
+                db_save.close()
 
             if saved_story_id:
                 yield f"\n\n[STORY_ID:{saved_story_id}]"
@@ -596,7 +665,7 @@ from db.models import Comic, ComicPanel
 from services.cloudflare_ai import generate_image_cf
 
 class ComicRequest(BaseModel):
-    story_id: int
+    story_id: Optional[int] = None
     story_text: str
 
 class ComicContinueRequest(BaseModel):
@@ -726,14 +795,30 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
     deduct_ref = None
     try:
         if not current_user:
-            return {"status": "error", "message": "Bạn chưa đăng nhập."}
+            return JSONResponse(
+                status_code=401,
+                content={"status": "error", "message": "Bạn chưa đăng nhập. Vui lòng đăng nhập để chuyển thể truyện tranh.", "code": 401}
+            )
 
-        story = db.query(Story).filter(
-            Story.id == request.story_id,
-            Story.user_id == current_user.id,
-        ).first()
+        story = None
+        if request.story_id and request.story_id > 0:
+            story = db.query(Story).filter(
+                Story.id == request.story_id,
+                Story.user_id == current_user.id,
+            ).first()
+
+        # If story doesn't exist yet for this user or was written on client, auto-save the manuscript
         if not story:
-            return {"status": "error", "message": "Không tìm thấy truyện hoặc không có quyền truy cập."}
+            word_count = len(request.story_text.split())
+            story = Story(
+                user_id=current_user.id,
+                refined_prompt="Chuyển thể truyện tranh",
+                story_content=request.story_text,
+                word_count=word_count
+            )
+            db.add(story)
+            db.commit()
+            db.refresh(story)
 
         # Server-authoritative coin deduction (16 xu)
         deduct_ok, deduct_ref, bal_after = deduct_coins(
@@ -754,7 +839,7 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
         director = ComicDirectorAgent()
         script_data = director.generate_comic_script(text_to_adapt, memory=memory)
         
-        comic = Comic(user_id=current_user.id, story_id=request.story_id, title="Comic Adaptation", adapted_offset=adapted_len)
+        comic = Comic(user_id=current_user.id, story_id=story.id, title="Comic Adaptation", adapted_offset=adapted_len)
         db.add(comic)
         db.commit()
         db.refresh(comic)
@@ -769,8 +854,16 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
             "adapted_offset": adapted_len,
             "has_more": has_more
         }
-    except HTTPException:
-        raise
+    except HTTPException as he:
+        return JSONResponse(
+            status_code=he.status_code,
+            content={
+                "status": "error",
+                "message": he.detail,
+                "detail": he.detail,
+                "code": he.status_code
+            }
+        )
     except Exception as e:
         if current_user and deduct_ref:
             try:
@@ -1092,7 +1185,7 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
         return {"status": "error", "message": str(e)}
     
 @app.post("/api/init-story")
-def init_story(request: InitStoryRequest, current_user: User = Depends(get_current_user)):
+def init_story(request: InitStoryRequest, current_user: Optional[User] = Depends(get_current_user)):
     deduct_ref = None
     try:
         # Server-authoritative coin deduction (8 xu for Chapter 1)
@@ -1120,10 +1213,36 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
         memory = StoryMemory(story_bible=bible)
         session_id = memory.session_id
 
+        # Pre-allocate Story record in DB at stream inception for both guests and authenticated users
+        pre_story_id = None
+        db_pre = SessionLocal()
+        try:
+            new_story = Story(
+                session_id=session_id,
+                user_id=current_user.id if current_user else None,
+                refined_prompt=request.refined_prompt,
+                story_content="",
+                word_count=0,
+                bible_data=json.dumps(memory.story_bible.to_dict(), ensure_ascii=False) if memory.story_bible else None,
+                memory_data=memory_json(memory)
+            )
+            db_pre.add(new_story)
+            db_pre.commit()
+            db_pre.refresh(new_story)
+            pre_story_id = new_story.id
+        except Exception as pre_err:
+            print(f"[Pre-allocate Story DB Error in init-story] {pre_err}")
+        finally:
+            db_pre.close()
+
         # Step 3: Generate Chapter 1 (streaming)
         def stream_chapter_1():
             chapter_text = ""
-            saved_story_id = None
+            saved_story_id = pre_story_id
+            # Yield pre-allocated story_id immediately at stream inception
+            if pre_story_id:
+                yield f"[STORY_ID:{pre_story_id}]\n\n"
+
             try:
                 for chunk in gen.generate_chapter_stream(memory):
                     chapter_text += chunk
@@ -1160,16 +1279,23 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
             cache_mgr = get_cache_manager()
             cache_mgr.set_session(session_id, memory.to_dict(), ttl=86400)
 
-            # Save to DB
+            # Save/update in DB
             word_count = len(chapter_text.split())
-            if word_count > 10 and current_user:
-                db = SessionLocal()
-                try:
-                    import json
-                    from dataclasses import asdict
+            db = SessionLocal()
+            try:
+                if pre_story_id:
+                    st = db.query(Story).filter(Story.id == pre_story_id).first()
+                    if st:
+                        st.story_content = chapter_text
+                        st.word_count = word_count
+                        if memory.story_bible:
+                            st.bible_data = json.dumps(memory.story_bible.to_dict(), ensure_ascii=False)
+                        st.memory_data = memory_json(memory)
+                        db.commit()
+                elif word_count > 10:
                     new_story = Story(
                         session_id=session_id,
-                        user_id=current_user.id,
+                        user_id=current_user.id if current_user else None,
                         refined_prompt=request.refined_prompt,
                         story_content=chapter_text,
                         word_count=word_count,
@@ -1180,10 +1306,10 @@ def init_story(request: InitStoryRequest, current_user: User = Depends(get_curre
                     db.commit()
                     db.refresh(new_story)
                     saved_story_id = new_story.id
-                except Exception as e:
-                    print(f"DB Error: {e}")
-                finally:
-                    db.close()
+            except Exception as e:
+                print(f"DB Error: {e}")
+            finally:
+                db.close()
 
             # Yield session_id at the end as a special marker
             yield f"\n\n[SESSION_ID:{session_id}]"

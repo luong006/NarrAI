@@ -3,7 +3,7 @@
 import { translations, Language } from "@/lib/i18n";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { PlusCircle, BookOpen, LogOut, User, MessageSquare } from "lucide-react";
+import { PlusCircle, BookOpen, LogOut, User, MessageSquare, Compass, FileText, Palette } from "lucide-react";
 import { CoinBadgeMorphicon } from "@/components/morphicons/CoinBadgeMorphicon";
 
 interface Props {
@@ -18,6 +18,10 @@ interface Props {
   onOpenCoinTopup?: () => void;
   onOpenMessenger?: () => void;
   unreadCount?: number;
+  activeTab?: "setup" | "editor" | "comic" | "posts";
+  onTabChange?: (tab: "setup" | "editor" | "comic" | "posts") => void;
+  hasActiveStory?: boolean;
+  hasActiveComic?: boolean;
 }
 
 export function Sidebar({
@@ -32,6 +36,10 @@ export function Sidebar({
   onOpenCoinTopup,
   onOpenMessenger,
   unreadCount = 0,
+  activeTab = "setup",
+  onTabChange,
+  hasActiveStory = false,
+  hasActiveComic = false,
 }: Props) {
   const t = translations[lang];
   const displayName = fullName || username;
@@ -94,17 +102,69 @@ export function Sidebar({
 
         {/* Menu Navigation */}
         <div className="space-y-1">
+          {/* Sáng tác mới */}
           <button
-            onClick={onNewStory}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => {
+              onNewStory();
+              onTabChange?.("setup");
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+              activeTab === "setup"
+                ? "bg-brand-50 dark:bg-brand-950/70 text-brand-700 dark:text-brand-300 font-bold"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
           >
             <PlusCircle className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-            <span>{t.new_story}</span>
+            <span>{t.tab_create || t.new_story}</span>
           </button>
 
+          {/* Bản thảo (Editor) */}
+          {hasActiveStory && (
+            <button
+              onClick={() => onTabChange?.("editor")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === "editor"
+                  ? "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{t.tab_editor}</span>
+            </button>
+          )}
+
+          {/* Truyện tranh (Comic) */}
+          {hasActiveComic && (
+            <button
+              onClick={() => onTabChange?.("comic")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === "comic"
+                  ? "bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 font-bold"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Palette className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>{t.tab_comic}</span>
+            </button>
+          )}
+
+          {/* Bảng tin Bài đăng (Community Feed) */}
+          <button
+            onClick={() => onTabChange?.("posts")}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+              activeTab === "posts"
+                ? "bg-violet-50 dark:bg-violet-950/70 text-violet-700 dark:text-violet-300 font-bold"
+                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Compass className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <span>{t.tab_posts || (lang === "vi" ? "Bài đăng" : "Community Feed")}</span>
+          </button>
+
+          {/* Lịch sử */}
           <button
             onClick={onOpenHistory}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <BookOpen className="w-4 h-4 text-slate-500" />
             <span>{t.story_history}</span>
@@ -113,7 +173,7 @@ export function Sidebar({
           {/* Open Messenger Trigger Button */}
           <button
             onClick={onOpenMessenger}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
             title={lang === "vi" ? "Mở hộp thư Open Messenger" : "Open Messenger"}
           >
             <div className="flex items-center gap-2.5">

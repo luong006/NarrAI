@@ -8,6 +8,12 @@ import {
   EditTextResponse,
   CopilotEventResponse,
   TrendingTopic,
+  SocialPost,
+  SocialFeedResponse,
+  PublishSocialPostPayload,
+  InteractSocialPostPayload,
+  SocialFeedParams,
+  SocialPostDetailResponse,
 } from './types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://narrai-c1oc.onrender.com/api';
@@ -282,13 +288,28 @@ export const api = {
   },
 
   // Comic
-  async generateComic(storyId: number, storyText: string): Promise<ComicResponse> {
-    const res = await fetch(`${API_BASE_URL}/comic/generate`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ story_id: storyId, story_text: storyText }),
-    });
-    return res.json();
+  async generateComic(storyId: number | null, storyText: string): Promise<ComicResponse> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/comic/generate`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ story_id: storyId || null, story_text: storyText }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return {
+          status: 'error',
+          message: data.detail || data.message || `Lỗi HTTP ${res.status}`,
+          code: res.status,
+        } as any;
+      }
+      return data;
+    } catch (err: any) {
+      return {
+        status: 'error',
+        message: err.message || 'Không thể kết nối tới máy chủ khi chuyển thể truyện tranh',
+      } as any;
+    }
   },
 
   async continueComic(comicId: number, storyText: string): Promise<ComicResponse> {
@@ -320,4 +341,116 @@ export const api = {
       return { status: 'error', coins: 100 };
     }
   },
+
+  // Social & Literary Feed (Requirement #4)
+  async getSocialFeed(
+    paramsOrGenre?: SocialFeedParams | string,
+    limit = 20,
+    offset = 0
+  ): Promise<SocialFeedResponse> {
+    try {
+      let finalGenre: string | undefined;
+      let finalLimit = limit;
+      let finalOffset = offset;
+
+      if (paramsOrGenre && typeof paramsOrGenre === "object") {
+        finalGenre = paramsOrGenre.genre;
+        if (paramsOrGenre.limit !== undefined) finalLimit = paramsOrGenre.limit;
+        if (paramsOrGenre.offset !== undefined) finalOffset = paramsOrGenre.offset;
+      } else if (typeof paramsOrGenre === "string") {
+        finalGenre = paramsOrGenre;
+      }
+
+      const params = new URLSearchParams({
+        limit: String(finalLimit),
+        offset: String(finalOffset),
+      });
+
+      if (finalGenre && finalGenre !== "All" && finalGenre !== "Tất cả") {
+        params.append("genre", finalGenre);
+      }
+
+      const res = await fetch(`${API_BASE_URL}/social/feed?${params.toString()}`, {
+        headers: authHeaders(),
+      });
+
+      if (!res.ok) {
+        return {
+          success: false,
+          data: { items: [], total: 0, page_limit: finalLimit, offset: finalOffset, has_more: false },
+        };
+      }
+      return res.json();
+    } catch {
+      return {
+        success: false,
+        data: { items: [], total: 0, page_limit: limit, offset, has_more: false },
+      };
+    }
+  },
+
+  async publishSocialPost(
+    payload: PublishSocialPostPayload
+  ): Promise<{ success: boolean; message?: string; post_id?: number; data?: any }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/social/publish`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, message: parseErrorDetail(data) };
+      }
+      return data;
+    } catch (err: any) {
+      return { success: false, message: err.message || "Không thể kết nối đến máy chủ khi đăng bài." };
+    }
+  },
+
+  // Backwards-compatible alias for publishPost
+  async publishPost(
+    payload: PublishSocialPostPayload
+  ): Promise<{ success: boolean; message?: string; post_id?: number; data?: any }> {
+    return this.publishSocialPost(payload);
+  },
+
+  async interactSocialPost(
+    payload: InteractSocialPostPayload
+  ): Promise<{ success: boolean; message?: string; interaction_id?: number; metadata?: any }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/social/interact`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return res.json();
+    } catch (err: any) {
+      return { success: false, message: err.message };
+    }
+  },
+
+  // Backwards-compatible alias for interactPost
+  async interactPost(
+    payload: InteractSocialPostPayload
+  ): Promise<{ success: boolean; message?: string; interaction_id?: number; metadata?: any }> {
+    return this.interactSocialPost(payload);
+  },
+
+  async getSocialPostDetails(postId: number): Promise<SocialPostDetailResponse> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/social/post/${postId}`, {
+        headers: authHeaders(),
+      });
+      return res.json();
+    } catch (err: any) {
+      return { success: false, detail: err.message };
+    }
+  },
+
+  // Backwards-compatible alias for getPostDetails
+  async getPostDetails(postId: number): Promise<SocialPostDetailResponse> {
+    return this.getSocialPostDetails(postId);
+  },
 };
+
