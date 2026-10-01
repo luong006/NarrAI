@@ -7,6 +7,7 @@ import { Sparkles, Bot, Edit3, Image as ImageIcon, ArrowRight } from "lucide-rea
 import { InteractiveTiltCard } from "@/components/cards/InteractiveTiltCard";
 import { CoinBadgeMorphicon } from "@/components/morphicons/CoinBadgeMorphicon";
 import { LikeButtonMorphicon } from "@/components/morphicons/LikeButtonMorphicon";
+import { NeuralVisualPreview } from "@/components/canvas/NeuralVisualPreview";
 
 interface Props {
   lang: Language;
@@ -54,7 +55,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
+      <section className="max-w-5xl mx-auto px-6 pt-20 pb-12 text-center">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-indigo-50/90 dark:bg-indigo-950/60 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-900 mb-6 shadow-sm">
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           <span>{t.hero_badge}</span>
@@ -79,6 +80,12 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
           </button>
         </div>
       </section>
+
+      {/* AI Art & Neural Style Preview Showcase (Feature 30) */}
+      <section className="max-w-4xl mx-auto px-6 pb-12">
+        <NeuralVisualPreview lang={lang} />
+      </section>
+
 
       {/* Features Grid: Layer 1 Interactive 3D Tilt Cards */}
       <section className="max-w-6xl mx-auto px-6 py-16">

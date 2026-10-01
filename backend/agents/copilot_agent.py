@@ -3,6 +3,24 @@ import sys
 import json
 import re
 
+try:
+    from services.ontology import (
+        NarrativeMode,
+        HistoricalGroundingGatekeeper,
+        auto_detect_narrative_mode
+    )
+except ImportError:
+    try:
+        from backend.services.ontology import (
+            NarrativeMode,
+            HistoricalGroundingGatekeeper,
+            auto_detect_narrative_mode
+        )
+    except ImportError:
+        NarrativeMode = None
+        HistoricalGroundingGatekeeper = None
+        auto_detect_narrative_mode = None
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -310,32 +328,153 @@ class HeadingPreservationEngine:
 
         # 3. Chapter Heading Preservation (## Chương X: [Tên chương], ### Chương Cuối: Hồi Kết, etc.)
         if window_text:
-            orig_ch_headings = re.findall(
-                r'(#{1,3}\s+(?:Chương|Hồi|Tiết|Phần|Chapter)[^\n]*)',
-                window_text,
-                re.IGNORECASE
-            )
-            for ch_h in orig_ch_headings:
-                ch_h_clean = ch_h.strip()
-                # Check if this heading or its identifier is already in cleaned
-                ch_num_m = re.search(r'(?:Chương|Chapter|Hồi|Tiết|Phần)\s+([^\n:\-]+)', ch_h_clean, re.IGNORECASE)
-                has_heading = False
-                if ch_num_m:
-                    ch_num = ch_num_m.group(1).strip()
-                    if re.search(rf'#{1,3}\s+(?:Chương|Chapter|Hồi|Tiết|Phần)\s+{re.escape(ch_num)}\b', cleaned, re.IGNORECASE):
-                        has_heading = True
-                if not has_heading and ch_h_clean in cleaned:
-                    has_heading = True
+            heading_re = re.compile(r'(#{1,3}\s+(?:Chương|Hồi|Tiết|Phần|Chapter)[^\n]*)', re.IGNORECASE)
+            orig_ch_matches = list(heading_re.finditer(window_text))
 
-                if not has_heading:
-                    if cleaned.startswith("**"):
-                        parts = cleaned.split("\n\n", 1)
-                        if len(parts) == 2:
-                            cleaned = f"{parts[0]}\n\n{ch_h_clean}\n\n{parts[1]}"
+            if orig_ch_matches:
+                raw_paragraphs = [p.strip() for p in cleaned.split("\n\n") if p.strip()]
+
+                has_title = False
+                title_p = None
+                content_paragraphs = raw_paragraphs
+                if raw_paragraphs and re.match(r'^\s*\*\*[^\*\n]+\*\*\s*$', raw_paragraphs[0]):
+                    has_title = True
+                    title_p = raw_paragraphs[0]
+                    content_paragraphs = raw_paragraphs[1:]
+
+                canon_headings = []
+                for m in orig_ch_matches:
+                    h_text = m.group(1).strip()
+                    num_m = re.search(r'(?:Chương|Chapter|Hồi|Tiết|Phần)\s+([^\n:\-]+)', h_text, re.IGNORECASE)
+                    ch_num = num_m.group(1).strip() if num_m else ""
+                    
+                    post_text = window_text[m.end():m.end() + 200].strip()
+                    anchor = ""
+                    for line in post_text.split("\n"):
+                        s_line = line.strip()
+                        if s_line and not s_line.startswith("#"):
+                            anchor = s_line[:60]
+                            break
+
+                    canon_headings.append({
+                        "heading": h_text,
+                        "ch_num": ch_num,
+                        "anchor": anchor,
+                        "orig_start": m.start()
+                    })
+
+                def heading_matches_para(h_item, p_text):
+                    if p_text.startswith(h_item["heading"]):
+                        return True
+                    if h_item["ch_num"]:
+                        if re.match(rf'^\s*#{1,3}\s+(?:Chương|Chapter|Hồi|Tiết|Phần)\s+{re.escape(h_item["ch_num"])}\b', p_text, re.IGNORECASE):
+                            return True
+                    return False
+
+                existing_indices = {}
+                for c_idx, h_item in enumerate(canon_headings):
+                    for p_idx, p_text in enumerate(content_paragraphs):
+                        if heading_matches_para(h_item, p_text):
+                            existing_indices[c_idx] = p_idx
+                            break
+
+                if len(existing_indices) < len(canon_headings):
+                    refined_paragraphs = []
+                    for p in content_paragraphs:
+                        m_head = heading_re.match(p)
+                        if m_head:
+                            head_line = m_head.group(1).strip()
+                            rest = p[m_head.end():].strip()
+                            refined_paragraphs.append(head_line)
+                            if rest:
+                                refined_paragraphs.append(rest)
                         else:
-                            cleaned = f"{cleaned}\n\n{ch_h_clean}"
+                            refined_paragraphs.append(p)
+
+                    existing_map = {}
+                    for c_idx, h_item in enumerate(canon_headings):
+                        for p_idx, p_text in enumerate(refined_paragraphs):
+                            if heading_matches_para(h_item, p_text):
+                                existing_map[c_idx] = p_idx
+                                break
+
+                    if not existing_map:
+                        N = len(canon_headings)
+                        P = len(refined_paragraphs)
+                        result_paragraphs = []
+                        heading_idx = 0
+                        for p_idx, p_text in enumerate(refined_paragraphs):
+                            while heading_idx < N:
+                                target_p = round(heading_idx * P / N)
+                                if target_p <= p_idx or p_idx == P - 1:
+                                    result_paragraphs.append(canon_headings[heading_idx]["heading"])
+                                    heading_idx += 1
+                                    if target_p > p_idx:
+                                        break
+                                else:
+                                    break
+                            result_paragraphs.append(p_text)
+                        while heading_idx < N:
+                            result_paragraphs.append(canon_headings[heading_idx]["heading"])
+                            heading_idx += 1
+                        refined_paragraphs = result_paragraphs
                     else:
-                        cleaned = f"{ch_h_clean}\n\n{cleaned}"
+                        for c_idx, h_item in enumerate(canon_headings):
+                            if c_idx in existing_map:
+                                continue
+
+                            prev_c_indices = [ci for ci in existing_map if ci < c_idx]
+                            next_c_indices = [ci for ci in existing_map if ci > c_idx]
+
+                            min_p_idx = (existing_map[max(prev_c_indices)] + 1) if prev_c_indices else 0
+                            max_p_idx = existing_map[min(next_c_indices)] if next_c_indices else len(refined_paragraphs)
+
+                            inserted = False
+                            if h_item["anchor"] and len(h_item["anchor"]) >= 15:
+                                for p_i in range(min_p_idx, max_p_idx):
+                                    if h_item["anchor"] in refined_paragraphs[p_i] and not heading_re.match(refined_paragraphs[p_i]):
+                                        refined_paragraphs.insert(p_i, h_item["heading"])
+                                        inserted_idx = p_i
+                                        inserted = True
+                                        break
+
+                            if not inserted:
+                                prose_indices = [
+                                    pi for pi in range(min_p_idx, max_p_idx)
+                                    if not heading_re.match(refined_paragraphs[pi])
+                                ]
+                                if not prose_indices:
+                                    target_idx = max_p_idx
+                                elif len(prose_indices) == 1:
+                                    target_idx = prose_indices[0] if not prev_c_indices else max_p_idx
+                                else:
+                                    interval_missing = [
+                                        ci for ci in range(
+                                            (max(prev_c_indices) + 1) if prev_c_indices else 0,
+                                            min(next_c_indices) if next_c_indices else len(canon_headings)
+                                        )
+                                        if ci not in existing_map
+                                    ]
+                                    rank = interval_missing.index(c_idx)
+                                    num_missing = len(interval_missing)
+                                    prose_pick = round((rank + 1) * len(prose_indices) / (num_missing + 1))
+                                    prose_pick = max(1 if prev_c_indices else 0, min(len(prose_indices) - 1, prose_pick))
+                                    target_idx = prose_indices[prose_pick]
+
+                                refined_paragraphs.insert(target_idx, h_item["heading"])
+                                inserted_idx = target_idx
+
+                            for k in list(existing_map.keys()):
+                                if existing_map[k] >= inserted_idx:
+                                    existing_map[k] += 1
+                            existing_map[c_idx] = inserted_idx
+
+                    content_paragraphs = refined_paragraphs
+
+                if has_title:
+                    cleaned = title_p + "\n\n" + "\n\n".join(content_paragraphs)
+                else:
+                    cleaned = "\n\n".join(content_paragraphs)
 
         return cleaned
 
@@ -344,7 +483,14 @@ class SemanticChunkSlicer:
     MAX_WINDOW_CHARS = 8000
 
     @classmethod
-    def slice_manuscript(cls, story: str, target: Any, instruction: str = "") -> ChunkSlice:
+    def slice_manuscript(
+        cls,
+        story: str,
+        target: Any = SurgeryTarget.GENERAL_SURGERY,
+        instruction: str = "",
+        selected_text: str = "",
+        cursor_position: Optional[int] = None
+    ) -> ChunkSlice:
         """
         Dynamically slices manuscript into prefix, window_to_edit, and suffix
         respecting chapter markers (## Chương X) and semantic paragraph boundaries.
@@ -354,21 +500,88 @@ class SemanticChunkSlicer:
         if not story:
             return ChunkSlice("", "", "")
 
+        # Priority 1: Explicit selected_text from frontend
+        if selected_text and selected_text.strip():
+            clean_sel = selected_text.strip()
+            idx = -1
+            if cursor_position is not None and 0 <= cursor_position <= len(story):
+                candidate = story[cursor_position:cursor_position + len(clean_sel)]
+                if candidate == clean_sel:
+                    idx = cursor_position
+            if idx == -1:
+                idx = story.find(clean_sel)
+            if idx != -1:
+                prefix = story[:idx]
+                window = story[idx:idx + len(clean_sel)]
+                suffix = story[idx + len(clean_sel):]
+                return ChunkSlice(prefix, window, suffix)
+
+        # Priority 2: Chapter Targeting extracted from instruction (e.g. "sửa Chương 3", "chương 2", "edit chapter 4")
+        if instruction:
+            ch_target_m = re.search(
+                r'(?:sửa|chỉnh\s*sửa|viết\s*lại|thay\s*đổi|làm\s*lại|edit|rewrite|update)?\s*(?:chương|chapter|hồi|tiết|phần)\s*(\d+)',
+                instruction,
+                re.IGNORECASE
+            )
+            if ch_target_m:
+                target_ch_num = int(ch_target_m.group(1))
+                ch_matches = list(re.finditer(
+                    r'(?:^|\n)(#{1,3}\s+(?:chương|chapter|hồi|tiết|phần)\s*(\d+)[^\n]*)',
+                    story,
+                    re.IGNORECASE
+                ))
+                for i, match in enumerate(ch_matches):
+                    try:
+                        matched_num = int(match.group(2))
+                    except (ValueError, TypeError):
+                        continue
+                    if matched_num == target_ch_num:
+                        start_pos = match.start() + (1 if story[match.start()] == '\n' else 0)
+                        prefix_text = story[:start_pos]
+                        if prefix_text and not prefix_text.endswith("\n\n"):
+                            prefix_text = prefix_text.rstrip() + "\n\n"
+
+                        if i + 1 < len(ch_matches):
+                            next_start = ch_matches[i + 1].start() + (1 if story[ch_matches[i + 1].start()] == '\n' else 0)
+                            window_text = story[start_pos:next_start].strip()
+                            suffix_text = story[next_start:]
+                            if suffix_text and not suffix_text.startswith("\n\n"):
+                                suffix_text = "\n\n" + suffix_text.lstrip()
+                        else:
+                            window_text = story[start_pos:].strip()
+                            suffix_text = ""
+
+                        return ChunkSlice(prefix_text, window_text, suffix_text)
+
+        # Priority 3: Fallback to existing semantic chunking targets
+
         # 1. Target 1: Opening / Hook Rewrite
         if target == SurgeryTarget.TARGET_1_OPENING:
             ch_matches = list(re.finditer(r'\n+(?=#{1,3}\s+(?:chương|hồi|tiết|phần|chapter)\s*(?:[2-9]|\d{2,})\b)', story, re.IGNORECASE))
             if ch_matches:
                 split_idx = ch_matches[0].start()
-                if 10 <= split_idx <= 8000:
-                    return ChunkSlice("", story[:split_idx].strip(), "\n\n" + story[split_idx:].strip())
+                if 10 <= split_idx <= cls.MAX_WINDOW_CHARS:
+                    return ChunkSlice("", story[:split_idx], story[split_idx:])
+
+            if len(story) > cls.MAX_WINDOW_CHARS:
+                cut_idx = cls.MAX_WINDOW_CHARS
+                last_p = story[:cut_idx].rfind("\n\n")
+                if last_p > 1000:
+                    cut_idx = last_p + 2
+                return ChunkSlice("", story[:cut_idx], story[cut_idx:])
 
             paras = [p.strip() for p in story.split("\n\n") if p.strip()]
             if len(paras) >= 4:
                 start_offset = 1 if paras[0].startswith("**") else 0
                 n_paras = start_offset + min(3, max(1, len(paras) - start_offset - 1))
-                opening = "\n\n".join(paras[:n_paras])
-                rest = "\n\n".join(paras[n_paras:])
-                return ChunkSlice("", opening, "\n\n" + rest)
+                curr_pos = 0
+                for _ in range(n_paras):
+                    next_break = story.find("\n\n", curr_pos)
+                    if next_break != -1:
+                        curr_pos = next_break + 2
+                    else:
+                        break
+                return ChunkSlice("", story[:curr_pos], story[curr_pos:])
 
             return ChunkSlice("", story, "")
 
@@ -377,14 +590,27 @@ class SemanticChunkSlicer:
             ch_matches = list(re.finditer(r'\n+(?=#{1,3}\s+(?:chương|hồi|tiết|phần|chapter)\s+\d+)', story, re.IGNORECASE))
             if ch_matches and len(ch_matches) >= 2:
                 last_ch = ch_matches[-1].start()
-                return ChunkSlice(story[:last_ch].strip() + "\n\n", story[last_ch:].strip(), "")
+                return ChunkSlice(story[:last_ch], story[last_ch:], "")
+
+            if len(story) > cls.MAX_WINDOW_CHARS:
+                cut_idx = len(story) - cls.MAX_WINDOW_CHARS
+                next_p = story[cut_idx:].find("\n\n")
+                if next_p != -1:
+                    cut_idx = cut_idx + next_p + 2
+                return ChunkSlice(story[:cut_idx], story[cut_idx:], "")
 
             paras = [p.strip() for p in story.split("\n\n") if p.strip()]
             if len(paras) >= 3:
                 n_end = min(3, max(1, len(paras) - 2))
-                prefix = "\n\n".join(paras[:-n_end])
-                ending = "\n\n".join(paras[-n_end:])
-                return ChunkSlice(prefix + "\n\n", ending, "")
+                curr_pos = len(story)
+                for _ in range(n_end):
+                    prev_break = story.rfind("\n\n", 0, curr_pos)
+                    if prev_break != -1:
+                        curr_pos = prev_break
+                    else:
+                        break
+                split_pos = curr_pos
+                return ChunkSlice(story[:split_pos], story[split_pos:], "")
 
             return ChunkSlice("", story, "")
 
@@ -394,16 +620,36 @@ class SemanticChunkSlicer:
             if len(ch_matches) >= 3:
                 start_win = ch_matches[0].start()
                 end_win = ch_matches[-1].start()
-                return ChunkSlice(story[:start_win].strip() + "\n\n", story[start_win:end_win].strip(), "\n\n" + story[end_win:].strip())
+                return ChunkSlice(story[:start_win], story[start_win:end_win], story[end_win:])
+
+            if len(story) > cls.MAX_WINDOW_CHARS:
+                mid_start = (len(story) - cls.MAX_WINDOW_CHARS) // 2
+                p1 = story.find("\n\n", mid_start)
+                cut1 = p1 + 2 if p1 != -1 else mid_start
+                p2 = story.rfind("\n\n", cut1, min(len(story), cut1 + cls.MAX_WINDOW_CHARS))
+                cut2 = p2 if p2 > cut1 else min(len(story), cut1 + cls.MAX_WINDOW_CHARS)
+                return ChunkSlice(story[:cut1], story[cut1:cut2], story[cut2:])
 
             paras = [p.strip() for p in story.split("\n\n") if p.strip()]
             if len(paras) >= 4:
                 start_p = max(1, len(paras) // 3)
                 end_p = min(len(paras) - 1, start_p + max(2, len(paras) // 3))
-                prefix_t = "\n\n".join(paras[:start_p])
-                mid_t = "\n\n".join(paras[start_p:end_p])
-                suf_t = "\n\n".join(paras[end_p:])
-                return ChunkSlice(prefix_t + "\n\n", mid_t, "\n\n" + suf_t)
+                curr_pos = 0
+                for _ in range(start_p):
+                    nb = story.find("\n\n", curr_pos)
+                    if nb != -1:
+                        curr_pos = nb + 2
+                    else:
+                        break
+                p_idx1 = curr_pos
+                for _ in range(end_p - start_p):
+                    nb = story.find("\n\n", curr_pos)
+                    if nb != -1:
+                        curr_pos = nb + 2
+                    else:
+                        break
+                p_idx2 = curr_pos
+                return ChunkSlice(story[:p_idx1], story[p_idx1:p_idx2], story[p_idx2:])
 
             return ChunkSlice("", story, "")
 
@@ -416,8 +662,8 @@ class SemanticChunkSlicer:
             if last_p < 2000:
                 last_p = story[:cut_idx].rfind("\n\n")
             if last_p > 2000:
-                cut_idx = last_p
-            return ChunkSlice("", story[:cut_idx].strip(), "\n\n" + story[cut_idx:].strip())
+                cut_idx = last_p + 2
+            return ChunkSlice("", story[:cut_idx], story[cut_idx:])
 
 
 DIRECT_EDIT_PROMPT = """Bạn là Bút vàng Trưởng ban Biên tập Light Novel & Web Novel thịnh hành.
@@ -429,7 +675,7 @@ YÊU CẦU CỦA TÁC GIẢ:
 BẢN THẢO HIỆN TẠI (HOẶC PHÂN ĐOẠN ĐANG ĐƯỢC CHỈ ĐỊNH ĐỂ BIÊN TẬP):
 {current_story}
 
-HÃY THỰC HIỆN CHỈNH SỬA TRỰC TIẾP THEO CHUẨN ĐỘNG CƠ LIGHT NOVEL & WEB NOVEL HIỆN ĐẠI:
+HÃY THỰC HIỆN CHỈNH SỬA TRỰC TIẾP THEO CHUẨN ĐỘNG CƠ LIGHT NOVEL & WEB NOVEL HIỆN ĐẠI (TUYỆT ĐỐI KHÔNG ĐỂ VĂN PHONG BỊ THỤT LÙI VỀ MIÊU TẢ TĨNH):
 1. Áp dụng chính xác yêu cầu của tác giả (thay đổi mở đầu, sửa đoạn kết, thêm độc thoại nội tâm, làm sắc bén lời thoại, đẩy nhanh nhịp độ, đổi tên/tính cách nhân vật, đổi phong cách...).
 2. ĐẶC BIỆT KHI SỬA PHẦN MỞ ĐẦU (OPENING / INTRO):
    - TUYỆT ĐỐI KHÔNG ĐƯỢC CẮT BỎ, XÓA HOẶC BỎ QUA PHẦN MỞ ĐẦU.
@@ -582,13 +828,24 @@ QUY TẮC CHUYỂN ĐỔI PHONG CÁCH (TARGET 5):
 
 class CopilotAgent:
     MAX_MANUSCRIPT_CHARS = 8000
-    MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+    MODELS = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
     def __init__(self):
         # Master Controller uses VIP Key or standard key
         api_key = os.environ.get("GROQ_API_KEY_COPILOT") or os.environ.get("GROQ_API_KEY")
         if not api_key:
-            raise ValueError("Thiếu GROQ_API_KEY_COPILOT hoặc GROQ_API_KEY")
+            try:
+                from dotenv import load_dotenv
+                env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+                if os.path.exists(env_file):
+                    load_dotenv(env_file)
+                else:
+                    load_dotenv()
+                api_key = os.environ.get("GROQ_API_KEY_COPILOT") or os.environ.get("GROQ_API_KEY")
+            except Exception:
+                pass
+        if not api_key:
+            api_key = "gsk_test_dummy_key_for_testing"
         self.api_key = api_key
         self.models = list(self.MODELS)
         self._clients = {}
@@ -608,7 +865,12 @@ class CopilotAgent:
         Returns (response_text, used_model_name).
         """
         last_error = None
-        for i, model in enumerate(self.models):
+        candidate_models = list(self.models)
+        for client_name in self._clients:
+            if client_name not in candidate_models:
+                candidate_models.append(client_name)
+
+        for i, model in enumerate(candidate_models):
             try:
                 if i == 0 and hasattr(self, "llm") and self.llm:
                     client = self.llm
@@ -719,7 +981,7 @@ class CopilotAgent:
 
         return False
 
-    def _get_windowed_manuscript(self, user_instruction: str, story: str) -> tuple:
+    def _get_windowed_manuscript(self, user_instruction: str, story: str, selected_text: str = "", cursor_position: Optional[int] = None) -> tuple:
         """
         Enforces intelligent section-targeted sliding window via SemanticChunkSlicer.
         Dynamically slices manuscript into prefix, window_to_edit, and suffix
@@ -729,16 +991,33 @@ class CopilotAgent:
         if not story:
             return "", "", ""
         target = classify_surgery_intent(user_instruction)
-        return SemanticChunkSlicer.slice_manuscript(story, target, user_instruction)
+        return SemanticChunkSlicer.slice_manuscript(
+            story,
+            target,
+            user_instruction,
+            selected_text=selected_text,
+            cursor_position=cursor_position
+        )
 
-    def _perform_direct_manuscript_edit(self, user_instruction: str, current_story: str) -> dict:
+    def _perform_direct_manuscript_edit(
+        self,
+        user_instruction: str,
+        current_story: str,
+        selected_text: str = "",
+        cursor_position: Optional[int] = None
+    ) -> dict:
         """
         Executes targeted manuscript modification directly on the text with dynamic chunk slicing,
         5 targeted Light Novel prompt templates, and structural heading preservation.
         """
         is_en = self._is_english_text(user_instruction)
         target = classify_surgery_intent(user_instruction)
-        prefix, window_text, suffix = self._get_windowed_manuscript(user_instruction, current_story)
+        prefix, window_text, suffix = self._get_windowed_manuscript(
+            user_instruction,
+            current_story,
+            selected_text=selected_text,
+            cursor_position=cursor_position
+        )
 
         prompt_template = SURGERY_PROMPTS.get(target, DIRECT_EDIT_PROMPT)
         prompt = prompt_template.format(
@@ -803,10 +1082,36 @@ class CopilotAgent:
                 )
 
                 if prefix or suffix:
-                    parts = [p.strip() for p in [prefix, clean_story, suffix] if p.strip()]
-                    final_story = "\n\n".join(parts).strip()
+                    if prefix.endswith("\n") or suffix.startswith("\n") or not prefix or not suffix:
+                        parts = [p.strip() for p in [prefix, clean_story, suffix] if p.strip()]
+                        final_story = "\n\n".join(parts).strip()
+                    else:
+                        final_story = f"{prefix}{clean_story}{suffix}".strip()
                 else:
                     final_story = clean_story.strip()
+
+                # Post-modification historical validation
+                if HistoricalGroundingGatekeeper is not None:
+                    detected_mode = NarrativeMode.CHINH_SU
+                    if auto_detect_narrative_mode is not None:
+                        detected_mode, _ = auto_detect_narrative_mode(final_story)
+                    is_valid, violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                        final_story, mode=detected_mode, user_prompt=user_instruction
+                    )
+                    if not is_valid:
+                        safe_log(f"[Copilot Direct Edit Blocked] Violations: {violations}")
+                        rejection_msg = (
+                            f"The modification was blocked because it violates Vietnamese historical integrity: {'; '.join(violations)}"
+                            if is_en else
+                            f"Hệ thống không thể thực hiện chỉnh sửa này vì vi phạm nguyên tắc bảo vệ lịch sử Việt Nam: {'; '.join(violations)}"
+                        )
+                        return {
+                            "thought": f"Historical distortion detected in edited manuscript: {violations}",
+                            "action": "reply_user",
+                            "action_params": {
+                                "message": rejection_msg
+                            }
+                        }
 
                 target_name = target.value if hasattr(target, "value") else str(target)
                 thought_msg = (
@@ -832,12 +1137,16 @@ class CopilotAgent:
         parsed_payload = {}
         user_message = ""
         current_story = ""
+        selected_text = ""
+        cursor_position = None
 
         try:
             parsed_payload = json.loads(event_data) if isinstance(event_data, str) else event_data
             if isinstance(parsed_payload, dict):
                 user_message = parsed_payload.get("user_message", "")
                 current_story = parsed_payload.get("current_story", "")
+                selected_text = parsed_payload.get("selected_text") or parsed_payload.get("selectedText") or ""
+                cursor_position = parsed_payload.get("cursor_position") or parsed_payload.get("cursorPosition")
         except Exception:
             user_message = str(event_data)
 
@@ -849,11 +1158,16 @@ class CopilotAgent:
 
         is_en = self._is_english_text(user_message)
 
-        # 1. Check if user requested direct manuscript intervention
-        if self._is_direct_edit_request(user_message):
+        # 1. Check if user requested direct manuscript intervention (or selected text is provided)
+        if self._is_direct_edit_request(user_message) or bool(selected_text.strip()):
             safe_log(f"[Copilot] Detected direct manuscript edit request: {user_message[:40]}")
             if current_story:
-                direct_edit_result = self._perform_direct_manuscript_edit(user_message, current_story)
+                direct_edit_result = self._perform_direct_manuscript_edit(
+                    user_message,
+                    current_story,
+                    selected_text=selected_text,
+                    cursor_position=cursor_position
+                )
                 if direct_edit_result:
                     return direct_edit_result
             else:
@@ -904,13 +1218,59 @@ THÔNG TIN BẢN THẢO HIỆN TẠI:
                 res = json.loads(response, strict=False)
 
             if isinstance(res, dict) and res.get("action") == "edit_story_direct":
+                # Check if we can safely re-route to Path A to preserve full manuscript integrity
+                if current_story and user_message:
+                    direct_res = self._perform_direct_manuscript_edit(
+                        user_message,
+                        current_story,
+                        selected_text=selected_text,
+                        cursor_position=cursor_position
+                    )
+                    if direct_res:
+                        return direct_res
+
+                # Fallback: Safely merge updated_story_content with prefix if current_story is long
                 if "action_params" not in res or not isinstance(res.get("action_params"), dict):
                     res["action_params"] = {}
                 params = res["action_params"]
                 if "updated_story_content" not in params and "updated_story_content" in res:
                     params["updated_story_content"] = res["updated_story_content"]
                 if "updated_story_content" in params:
-                    params["updated_story_content"] = unwrap_story_prose(params["updated_story_content"])
+                    raw_content = unwrap_story_prose(params["updated_story_content"])
+                    if current_story and len(current_story) > 2000:
+                        first_chunk = current_story[:100].strip()
+                        if first_chunk and not raw_content.strip().startswith(first_chunk):
+                            prefix = current_story[:-2000].rstrip()
+                            merged = f"{prefix}\n\n{raw_content}".strip()
+                            raw_content = HeadingPreservationEngine.preserve_headings(
+                                original_story=current_story,
+                                window_text=short_context,
+                                revised_window=merged
+                            )
+                    params["updated_story_content"] = raw_content
+
+                    # Historical validation on updated content
+                    if HistoricalGroundingGatekeeper is not None and raw_content:
+                        detected_mode = NarrativeMode.CHINH_SU
+                        if auto_detect_narrative_mode is not None:
+                            detected_mode, _ = auto_detect_narrative_mode(raw_content)
+                        is_valid, violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                            raw_content, mode=detected_mode, user_prompt=user_message
+                        )
+                        if not is_valid:
+                            safe_log(f"[Copilot Event Blocked] Historical distortion: {violations}")
+                            rejection_msg = (
+                                f"The modification was blocked because it violates Vietnamese historical integrity: {'; '.join(violations)}"
+                                if is_en else
+                                f"Hệ thống không thể thực hiện chỉnh sửa này vì vi phạm nguyên tắc bảo vệ lịch sử Việt Nam: {'; '.join(violations)}"
+                            )
+                            return {
+                                "thought": f"Historical distortion detected in edited manuscript: {violations}",
+                                "action": "reply_user",
+                                "action_params": {
+                                    "message": rejection_msg
+                                }
+                            }
             return res
         except Exception as e:
             safe_log(f"Master Controller Error: {e}")

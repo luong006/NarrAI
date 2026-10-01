@@ -1,27 +1,18 @@
-# Progress — Explorer Survey 2 (Social, Recommender, Messenger & Banking)
-Last visited: 2026-09-28T01:13:30Z
+# Progress — Explorer Survey 2 (Vietnamese Historical & Copyright Protection)
+Last visited: 2026-09-30T16:43:00Z
 Status: Survey Completed (100%)
 
 ## Completed Steps
-- [x] Read ORIGINAL_REQUEST.md (Technical Specs for R2 and R3)
-- [x] Initialized DISPATCH.md and BRIEFING.md
-- [x] Inspected database configuration (`backend/db/models.py`) and existing models (`User`, `Story`, `Comic`, `ComicPanel`)
-- [x] Inspected existing authentication, rate limiting, and password validation (`backend/auth.py`, `backend/main.py`)
-- [x] Inspected DSGO models (`backend/models/scene_graph.py`) to connect ontology traversal with R2 candidate generation
-- [x] Inspected cache architecture (`backend/services/cache_service.py`)
-- [x] Inspected existing story, comic, and copilot endpoints in `backend/main.py`
-- [x] Surveyed R2:
-  - Data models: `social_posts`, `post_interactions`, `user_interest_profiles`
-  - 3-Stage Recommender: Candidate generation (Content Cosine + Graph DSGO traversal), Scoring & multi-task ranking (Cosine, Implicit affinity, Freshness, QualityScore), Re-ranking (MMR diversity lambda=0.7, MAB Thompson Sampling / epsilon-greedy epsilon=0.15)
-  - Open Messenger: User directory search, 1-1 chat between ANY users, conversation management, unread status and notifications
-- [x] Surveyed R3:
-  - 100 Coin economic model (8/12/16/2 xu pricing table)
-  - Dual-layer concurrency isolation: Per-user thread mutex (`threading.Lock`) + SQLite `IMMEDIATE TRANSACTION`
-  - Absolute server authority over pricing & coin deduction
-  - Compensating transaction rollback (`REFUND_FAILED_GENERATION`)
-  - Cryptographic ledger: `coin_transactions` with chained SHA-256 hashes
-  - Multi-Signal Anti-Clone Guard (Canvas 2D + WebGL + AudioContext + Screen Specs + IP /24 subnet throttling; 8 trial coins for fresh devices/subnets, 0 coins for clones)
-- [x] Wrote comprehensive survey findings to `e:\NarrAI\.agents\teamwork\explorer_survey_2\report.md`
-- [x] Wrote 5-component handoff report to `e:\NarrAI\.agents\teamwork\explorer_survey_2\handoff.md`
-- [x] Updated `BRIEFING.md`
-- [x] Sending completion message to parent orchestrator
+- [x] Read ORIGINAL_REQUEST.md (Round 6: R2 Vietnamese Historical & Copyright Protection)
+- [x] Updated DISPATCH.md and BRIEFING.md
+- [x] Located historical grounding and validation modules (`backend/services/ontology.py`, `backend/agents/story_generator.py`, `backend/agents/copilot_agent.py`, `backend/routers/social_router.py`, `backend/main.py`)
+- [x] Examined current list of 6 heroes/events and designed expansion to 31 heroes/events across all 6 Vietnamese historical epochs
+- [x] Located `validate_historical_invariants` (`backend/services/ontology.py`:198) and verified why it is dead code (only called in tests, never in production runtime paths)
+- [x] Designed wiring of post-generation validation into both `story_generator.py` and `copilot_agent.py` as well as `backend/main.py` streaming
+- [x] Designed AI semantic classifier (`AISemanticHistoricalClassifier`) with 2-pass hybrid architecture to defeat regex bypass (passive voice, euphemisms, unlisted heroes)
+- [x] Designed auto-detection algorithm for the 3 narrative modes (`auto_detect_narrative_mode`) eliminating manual UI selection and designed frontend toolbar badge in `StoryEditor.tsx`
+- [x] Designed hard-blocking at generation step (halting generation, refunding coins) and blocking publish to social feed (`POST /api/social/publish`)
+- [x] Designed commercial copyright detection (`detect_commercial_ip`), `COMMERCIAL_IP_REGISTRY`, database schema changes (`is_fanfiction`, `disclaimer`), and frontend fanfiction badge/disclaimer
+- [x] Produced comprehensive technical survey report in `e:\NarrAI\.agents\teamwork\explorer_survey_2\survey_report.md`
+- [x] Produced self-contained 5-component handoff report in `e:\NarrAI\.agents\teamwork\explorer_survey_2\handoff.md`
+- [x] Sending completion message to parent orchestrator (`orchestrator_r6_1`)

@@ -1,32 +1,24 @@
-## 2026-09-28T01:05:15Z
+## 2026-09-30T16:34:17Z
+You are explorer_survey_1, a teamwork_preview_explorer agent.
+Your working directory is e:\NarrAI\.agents\teamwork\explorer_survey_1.
+Your parent orchestrator is orchestrator_r6_1 (conv ID: 92e67f82-c02c-4fa1-9967-5963454f8d77).
 
-You are Explorer Survey 1 (teamwork_preview_explorer).
-Your working directory is: e:\NarrAI\.agents\teamwork\explorer_survey_1\
-The project root directory is: e:\NarrAI
-You MUST first read the authoritative user request at:
-e:\NarrAI\.agents\teamwork\ORIGINAL_REQUEST.md (especially section ## 2026-09-28T01:01:31Z).
-
-Your objective:
-Conduct an in-depth codebase survey for Requirement 1 (R1):
-"Sáng Tác Linh Động — Adaptive Open-Ontology, Phân Ranh Lịch Sử Chuẩn & Hư Cấu Cá Nhân":
-1. 3 Chế độ sáng tác (3 Narrative Modes):
-   - Chế độ 1 — Chính Sử & Tôn Trọng Sự Thật Lịch Sử (Strict Historical Authenticity): Historical Grounding Gatekeeper, strictly authentic.
-   - Chế độ 2 — Dã Sử & Phóng Tác Góc Nhìn Cá Nhân (Historical Fiction / Alternative Lens): historical era/spirit anchored with personal protagonist/fictional events.
-   - Chế độ 3 — Hư Cấu Cá Nhân Hoàn Toàn Tự Do (Free Personal Fiction / Non-Historical): 100% semantic relaxation.
-2. Tri-Tier Ontology Resolver:
-   - Tier 1: Canonical Vietnamese Cultural Domain (similarity >= 0.7, full Vietnamese honorifics, cultural entities, Comic Visual DNA, master negative filter against Hanfu/Kimono/Samurai/etc.).
-   - Tier 2: Cultural Fusion / Hybrid Domain (0.3 <= similarity < 0.7, preserve core Vietnamese essence with relaxed era constraints for sci-fi/steampunk/cyberpunk).
-   - Tier 3: Open-Domain Adaptive Graph (similarity < 0.3, disable feudal Vietnamese filters, no forced traditional attire, dynamic ephemeral node extraction).
-3. Smart Selective Language Filter:
-   - Suppress awkward translation clichés ("tiêu sái", "tà mị", "lãnh khốc", "bản tọa", "đế tôn") for pure Vietnamese/serious prose; allow if user selects xianxia/wuxia (Tiên hiệp/Kiếm hiệp).
-
-Investigate:
-- Existing files in the backend related to ontology, prompt engineering, story generation, comic generation, and copilot (e.g. services/ontology.py, services/llm.py, services/comic_agent.py, services/copilot_agent.py, services/story_generator.py, prompts, api routes, etc.).
-- Document how ontology is currently structured, how prompts enforce Vietnamese elements, what negative filters exist, and where the new modes and tri-tier resolver should be integrated.
-- Detail the exact files, functions, data structures, and edge cases to implement or modify.
-
-Deliverables:
-- Write your comprehensive findings to e:\NarrAI\.agents\teamwork\explorer_survey_1\report.md.
-- Write your handoff report to e:\NarrAI\.agents\teamwork\explorer_survey_1\handoff.md.
-- Keep e:\NarrAI\.agents\teamwork\explorer_survey_1\progress.md updated.
-- When finished, send a completion message back with the key findings and file paths.
+MANDATORY INSTRUCTIONS:
+1. Read the authoritative user request at e:\NarrAI\.agents\teamwork\ORIGINAL_REQUEST.md, especially section ## 2026-09-30T16:30:48Z.
+2. Investigate the codebase for:
+   A. R1: Copilot Manuscript Surgery:
+      - Locate copilot_agent.py, SemanticChunkSlicer, HeadingPreservationEngine, and frontend components (page.tsx, StoryEditor.tsx, api services).
+      - Investigate how selectedText & cursorPosition can be captured in frontend and passed in the copilot API request.
+      - Investigate chapter targeting e.g. "sửa Chương 3" in SemanticChunkSlicer: how chapters are identified and sliced.
+      - Investigate how the `instruction` argument in SemanticChunkSlicer.slice_manuscript is currently handled and how it should extract position/chapter targeting.
+      - Investigate Path B (Master Controller fallback) where 2000-char overwrite occurs: find the exact code lines and describe how to merge safely with prefix/suffix or route through Path A.
+      - Investigate HeadingPreservationEngine: why intermediate chapter titles bunch at the top and how to preserve their exact placement during multi-chapter edits.
+   B. R5 Database & Performance:
+      - Locate SQLite connection configuration (e.g. backend/db/database.py or similar). How and where to execute `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`.
+      - Locate backend/db/models.py and inspect indexes: check Comic.user_id, Comic.story_id, ComicPanel.comic_id, SocialPost.story_id, and composite indexes.
+      - Locate backend/main.py: check where to add GZipMiddleware with minimum_size=500.
+3. Write your comprehensive technical survey report to:
+   e:\NarrAI\.agents\teamwork\explorer_survey_1\survey_report.md
+4. Write your handoff report to:
+   e:\NarrAI\.agents\teamwork\explorer_survey_1\handoff.md
+5. Send a completion message back to your parent orchestrator (orchestrator_r6_1) via send_message.

@@ -31,3 +31,28 @@ Deliverables:
 - Write your handoff report to e:\NarrAI\.agents\teamwork\explorer_survey_2\handoff.md.
 - Keep e:\NarrAI\.agents\teamwork\explorer_survey_2\progress.md updated.
 - When finished, send a completion message back with the key findings and file paths.
+
+## 2026-09-30T16:34:00Z
+
+You are explorer_survey_2, a teamwork_preview_explorer agent.
+Your working directory is e:\NarrAI\.agents\teamwork\explorer_survey_2.
+Your parent orchestrator is orchestrator_r6_1 (conv ID: 92e67f82-c02c-4fa1-9967-5963454f8d77).
+
+MANDATORY INSTRUCTIONS:
+1. Read the authoritative user request at e:\NarrAI\.agents\teamwork\ORIGINAL_REQUEST.md, especially section ## 2026-09-30T16:30:48Z.
+2. Investigate the codebase for:
+   A. R2: Vietnamese Historical & Copyright Protection:
+      - Locate historical grounding and validation modules (e.g., services/historical_grounding.py, ontology, or guardrails).
+      - Check current list of 6 heroes/events and design the expansion to 20-30 heroes and events across Vietnamese history (from Hùng Vương, Hai Bà Trưng, Ngô Quyền, Đinh Bộ Lĩnh, Lê Hoàn, Lý Thường Kiệt, Trần Hưng Đạo, Trần Quốc Toản, Lê Lợi, Nguyễn Trãi, Quang Trung... to anti-colonial and resistance wars: Phan Đình Phùng, Hoàng Hoa Thám, Võ Nguyên Giáp, Điện Biên Phủ, etc.).
+      - Locate `validate_historical_invariants`: where is it defined? Why is it dead code?
+      - How to wire post-generation validation into both `story_generator.py` and `copilot_agent.py`.
+      - Design AI semantic classifier for regex bypass (e.g. "quân Mông Cổ ca khúc khải hoàn trên sông Bạch Đằng" or unlisted heroes).
+      - Investigate auto-detection of the 3 narrative modes (Chính sử / Dã sử / Hư cấu tự do) without manual UI selection, and how the auto-detected mode badge is exposed to frontend.
+      - Investigate hard-blocking at generation step (halt generation immediately if distortion detected) and blocking publish to social feed.
+      - Investigate copyright detection & fanfiction disclaimer on publish (detect commercial IP like Marvel, Harry Potter, etc., warn & suggest creative names, if user proceeds attach fanfiction disclaimer).
+3. Write your comprehensive technical survey report to:
+   e:\NarrAI\.agents\teamwork\explorer_survey_2\survey_report.md
+4. Write your handoff report to:
+   e:\NarrAI\.agents\teamwork\explorer_survey_2\handoff.md
+5. Send a completion message back to your parent orchestrator (orchestrator_r6_1) via send_message.
+

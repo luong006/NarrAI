@@ -1,51 +1,55 @@
-# BRIEFING — 2026-09-28T01:10:00Z
+# BRIEFING — 2026-09-30T16:43:00Z
 
 ## Mission
-Conduct an in-depth codebase survey for Requirement 4 (R4): Kiến Trúc Frontend Phân Lớp Không Xung Đột (ThreeUI 3D + Morphicons Pipeline) and deliver comprehensive findings (report.md) and handoff report (handoff.md).
+Comprehensive technical survey and codebase investigation for R3 (TensorFlow.js Hybrid Architecture), R4 (Social Network Expansion), and R5 (Visual Fixes).
 
 ## 🔒 My Identity
-- Archetype: explorer (teamwork_preview_explorer)
-- Roles: codebase exploration, frontend architecture analysis, layered visual pipeline investigation, synthesis and reporting
+- Archetype: teamwork_preview_explorer
+- Roles: codebase investigation, architectural design, synthesis, technical survey report
 - Working directory: e:\NarrAI\.agents\teamwork\explorer_survey_3
-- Original parent: 917dbd03-2475-4a83-acdb-bab7b7e5cc76
-- Milestone: M1_EXPLORATION_SURVEY
+- Original parent: 92e67f82-c02c-4fa1-9967-5963454f8d77
+- Milestone: survey_r6
 
 ## 🔒 Key Constraints
-- Read-only investigation — do NOT implement or modify source code
-- Files for content delivery, messages for coordination
-- Deliverables in e:\NarrAI\.agents\teamwork\explorer_survey_3\ (report.md, handoff.md, progress.md)
-- Adhere strictly to R4 specifications from ORIGINAL_REQUEST.md ## 2026-09-28T01:01:31Z
+- Read-only investigation — do NOT implement
+- Base findings strictly on observed codebase files and concrete design specifications
+- Output detailed survey_report.md and handoff.md in working directory
+- Communicate with parent orchestrator via send_message
 
 ## Current Parent
-- Conversation ID: 917dbd03-2475-4a83-acdb-bab7b7e5cc76
-- Updated: 2026-09-28T01:10:00Z
+- Conversation ID: 92e67f82-c02c-4fa1-9967-5963454f8d77
+- Updated: 2026-09-30T16:43:00Z
 
 ## Investigation State
 - **Explored paths**:
-  - `e:\NarrAI\.agents\teamwork\ORIGINAL_REQUEST.md` (R4 requirements)
-  - `e:\NarrAI\frontend\package.json` (dependencies, missing three/framer-motion)
-  - `e:\NarrAI\frontend\next.config.mjs` (output: 'export' static build)
-  - `e:\NarrAI\frontend\src\app\layout.tsx` & `page.tsx` (component orchestration)
-  - `e:\NarrAI\frontend\src\components\comic\ComicViewer.tsx` (manga panel cards)
-  - `e:\NarrAI\frontend\src\components\landing\LandingView.tsx` (feature cards)
-  - `e:\NarrAI\frontend\src\components\modals\AuthModal.tsx` & `HistoryModal.tsx` (modal stacking)
-  - `e:\NarrAI\frontend\src\components\editor\AICopilotPanel.tsx` (copilot and tier controls)
+  - `ORIGINAL_REQUEST.md` (lines 425-462)
+  - `backend/db/models.py` (lines 1-293)
+  - `backend/services/recommender_service.py` (lines 1-250, 1040-1150)
+  - `backend/routers/social_router.py` (lines 1-246)
+  - `backend/services/ontology.py` (lines 1-115, 600-690)
+  - `backend/main.py` (lines 1-120, 360-450)
+  - `backend/agents/qa_refiner.py` (lines 1-98)
+  - `frontend/package.json`, `frontend/next.config.mjs`
+  - `frontend/src/app/page.tsx` (lines 1-300)
+  - `frontend/src/components/canvas/ThreeAmbientCanvas.tsx` (lines 1-150)
+  - `frontend/src/components/landing/LandingView.tsx` (lines 1-128)
+  - `frontend/src/components/editor/StoryEditor.tsx` (lines 1-281)
+  - `frontend/src/components/social/CommunityFeedView.tsx` (lines 1-573)
+  - `frontend/src/components/setup/UnifiedIntakeChat.tsx` (lines 1-350)
+  - `frontend/src/lib/types.ts`, `frontend/src/lib/api.ts`, `frontend/src/lib/i18n.ts`
 - **Key findings**:
-  - Zero-dependency Native WebGL Shader Engine is recommended over heavy NPM `three` package (~12KB vs ~650KB), providing 100% control over WebGL lifecycle, 0% CPU auto-pausing via `visibilitychange` + `IntersectionObserver`.
-  - Layer 1 CSS 3D Transforms (`perspective: 1000px`, `transform-style: preserve-3d`) operates on GPU compositor, elevating manga frames & speech bubbles to `translateZ(48px)` with zero WebGL stall.
-  - Layer 2 Morphicons operates on a custom closed-form Damped Harmonic Oscillator spring physics solver ($k=240, c=14, m=1$) for Like button burst, Coin badge spinning/pill expansion, and Flash/Versatile/Master model switcher.
-  - Layer 3 React Portals with `isolation: isolate` and `z-index: 50+` is strictly necessary to prevent 3D CSS transform stacking context clipping and backdrop-filter blur corruption.
-  - Graceful degradation hooks into `prefers-reduced-motion`, device capabilities, and a dynamic FPS watchdog.
-- **Unexplored areas**: None for R4 frontend survey. Complete blueprint is established.
+  - R3: Concept vectors (128-dim) are already generated in `recommender_service.py`; can be exported via `GET /api/recommender/export-vectors`. Model weights (~2-5MB) can be served in TF.js format. Client requires `@tensorflow/tfjs` dynamic import (due to Next.js `output: 'export'`), IndexedDB caching manager with 10-20MB quota, local MMR re-ranking, and WebGL context isolation ensuring zero conflicts with `ThreeAmbientCanvas.tsx`.
+  - R4: Designed complete schemas and REST endpoints for Follows, Threaded Comments (`parent_comment_id`), Bookmarks/Personal Library, Notifications, Content Reports, Author Profiles, and Trending Leaderboards with time decay velocity formula.
+  - R5: Designed 3 sequential visual fixes: (1) Loading Skeleton in `StoryEditor.tsx` during 1-3s Intake Chat transition, (2) Fullscreen Comic Reader swipe/carousel in `CommunityFeedView.tsx`, (3) Search box on Posts tab by title and author, plus auto-detected narrative mode badge (`Chính sử`, `Dã sử`, `Hư cấu tự do`).
+- **Unexplored areas**: None. All requested areas thoroughly surveyed.
 
 ## Key Decisions Made
-- Formulated zero-risk, zero-dependency architecture for Layer 0 (Native WebGL GLSL Shaders) and Layer 2 (analytical spring physics) to avoid package installation failures and preserve sub-millisecond load times.
-- Documented full component blueprints and file touchpoints in `report.md`.
-- Generated 5-component handoff report in `handoff.md`.
+- All survey findings and architectural designs documented in `survey_report.md`.
+- Handoff report prepared in `handoff.md`.
 
 ## Artifact Index
-- `e:\NarrAI\.agents\teamwork\explorer_survey_3\DISPATCH.md` — Dispatch log
-- `e:\NarrAI\.agents\teamwork\explorer_survey_3\BRIEFING.md` — Persistent situational awareness
-- `e:\NarrAI\.agents\teamwork\explorer_survey_3\progress.md` — Liveness heartbeat (Complete)
-- `e:\NarrAI\.agents\teamwork\explorer_survey_3\report.md` — Comprehensive survey findings (Completed)
-- `e:\NarrAI\.agents\teamwork\explorer_survey_3\handoff.md` — 5-component handoff report (Completed)
+- e:\NarrAI\.agents\teamwork\explorer_survey_3\DISPATCH.md — Dispatch log
+- e:\NarrAI\.agents\teamwork\explorer_survey_3\progress.md — Liveness & progress tracker
+- e:\NarrAI\.agents\teamwork\explorer_survey_3\BRIEFING.md — Working memory
+- e:\NarrAI\.agents\teamwork\explorer_survey_3\survey_report.md — Comprehensive technical survey report
+- e:\NarrAI\.agents\teamwork\explorer_survey_3\handoff.md — 5-component handoff report

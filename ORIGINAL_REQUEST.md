@@ -387,3 +387,137 @@ Loại bỏ tư duy xử lý cục bộ cứng nhắc chỉ cho phần mở đ�
 - [ ] Backend Python (py_compile) không có bất kỳ lỗi cú pháp nào.
 - [ ] Frontend Next.js 14 (npm run build) biên dịch thành công 0 lỗi.
 - [ ] Toàn bộ test suite tự động kiểm thử đạt 100% PASS.
+
+## 2026-09-30T16:30:48Z
+
+Nâng cấp toàn diện nền tảng sáng tác & mạng xã hội văn học NarrAI: sửa lỗi Copilot biên tập cứng nhắc, kích hoạt bảo vệ lịch sử toàn diện (dead code → active enforcement), tích hợp TensorFlow.js hybrid on-device recommendation & AI art, mở rộng database mạng xã hội hoàn chỉnh (Follow, Threads, Bookmark, Notification, Report, Author Profile, Leaderboard), tối ưu SQLite WAL + performance, và sửa 3 nhược điểm trực quan (Loading Skeleton, Fullscreen comic reader, Search box).
+
+Working directory: e:\NarrAI
+Integrity mode: demo
+
+GitHub Repository: https://github.com/luong006/NarrAI.git
+Current test suite: 182 tests (111 core + 71 round 5), 100% pass. Frontend `npm run build` clean.
+
+## Requirements
+
+### R1. Copilot Biên Tập Bản Thảo Linh Hoạt Hoàn Toàn (Flexible Manuscript Surgery)
+
+Sửa 4 lỗ hổng đã phát hiện trong kiểm toán:
+1. Copilot phải nhận được `selectedText` (đoạn bôi đen) và `cursorPosition` từ frontend, chỉ chỉnh sửa chính xác đoạn đó thay vì đoán vùng cần sửa.
+2. Copilot phải hỗ trợ chỉ định Chương cụ thể — khi user nói "sửa Chương 3", hệ thống phải tìm đúng Chương 3 và chỉ can thiệp vào đó.
+3. Tham số `instruction` trong `SemanticChunkSlicer.slice_manuscript` phải được sử dụng thực tế để trích xuất thông tin vị trí từ yêu cầu user.
+4. Path B (Master Controller fallback) không được ghi đè toàn bộ bản thảo dựa trên 2000 ký tự cuối — phải hợp nhất an toàn với prefix/suffix hoặc chuyển sang Path A.
+5. HeadingPreservationEngine phải đặt tiêu đề chương trung gian đúng vị trí (không dồn lên đầu) khi edit nhiều chương.
+
+### R2. Bảo Vệ Lịch Sử Việt Nam Toàn Diện & Bản Quyền
+
+**Lịch sử:**
+1. Mở rộng danh sách bảo vệ từ 6 lên 20-30 anh hùng dân tộc và sự kiện lịch sử kèm theo (bao gồm cả thời kỳ kháng chiến chống Pháp, chống Mỹ).
+2. Bổ sung AI semantic classifier — khi user diễn đạt lách regex hoặc nhắc đến anh hùng không có trong danh sách, LLM phải phân tích ngữ nghĩa để phát hiện ý đồ xuyên tạc.
+3. Kích hoạt `validate_historical_invariants` trong pipeline sinh truyện (hiện tại là dead code) — gọi post-generation validation trên output của cả `story_generator.py` và `copilot_agent.py`.
+4. Chế độ 3 narrative modes phải được AUTO-DETECT bởi mô hình dựa trên nội dung, không phải user chọn thủ công. Hiển thị label nhỏ thông báo chế độ đang áp dụng.
+5. Chặn cứng ngay từ bước tạo truyện — dừng sinh truyện ngay lập tức nếu phát hiện xuyên tạc. Không cho publish bài có vi phạm lên mạng xã hội.
+
+**Bản quyền:**
+1. Cảnh báo + gợi ý đổi tên sáng tạo khi phát hiện tên nhân vật trùng bản quyền thương mại.
+2. Nếu user vẫn tiếp tục (fanfiction), cho phép nhưng tự động gắn disclaimer "Tác phẩm fan fiction — không liên quan đến tác phẩm gốc" trên bài đăng.
+
+### R3. TensorFlow.js Hybrid Architecture (Backend → Client)
+
+Tích hợp theo kiến trúc hybrid:
+- **Backend**: Xuất pre-trained embeddings (story concept vectors) và quantized model weights (~2-5MB) qua API.
+- **Client**: Tải TensorFlow.js Lite (`@tensorflow/tfjs` hoặc `tfjs-tflite`) với:
+  - Universal Sentence Encoder Lite cho local story embedding & recommendation re-ranking.
+  - MobileNet Tiny cho visual preview / style suggestions.
+- Model tải lần đầu (budget: 10-20MB), cache vào IndexedDB cho các lần sau.
+- Landing page: AI art visual effects (style transfer preview hoặc generative texture) sử dụng TensorFlow.js.
+- Phải phối hợp trôi chảy với React và WebGL canvas hiện có mà không gây xung đột.
+
+### R4. Mở Rộng Database & Tính Năng Mạng Xã Hội Hoàn Chỉnh
+
+Thêm các đối tượng và chức năng sau vào hệ thống mạng xã hội:
+1. **Follow/Unfollow tác giả** — theo dõi tác giả yêu thích, feed bài đăng ưu tiên từ người theo dõi.
+2. **Bình luận phân cấp (Comment Threads)** — reply được bình luận của nhau (parent_comment_id), không chỉ comment đơn cấp.
+3. **Bookmark/Tủ sách cá nhân** — lưu truyện vào bộ sưu tập riêng, phân loại theo thể loại hoặc tag tùy chỉnh.
+4. **Thông báo (Notification)** — thông báo khi có người like, comment, follow hoặc gửi tin nhắn.
+5. **Báo cáo (Report)** — cho phép người dùng báo cáo nội dung vi phạm (xuyên tạc, spam, quấy rối).
+6. **Hồ sơ tác giả (Author Profile)** — trang cá nhân hiển thị tiểu sử, danh sách tác phẩm, số lượng người theo dõi.
+7. **Hệ thống xếp hạng (Leaderboard/Trending)** — bảng xếp hạng tác phẩm thịnh hành theo tuần/tháng.
+
+Cần thiết kế schema database rõ ràng cho tất cả các bảng mới.
+
+### R5. Tối Ưu Hiệu Năng & Sửa Nhược Điểm Trực Quan
+
+**Database & Performance:**
+1. Bật SQLite WAL mode (`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`).
+2. Thêm đầy đủ các index còn thiếu: `Comic.user_id`, `Comic.story_id`, `ComicPanel.comic_id`, `SocialPost.story_id`, và composite indexes cho hot query paths.
+3. Thêm GZip middleware cho FastAPI (`GZipMiddleware` với `minimum_size=500`).
+
+**3 Nhược điểm trực quan (xử lý tuần tự):**
+1. Loading Skeleton khi chuyển từ Intake Chat sang Editor — hiển thị pulse/skeleton animation trong 1-3 giây chờ API.
+2. Fullscreen comic reader — chế độ lật trang swipe/carousel khi đọc truyện tranh trong modal bài đăng.
+3. Search box bài đăng — ô tìm kiếm theo tên truyện/tên tác giả trên tab "Bài đăng".
+
+**Auto-detect mode:** Chế độ sáng tác (Chính sử / Dã sử / Hư cấu tự do) phải được tự động phát hiện bởi mô hình dựa trên nội dung người dùng nhập, không yêu cầu user chọn thủ công. Hiển thị label nhỏ cho user biết.
+
+### R6. Kiểm Thử Toàn Vẹn
+
+1. Toàn bộ 182 tests hiện có phải tiếp tục PASS (không regression).
+2. Thêm test suite mới cho: (a) Historical gatekeeper activation (post-generation validation), (b) Social follow/bookmark/notification CRUD, (c) TensorFlow.js model loading & caching, (d) WAL mode verification, (e) Copilot selectedText targeting, (f) Auto-detect mode classification.
+3. Frontend `npm run build` phải thành công 0 lỗi TypeScript.
+4. Tất cả tests phải 100% pass trước khi coi là hoàn thành.
+
+### R7. Phạm Vi Frontend — Desktop Focus
+
+- Không cần responsive mobile (sidebar drawer, mobile breakpoints). Sản phẩm hướng tới desktop/laptop trước.
+- Không cần đóng gói thành app (Electron, PWA, etc.). Chỉ cần chạy tốt trên web.
+
+## Verification Resources
+
+- Existing test suite: `python backend/tests/run_all_tests.py` (182 tests, currently 100% pass)
+- Round 5 tests: `python -m unittest discover -s backend/tests -p "test_*round5*.py"` (71 tests)
+- Frontend build: `npm run build` in `frontend/` directory
+- Backend syntax: `python -m py_compile backend/main.py` (and all .py files)
+- Git: `git push` via GitHub Desktop (repo: https://github.com/luong006/NarrAI.git)
+
+## Acceptance Criteria
+
+### Copilot Flexibility
+- [ ] Khi user bôi đen một đoạn và gửi yêu cầu sửa, Copilot chỉ chỉnh sửa đúng đoạn đó, không thay đổi phần còn lại.
+- [ ] Khi user yêu cầu "sửa Chương 3", Copilot tìm và chỉ can thiệp vào đúng Chương 3 trong bản thảo.
+- [ ] Không xảy ra mất dữ liệu bản thảo trong bất kỳ luồng xử lý nào (Path A hoặc Path B).
+- [ ] Tiêu đề `**...**` và mốc `## Chương X` luôn được bảo toàn đúng vị trí khi edit nhiều chương.
+
+### Historical & Copyright Protection
+- [ ] Danh sách bảo vệ bao gồm ≥20 anh hùng dân tộc Việt Nam từ thời dựng nước đến hiện đại.
+- [ ] `validate_historical_invariants` được gọi thực tế trên output sinh truyện (không còn dead code).
+- [ ] Test case: Input "Trần Hưng Đạo thua trận Bạch Đằng" ở chế độ Chính sử → bị chặn, không sinh truyện.
+- [ ] Test case: Input diễn đạt lách regex (ví dụ: "quân Mông Cổ ca khúc khải hoàn trên sông Bạch Đằng") → AI semantic classifier vẫn phát hiện và chặn.
+- [ ] Chế độ sáng tác được auto-detect mà không có option chọn thủ công nào trên UI.
+- [ ] Bài đăng có nhân vật bản quyền (fanfiction) tự động gắn disclaimer trước khi publish.
+
+### TensorFlow.js Integration
+- [ ] `@tensorflow/tfjs` hoặc tương đương xuất hiện trong `package.json` dependencies.
+- [ ] Model tải lần đầu ≤ 20MB, cache vào IndexedDB cho lần sau.
+- [ ] Local recommendation re-ranking hoạt động trên client mà không cần gọi backend mỗi lần.
+- [ ] Landing page có hiệu ứng AI visual sử dụng TensorFlow.js.
+- [ ] `npm run build` thành công sau khi thêm TensorFlow.js.
+
+### Social Network Expansion
+- [ ] Bảng database mới tồn tại cho: follows, threaded comments, bookmarks, notifications, reports, author profiles.
+- [ ] Follow/Unfollow hoạt động qua API endpoint.
+- [ ] Bình luận phân cấp (reply bình luận) hoạt động qua API endpoint.
+- [ ] Hệ thống thông báo ghi nhận sự kiện like/comment/follow/message.
+- [ ] Bảng xếp hạng Trending trả về danh sách bài đăng xếp hạng theo tuần/tháng.
+
+### Performance & Visual Fixes
+- [ ] SQLite WAL mode được bật (verify qua `PRAGMA journal_mode;` trả về `wal`).
+- [ ] Tất cả index còn thiếu được thêm.
+- [ ] GZip middleware active cho response ≥ 500 bytes.
+- [ ] Loading Skeleton hiển thị khi chuyển từ Intake Chat sang Editor.
+- [ ] Fullscreen comic reader có chế độ swipe/carousel.
+- [ ] Search box trên tab "Bài đăng" tìm kiếm được theo tên truyện và tên tác giả.
+
+### Testing
+- [ ] 182 tests cũ + tests mới tất cả 100% PASS.
+- [ ] Frontend `npm run build` thành công 0 lỗi.

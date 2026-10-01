@@ -1,76 +1,83 @@
-# Handoff Report — Explorer Survey 2: R2 (Recommender & Messenger) & R3 (Banking & Anti-Clone)
+# Handoff Report — Explorer Survey 2: Round 6 R2 (Vietnamese Historical & Copyright Protection)
 **Agent**: Explorer Survey 2 (`teamwork_preview_explorer`)  
-**Target Recipient**: Orchestrator / Implementer Agents  
-**Timestamp**: 2026-09-28T01:12:00Z  
+**Target Recipient**: Orchestrator R6 (`orchestrator_r6_1`) / Implementer Agents  
+**Timestamp**: 2026-09-30T16:42:00Z  
 **Handoff Type**: Hard (Task Complete)
 
 ---
 
 ## 1. Observation
-1. **Database Schema & Models (`backend/db/models.py`)**:
-   - `User` table (lines 8-19) contains only `id`, `username`, `full_name`, `password_hash`, `created_at`, and `stories` relationship. It lacks a `coins` balance column, credit transaction ledger, and social relationships.
-   - `Story` table (lines 20-37) stores `bible_data` and `memory_data` as JSON text.
-   - Database engine configuration (line 65): `engine = create_engine('sqlite:///narrai.db', connect_args={'check_same_thread': False})`.
-   - Existing auto-migration block (lines 69-85) safely checks table columns using `inspect(engine)` and executes `ALTER TABLE` without corrupting existing records.
-2. **Authentication & Security (`backend/auth.py` & `backend/main.py`)**:
-   - `backend/auth.py` contains `validate_bank_password` (lines 47-70) and thread-safe `LoginRateLimiter` (lines 72-195).
-   - `POST /api/register` in `backend/main.py` (lines 163-223) creates users with hashed passwords but does not collect device fingerprints or inspect IP `/24` subnets.
-3. **Ontology Knowledge Base (`backend/models/scene_graph.py`)**:
-   - `DynamicSceneGraph` (lines 447-805) contains `entities: Dict[str, CharacterEntity]`, `enclosures: Dict[str, SpaceEnclosure]`, `items: Dict[str, ItemEntity]`, and `relations: List[Dict[str, Any]]`.
-   - `backend/agents/story_memory.py` (lines 280-300) serializes and deserializes `dynamic_scene_graph` to/from `Story.memory_data`.
-4. **AI Generation Endpoints (`backend/main.py`)**:
-   - `POST /api/generate-story` (lines 334-375): streams story content and saves `Story` if user is logged in. Currently 0 coin checks or deductions.
-   - `POST /api/story/init` (lines 940-985): extracts Bible and streams Chapter 1. Currently 0 coin checks or deductions.
-   - `POST /api/edit-text` (lines 321-333): edits text via `EditorAgent`. Currently 0 coin checks or deductions.
-   - `POST /api/comics` (lines 595-635): creates comic adaptation and saves panels. Currently 0 coin checks or deductions.
-   - In all these endpoints, if the underlying LLM/diffusion call fails, no compensating transaction or coin refund occurs.
+1. **Historical Grounding Module & Canon (`backend/services/ontology.py`)**:
+   - `VIETNAMESE_HISTORICAL_CANON` (lines 99-178) contains only 6 historical figures/events: `hai_ba_trung`, `ngo_quyen`, `ly_thuong_kiet`, `tran_hung_dao`, `le_loi`, `quang_trung`.
+   - `BATTLE_OUTCOME_DISTORTION_PATTERNS` (lines 181-186) contains 4 regex patterns for Bạch Đằng, Như Nguyệt, Ngọc Hồi - Đống Đa, and Lam Sơn.
+   - `HistoricalGroundingGatekeeper.validate_historical_invariants` is defined at lines 198-227.
+   - `TriTierOntologyResolver` (lines 317-446) calculates cultural similarity $S_{cult}$ and assigns visual DNA and honorific rules.
+2. **Dead Code Verification for `validate_historical_invariants`**:
+   - Across the entire codebase, `validate_historical_invariants` is called **strictly in 4 test files**:
+     * `backend/tests/test_adaptive_open_ontology.py` (lines 83, 101, 111, 120)
+     * `backend/tests/test_e2e_ontology_modes.py` (lines 90, 113, 238, 242, 284, 288, 294)
+     * `backend/tests/test_backend_integration_gen2.py` (lines 112, 121)
+     * `backend/tests/test_adversarial_narrative_recommender.py` (lines 137, 161, 181, 198, 207, 224)
+   - In production runtime files:
+     * `backend/agents/story_generator.py`: Imports `HistoricalGroundingGatekeeper` (lines 8, 19), but only calls `get_historical_grounding_prompt(mode_enum)` (lines 266, 339) to insert text into the system prompt. It **never calls `validate_historical_invariants`** on generated text.
+     * `backend/agents/copilot_agent.py`: **Does not import or call `HistoricalGroundingGatekeeper` at all**.
+     * `backend/main.py`: In `/api/generate-story` (lines 461-570), chunks are yielded and saved directly to the database without running invariant validation. In `/api/copilot-event` (lines 1072-1165), only a raw JSON check (`[Copilot DB Guard]`, lines 1123-1138) exists; no historical invariants are validated.
+     * `backend/routers/social_router.py`: In `POST /publish` (lines 145-180), posts are persisted directly into `social_posts` without validating historical invariants or commercial copyright.
+3. **Commercial IP and Copyright Protection**:
+   - `backend/agents/qa_refiner.py` (lines 34-37) contains advisory prompt instructions: *"Nếu tác giả nhắc đến việc sao chép trực tiếp các tác phẩm có bản quyền thương mại đang bảo hộ (như Harry Potter, Marvel Avengers...)"*.
+   - However, there is zero programmatic copyright detection and zero disclaimer attachment mechanism in `backend/routers/social_router.py` or `backend/services/recommender_service.py`.
+   - `SocialPost` model in `backend/db/models.py` (lines 133-161) currently lacks `is_fanfiction` and `disclaimer` columns.
+4. **Narrative Mode Auto-detection & UI**:
+   - Currently, `normalize_narrative_mode` converts manual input strings, but there is no server-authoritative auto-detection algorithm differentiating Chính sử, Dã sử, and Hư cấu tự do based on narrative context.
+   - Frontend `StoryEditor.tsx` (lines 161-203) lacks an active auto-detected mode badge indicator in the top toolbar.
 
 ---
 
 ## 2. Logic Chain
-1. **From Observation 1**: Because `User` currently lacks `coins`, and SQLite is used via SQLAlchemy with `check_same_thread=False`, adding `coins = Column(Integer, default=0)` accompanied by the existing inspection-based auto-migration pattern (`ALTER TABLE users ADD COLUMN coins INTEGER DEFAULT 0`) guarantees backward compatibility without breaking existing user data in `narrai.db`.
-2. **From Observation 1 & 4**: Multiple simultaneous requests can read the same balance before deducting, causing race conditions and double-spending. Introducing a dual-locking architecture—(a) In-memory per-user `threading.Lock` to serialize threads within the Python process, and (b) SQLite `BEGIN IMMEDIATE` transaction to immediately acquire a write lock at the database engine level—strictly serializes concurrent deductions. If a user with 8 coins submits 2 requests at the exact same millisecond, request 1 reduces coins from 8 to 0, and request 2 reads balance = 0, immediately triggering `HTTPException(status_code=402, detail="Số dư xu không đủ...")`.
-3. **From Observation 4**: In generative AI systems, network interruptions, 5xx errors, and timeouts frequently occur after coin deduction. Implementing a Compensating Transaction pattern (`REFUND_FAILED_GENERATION`) wrapped around the external AI calls ensures that whenever an exception occurs during streaming or script generation, the exact deducted amount is atomically credited back and appended to the cryptographic ledger.
-4. **From Observation 1**: To implement tamper-evident banking integrity, `coin_transactions` must store a blockchain-style hash chain:
-   $$tx\_hash = \text{SHA256}(prev\_hash + str(user\_id) + str(amount) + str(balance\_after) + timestamp)$$
-   Any manual row tampering or balance edits directly inside `narrai.db` will break the hash link, detected by the ledger integrity auditor.
-5. **From Observation 2**: Sybil and bot clone attacks exploit initial trial bonuses. Combining Canvas 2D + WebGL + AudioContext + Screen Specs into a composite SHA-256 fingerprint together with `/24` subnet throttling ensures genuine new users receive 8 free coins, while duplicate devices or subnet-throttled bots receive 0 coins (`initial_coins = 0`).
-6. **From Observation 3**: Because `Story.memory_data` already preserves `DynamicSceneGraph` with characters (`CharacterEntity`) and environments (`SpaceEnclosure`), published `SocialPost` records can store indexed lists of `dsgo_entities` and `dsgo_spaces`. This enables Stage 1 candidate generation to traverse the DSGO ontology graph and discover thematically and lore-linked stories across different authors.
-7. **From Observation 1 & R2 Requirements**: A 3-Stage Recommender combining Content Cosine similarity (128-dim concept vectors with exponential decay $\lambda = 0.05/\text{day}$), Multi-Task Ranking ($0.35 \times \text{Cosine} + 0.25 \times \text{Affinity} + 0.20 \times \text{Freshness} + 0.20 \times \text{Quality}$), and Stage 3 Re-ranking (MMR $\lambda = 0.7$ for genre diversity + Multi-Armed Bandit $\epsilon = 0.15$ Thompson Sampling for cold-start exploration) prevents echo-chambers and ensures exposure for new creators.
-8. **From Observation 1 & R2 Requirements**: An Open Messenger architecture requiring user directory search across ALL users, idempotent 1-1 conversation creation, message persistence, and unread count aggregations completes the literary social ecosystem.
+1. **From Observation 1**: Expanding `VIETNAMESE_HISTORICAL_CANON` from 6 to 31 heroes across all 6 historical epochs (Hùng Vương, Thánh Gióng, An Dương Vương, Bà Triệu, Lý Nam Đế, Triệu Quang Phục, Mai Thúc Loan, Phùng Hưng, Ngô Quyền, Đinh Bộ Lĩnh, Lê Hoàn, Lý Thái Tổ, Lý Thường Kiệt, Trần Hưng Đạo, Trần Quốc Toản, Trần Nhân Tông, Trần Khánh Dư, Yết Kiêu - Dã Tượng, Lê Lợi, Nguyễn Trãi, Lê Thánh Tông, Quang Trung, Bùi Thị Xuân, Trương Định, Nguyễn Trung Trực, Phan Đình Phùng - Cao Thắng, Hoàng Hoa Thám, Võ Thị Sáu, Võ Nguyên Giáp & Điện Biên Phủ, Đại thắng Mùa Xuân 1975) creates comprehensive, multi-epoch historical coverage with exact regex invariants.
+2. **From Observation 2**: Because `validate_historical_invariants` is dead code in the production generation pipeline, a malicious user or hallucinating LLM can generate distorted history (e.g. "Trần Hưng Đạo thua trận Bạch Đằng"). Wiring validation as a hard assertion in `generate_story` and in `main.py` streaming completion (`stream_and_save`), as well as in `copilot_agent.py` (`_perform_direct_manuscript_edit` and `process_event`), converts declarative system prompts into active deterministic runtime enforcement.
+3. **From Observation 1 & 2**: Regex patterns alone can be bypassed by passive voice ("quân Mông Cổ ca khúc khải hoàn trên sông Bạch Đằng"), euphemisms ("ngọn cờ Đại Việt gãy gục"), or unlisted minor heroes. Designing a 2-pass Hybrid Classifier—(Pass 1: 0ms fast regex gate $\to$ Pass 2: ~200ms low-latency Groq LLM semantic classification for historical entities)—guarantees zero semantic evasion while keeping performance instantaneous for non-historical fiction.
+4. **From Observation 4**: In line with the minimalist Gemini/ChatGPT design, removing manual mode selection on the UI prevents user friction and eliminates the loophole where a user selects "Hư cấu tự do" to sneak in historical revisionism. An automatic classification heuristic (`auto_detect_narrative_mode`) inspects entities and perspective (real historical protagonist $\to$ `CHINH_SU`, fictional protagonist in real historical era $\to$ `DA_SU`, non-historical/OOD $\to$ `HU_CAU_TU_DO`) and exposes a sleek colored badge on the Editor toolbar.
+5. **From Observation 3**: For commercial copyright protection, creating a `COMMERCIAL_IP_REGISTRY` (Marvel, DC, Harry Potter, Anime/Manga, Star Wars) and checking text at publish time (`POST /api/social/publish`) allows the system to warn users and suggest creative alternative names. If the user proceeds (fanfiction), the system automatically flags `is_fanfiction = True`, sets `disclaimer = "⚠️ Tác phẩm fan fiction — không liên quan đến tác phẩm gốc và không nhằm mục đích thương mại"`, and renders the disclaimer on `CommunityFeedView.tsx`.
 
 ---
 
 ## 3. Caveats
-1. **Network Sandbox & Test Execution**: In this explorer subagent session, interactive terminal execution (`run_command`) timed out waiting for user approval. Static codebase inspection and model analysis were performed instead.
-2. **Single SQLite Database File**: While `BEGIN IMMEDIATE` ensures serialization on a single SQLite database, multi-node clustered deployments would require PostgreSQL `SELECT ... FOR UPDATE` or Redis distributed locks (`Redlock`). For the current architecture, SQLite `BEGIN IMMEDIATE` with WAL mode and `busy_timeout=5000` is completely robust and standard.
-3. **Client Fingerprint Availability**: Browsers with strict privacy extensions or non-standard webview environments might block Canvas or AudioContext extraction. The anti-clone service must gracefully handle missing/fallback parameters by generating a fallback hash without crashing.
+1. **Subagent Execution Mode**: In this explorer subagent session, command execution requiring interactive terminal confirmation was avoided; all conclusions are backed by direct source code viewing, exact line citations, and structural cross-referencing.
+2. **LLM Semantic Fallback**: If external LLM calls for Pass 2 semantic classification experience transient network timeout, the validator must gracefully degrade to Pass 1 regex scanning to prevent blocking legitimate writers while logging the incident.
+3. **Historical Nuance in Dã Sử (Mode 2)**: In Mode 2, fictional characters may suffer personal defeats, emotional tragedy, or captured moments, while the macro historical truth (national independence and leader integrity) remains protected. The semantic validator prompt must strictly distinguish micro-level fictional drama from macro-level historical revisionism.
 
 ---
 
 ## 4. Conclusion
-1. **Readiness**: The codebase has solid foundations (DSGO models, cache service, clean auth, auto-migration mechanisms) that make implementing R2 and R3 straightforward and elegant.
-2. **Modular Architecture**: R2 and R3 should be isolated into dedicated services (`banking_service.py`, `recommender_service.py`, `messenger_service.py`) and routers (`coins_router.py`, `social_router.py`, `messenger_router.py`) to keep `main.py` clean.
-3. **Execution Plan**:
-   - Update `backend/db/models.py` with `coins` column, auto-migration, and tables `coin_transactions`, `device_fingerprints`, `subnet_records`, `social_posts`, `post_interactions`, `user_interest_profiles`, `conversations`, `conversation_participants`, `chat_messages`.
-   - Implement `backend/services/banking_service.py` with dual-locking, pricing authority, SHA-256 chained ledger, compensating transaction rollback, and anti-clone guard.
-   - Implement `backend/services/recommender_service.py` with 3-stage pipeline (Cosine + DSGO traversal, Multi-task ranking, MMR $\lambda=0.7$, MAB $\epsilon=0.15$, vector decay $\lambda=0.05/\text{day}$, sentiment/entity comment extraction).
-   - Implement `backend/services/messenger_service.py` with user directory search, 1-1 conversation management, messaging, unread counts.
-   - Expose routers and hook coin deduction into existing AI routes in `backend/main.py`.
-   - Create test suites: `test_banking_concurrency.py`, `test_recommender_engine.py`, `test_open_messenger.py`.
+1. **Full Feasibility**: All R2 requirements (expansion to 31 heroes, dead code activation, copilot/story-generator wiring, semantic classifier, auto-detection of 3 modes, hard-blocking, and fanfiction copyright disclaimer) are completely mapped out and ready for implementation.
+2. **Clear File Boundaries**:
+   - `backend/services/ontology.py`: Core expanded canon (31 heroes), `auto_detect_narrative_mode`, `AISemanticHistoricalClassifier`, `COMMERCIAL_IP_REGISTRY`, `detect_commercial_ip`.
+   - `backend/agents/story_generator.py`: Pre-flight check & post-generation assertion.
+   - `backend/agents/copilot_agent.py`: Import Gatekeeper, validate `final_story`, reject edits violating historical truth.
+   - `backend/main.py`: Pre-check in `/api/generate-story`, stream post-validation & refund in `stream_and_save`, DB guard in `/api/copilot-event`.
+   - `backend/routers/social_router.py` & `backend/services/recommender_service.py`: Reject distorted posts on publish, auto-attach fanfiction disclaimer for commercial IP.
+   - `backend/db/models.py`: Add `is_fanfiction` and `disclaimer` columns to `SocialPost` with auto-migration.
+   - `frontend/src/components/editor/StoryEditor.tsx`: Render auto-detected mode badge.
+   - `frontend/src/components/social/CommunityFeedView.tsx`: Render fanfiction badge and reader disclaimer banner.
 
 ---
 
 ## 5. Verification Method
-1. **Inspect Survey Report**:
-   - Read `e:\NarrAI\.agents\teamwork\explorer_survey_2\report.md` for complete mathematical formulas, schema definitions, and implementation guides.
-2. **Static Code Verification**:
-   - Check `backend/db/models.py` line 69-85 for the auto-migration pattern.
-   - Check `backend/models/scene_graph.py` line 447 for `DynamicSceneGraph` structure.
-   - Check `backend/auth.py` line 47-195 for bank-grade password and rate limiter patterns.
-3. **Target Test Commands (for Implementer/Verifier)**:
-   - Banking & Concurrency: `python -m unittest backend/tests/test_banking_concurrency.py`
-   - Recommender: `python -m unittest backend/tests/test_recommender_engine.py`
-   - Messenger: `python -m unittest backend/tests/test_open_messenger.py`
-   - Existing suite regression: `python -m unittest discover -s backend/tests -p "test_*.py"`
-   - Backend syntax check: `python -m py_compile backend/main.py backend/services/banking_service.py backend/services/recommender_service.py backend/services/messenger_service.py`
+1. **Survey Artifacts Inspection**:
+   - Primary comprehensive report: `e:\NarrAI\.agents\teamwork\explorer_survey_2\survey_report.md`.
+2. **Verification of Observations**:
+   - Check `backend/services/ontology.py` lines 99-178 to verify the current 6 heroes.
+   - Check `backend/services/ontology.py` lines 198-227 to verify `validate_historical_invariants`.
+   - Check `backend/agents/story_generator.py` lines 265-273 & 338-348 to verify lack of post-generation validation.
+   - Check `backend/agents/copilot_agent.py` to verify complete absence of `HistoricalGroundingGatekeeper`.
+   - Check `backend/routers/social_router.py` lines 145-180 to verify lack of publish validation.
+3. **Target Test Plan for Implementation Team**:
+   - Run existing test suite to ensure zero regression: `python backend/tests/run_all_tests.py` (182 tests).
+   - Add new test suite `backend/tests/test_round6_historical_copyright.py` verifying:
+     * 31 heroes validation & invariants rejection.
+     * "Trần Hưng Đạo thua trận Bạch Đằng" blocked at generation.
+     * Semantic bypass "quân Mông Cổ ca khúc khải hoàn trên sông Bạch Đằng" blocked.
+     * Auto-detect modes classification accuracy.
+     * Fanfiction disclaimer auto-attachment on publish for "Harry Potter" or "Iron Man".
+     * Copilot rejection of revisionist manuscript surgery.

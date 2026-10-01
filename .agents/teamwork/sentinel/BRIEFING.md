@@ -1,12 +1,12 @@
-# BRIEFING — 2026-09-29T10:12:30+07:00
+# BRIEFING — 2026-10-01T13:25:10+07:00
 
 ## Mission
-Monitor and govern comprehensive NarrAI upgrade: Copilot Flexible Manuscript Surgery, Unified Intake Chat (ChatGPT/Gemini Style), Seamless Transition to Story Editor, Posts / Community Feed Tab & "Save & Publish" Button, and Zero-Conflict Decoupled Frontend Rendering Pipeline.
+Monitor, govern, and route the comprehensive NarrAI upgrade: Flexible Manuscript Surgery, Vietnamese Historical & Copyright Gatekeeper, TensorFlow.js Hybrid Architecture, Social Network Expansion, SQLite WAL & Performance Optimization, Visual Flaws Resolution, and 100% Test Integrity.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: e:\NarrAI\.agents\teamwork\sentinel
-- Orchestrator: 9fb5ac33-e7c4-4e1d-855b-61d34153fe76 (teamwork_preview_orchestrator, Round 5)
+- Orchestrator: d45d8efd-3360-4e19-992d-4ecc189a80d2 (teamwork_preview_orchestrator, Round 6 Gen 2)
 - Victory Auditor: [to be spawned on victory claim]
 
 ## 🔒 Key Constraints
@@ -14,30 +14,28 @@ Monitor and govern comprehensive NarrAI upgrade: Copilot Flexible Manuscript Sur
 - Victory Audit is MANDATORY before reporting completion
 - Must verify via independent post-victory auditor before reporting success to the user
 - Never take victory claim at face value
+- Keep context ultra-light; do not write code or analyze problems
 
 ## User Context
-- **Last user request**: Upgrade NarrAI with:
-  1. Copilot Flexible Manuscript Surgery (5 targeted surgery modes, dynamic semantic chunk slicing, context rolling).
-  2. Unified Intake Chat (ChatGPT/Gemini style full-screen chat, remove idea chips, deep integration of genre knowledge, personal fiction rules, Vietnamese historical rules, and IP guardrails).
-  3. Seamless Transition to Story Editor (direct draft generation without rigid step 1-2).
-  4. Posts / Community Feed Tab & "Save & Publish" button in Story Editor toolbar.
-  5. Zero-Conflict Decoupled Frontend Architecture (WebGL 3D, Spring SVG Morphicons, DOM Cards, Glassmorphism Modals with isolation: isolate).
+- **Last user request**: Nâng cấp toàn diện NarrAI:
+  1. Copilot manuscript surgery: selectedText, cursorPosition, chapter targeting (Chương X), SemanticChunkSlicer instruction extraction, Path B fallback fix, HeadingPreservationEngine intermediate placement.
+  2. Vietnamese Historical & Copyright Protection: 20-30 heroes & historical events, AI semantic classifier for regex-bypass evasion, active post-generation invariant validation in story generator & copilot (dead code elimination), auto-detection of narrative modes (no manual UI picker), hard-blocking violations at generation, fanfiction copyright disclaimer.
+  3. TensorFlow.js Hybrid Architecture: backend embeddings & quantized model export, client @tensorflow/tfjs (Universal Sentence Encoder Lite, MobileNet Tiny) with IndexedDB caching (10-20MB budget), landing page AI visual effects, smooth React/WebGL integration.
+  4. Social Network Expansion: follow/unfollow, threaded comments (parent_comment_id), bookmarks/library, notifications (like/comment/follow/message), reports, author profile, trending leaderboard.
+  5. SQLite WAL mode (`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`), missing indexes, GZip middleware, 3 UI fixes (Loading skeleton, fullscreen comic reader carousel/swipe, search box in Posts tab), auto-detect mode badge.
+  6. Test integrity: 182 existing tests pass 100% without regression, new test suites for all 6 areas, frontend npm run build 0 TypeScript errors.
 - **Pending clarifications**: none
-- **Delivered results**: [none for current round]
+- **Delivered results**: Milestone 1 complete & gate passed; Milestone 2 implementation completed, entering remediation iteration; Milestones 3-5 pending.
 
 ## Routing Decision
 - **Chosen Path**: General (`teamwork_preview_orchestrator`)
-- **Rationale**: The task requires full-stack multi-component engineering across frontend and backend (LLM surgery engine, chat intake overhaul, editor workflow, social feed integration, decoupled rendering architecture). Not a document review, not a pure math proof, and not a single self-contained light change.
+- **Rationale**: Full-stack multi-component engineering across frontend and backend.
 - **Pre-flight audit**: Not required for General path.
 
 ## Project Status
-- **Phase**: in progress (Milestone 3: Community Feed, Social Publishing & 4-Layer Rendering Architecture)
-- **Completed Milestones**:
-  - Milestone 1: Backend Copilot Flexible Surgery (5 targets, chunk slicing, heading safeguards, story_id allocation) [DONE]
-  - Milestone 2: Frontend Unified Intake Chat (ChatGPT/Gemini style) & Story Editor Transition [DONE]
-  - E2E Test Track: 60 tests (Tiers 1-5), TEST_INFRA.md, TEST_READY.md published [DONE]
+- **Phase**: in progress (orchestrator_r6_gen2 dispatched)
 - **Active Subagents**:
-  - `worker_r5_m3` (97cbbc99-3677-4bc3-8605-3494893eabdb): Milestone 3 — Community Feed ("Bài đăng" tab), 3D Parallax Tilt cards, Reader modal, "Lưu & Đăng bài" button in StoryEditor, 4-Layer Architecture enforcement
+  - `orchestrator_r6_gen2` (d45d8efd-3360-4e19-992d-4ecc189a80d2): Successor Project Orchestrator for Round 6
 
 ## Victory Audit Status
 - **Triggered**: no
@@ -45,10 +43,11 @@ Monitor and govern comprehensive NarrAI upgrade: Copilot Flexible Manuscript Sur
 - **Retry count**: 0
 
 ## Background Tasks
-- Cron 1 (Progress Reporting): task-34 (`*/8 * * * *`)
-- Cron 2 (Liveness Check): task-36 (`*/10 * * * *`)
+- Cron 1 (Progress Reporting): task-36 (`*/8 * * * *`)
+- Cron 2 (Liveness Check): task-38 (`*/10 * * * *`)
 
 ## Artifact Index
 - e:\NarrAI\ORIGINAL_REQUEST.md — Authoritative record of user requests
 - e:\NarrAI\.agents\teamwork\ORIGINAL_REQUEST.md — Teamwork record of user requests
 - e:\NarrAI\.agents\teamwork\sentinel\BRIEFING.md — Sentinel state briefing
+- e:\NarrAI\.agents\teamwork\orchestrator_r6_gen2\PROJECT.md — Scope document

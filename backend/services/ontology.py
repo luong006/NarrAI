@@ -23,6 +23,7 @@ Implements:
 """
 
 import re
+import json
 import uuid
 from enum import Enum
 from typing import List, Dict, Optional, Any, Tuple
@@ -95,8 +96,46 @@ class ResolvedOntology(BaseModel):
 # 2. VIETNAMESE HISTORICAL KNOWLEDGE BASE & GROUNDING GATEKEEPER
 # ==============================================================================
 
-# Core Vietnamese Historical Canon (Inviolable Truths)
+# Core Vietnamese Historical Canon (Inviolable Truths) across 6 Epochs (31+ Heroes & Major Victories)
 VIETNAMESE_HISTORICAL_CANON = {
+    # Epoch 1: Thời đại Hồng Bàng & Dựng nước
+    "hung_vuong": {
+        "names": ["vua hùng", "hùng vương", "các vua hùng", "lạc long quân", "âu cơ"],
+        "era": "Thời đại Hồng Bàng (Văn Lang)",
+        "enemies": ["giặc ân", "ngoại bang"],
+        "invariants": [
+            "Cội nguồn dựng nước Văn Lang của dân tộc Việt Nam",
+            "Truyền thuyết bọc trăm trứng, đồng bào gắn kết một nhà",
+            "Không bao giờ đầu hàng hay bị giặc xóa sổ"
+        ],
+        "defeat_regex": r"(?i)\b(?:vua\s+hùng|hùng\s+vương)\b.*?\b(?:đầu\s+hàng|bán\s+nước|bị\s+giặc\s+ân\s+xóa\s+sổ|quy\s+hàng)\b"
+    },
+    "thanh_giong": {
+        "names": ["thánh gióng", "phù đổng thiên vương", "gióng"],
+        "era": "Thời Hùng Vương thứ 6",
+        "battle": "Đánh tan giặc Ân ở chân núi Sóc",
+        "enemies": ["giặc ân"],
+        "invariants": [
+            "Cưỡi ngựa sắt, mặc giáp sắt, nhổ tre đằng ngà quét sạch giặc Ân",
+            "Bay về trời sau khi đánh tan giặc, biểu tượng bất diệt của sức mạnh quật khởi",
+            "Tuyệt đối không bại trận trước giặc Ân"
+        ],
+        "defeat_regex": r"(?i)\b(?:thánh\s+gióng|phù\s+đổng\s+thiên\s+vương)\b.*?\b(?:bại\s+trận|đầu\s+hàng|thua\s+giặc\s+ân|quy\s+hàng)\b"
+    },
+    "an_duong_vuong": {
+        "names": ["an dương vương", "thục phán"],
+        "era": "Nước Âu Lạc (Thế kỷ 3 TCN)",
+        "battle": "Thành Cổ Loa chống Triệu Đà",
+        "enemies": ["triệu đà", "quân nam việt"],
+        "invariants": [
+            "Hợp nhất người Văn Lang và Tây Âu lập nước Âu Lạc",
+            "Xây thành Cổ Loa kiên cố, nỏ thần Kim Quy đánh lui nhiều đợt xâm lăng của Triệu Đà",
+            "Khí phách quật cường, không đầu hàng hèn nhát"
+        ],
+        "defeat_regex": r"(?i)\b(?:an\s+dương\s+vương|thục\s+phán)\b.*?\b(?:hèn\s+nhát|đầu\s+hàng\s+triệu\s+đà|bán\s+nước\s+cho\s+triệu\s+đà)\b"
+    },
+
+    # Epoch 2: Khởi nghĩa thời Bắc thuộc
     "hai_ba_trung": {
         "names": ["hai bà trưng", "trưng trắc", "trưng nhị"],
         "era": "Thời kỳ Bắc thuộc lần 1 (Năm 40)",
@@ -105,10 +144,72 @@ VIETNAMESE_HISTORICAL_CANON = {
         "invariants": [
             "Khởi nghĩa năm 40 giành lại 65 thành trì",
             "Đền nợ nước, trả thù nhà, đánh đuổi thái thú Tô Định",
-            "Tuyệt đối không đầu hàng giặc ngoại xâm"
+            "Tuyệt đối không đầu hàng giặc ngoại xâm hay cầu xin Tô Định"
         ],
         "defeat_regex": r"(?i)\b(?:trưng\s+trắc|trưng\s+nhị|hai\s+bà\s+trưng)\b.*?\b(?:đầu\s+hàng|phản\s+bội|quy\s+hàng|bán\s+nước|thua\s+nhục|cầu\s+xin\s+tô\s+định)\b"
     },
+    "ba_trieu": {
+        "names": ["bà triệu", "triệu thị trinh", "triệu ẩu"],
+        "era": "Năm 248 SCN",
+        "battle": "Khởi nghĩa chống quân Đông Ngô",
+        "enemies": ["lục dận", "quân đông ngô", "nhà ngô"],
+        "invariants": [
+            "Tuyên ngôn đạp luồng sóng dữ, chém cá kình Biển Đông, quét sạch giặc Ngô",
+            "Cưỡi voi xung trận dũng mãnh, khí phách kiên trinh bất khuất",
+            "Tuyệt đối không đầu hàng quân Ngô"
+        ],
+        "defeat_regex": r"(?i)\b(?:bà\s+triệu|triệu\s+thị\s+trinh)\b.*?\b(?:đầu\s+hàng|bán\s+nước|quy\s+hàng\s+quân\s+ngô|sợ\s+hãi\s+lục\s+dận)\b"
+    },
+    "ly_nam_de": {
+        "names": ["lý nam đế", "lý bí"],
+        "era": "Năm 544",
+        "battle": "Khởi nghĩa chống ách đô hộ nhà Lương",
+        "enemies": ["tiêu tư", "quân nhà lương", "trần bá tiên"],
+        "invariants": [
+            "Đánh đuổi thứ sử Tiêu Tư, giải phóng Giao Châu",
+            "Thành lập nhà nước Vạn Xuân độc lập, tự xưng Hoàng đế năm 544",
+            "Không bao giờ đầu hàng quân Lương hay phản bội Vạn Xuân"
+        ],
+        "defeat_regex": r"(?i)\b(?:lý\s+bí|lý\s+nam\s+đế)\b.*?\b(?:đầu\s+hàng\s+nhà\s+lương|phản\s+bội\s+vạn\s+xuân|quy\s+hàng\s+tiêu\s+tư)\b"
+    },
+    "trieu_quang_phuc": {
+        "names": ["triệu quang phục", "dạ trạch vương"],
+        "era": "Thế kỷ 6",
+        "battle": "Căn cứ đầm Dạ Trạch",
+        "enemies": ["quân nhà lương", "trần bá tiên"],
+        "invariants": [
+            "Xây dựng căn cứ đầm lầy Dạ Trạch, sáng tạo chiến thuật du kích tài tình",
+            "Đánh bại tướng Lương Trần Bá Tiên, giữ vững nền độc lập nước Vạn Xuân",
+            "Không bao giờ đầu hàng quân Lương"
+        ],
+        "defeat_regex": r"(?i)\b(?:triệu\s+quang\s+phục|dạ\s+trạch\s+vương)\b.*?\b(?:đầu\s+hàng\s+nhà\s+lương|thua\s+nhục\s+ở\s+dạ\s+trạch|quy\s+hàng)\b"
+    },
+    "mai_thuc_loan": {
+        "names": ["mai thúc loan", "mai hắc đế"],
+        "era": "Năm 713 - 722",
+        "battle": "Khởi nghĩa Hoan Châu",
+        "enemies": ["nhà đường", "quân nhà đường", "dương tư húc"],
+        "invariants": [
+            "Lãnh đạo nhân dân Hoan Châu khởi nghĩa chống sưu cao thuế nặng của nhà Đường",
+            "Xây dựng thành Vạn An kiên cố, xưng Mai Hắc Đế khẳng định chủ quyền",
+            "Không bao giờ quy hàng nhà Đường"
+        ],
+        "defeat_regex": r"(?i)\b(?:mai\s+thúc\s+loan|mai\s+hắc\s+đế)\b.*?\b(?:đầu\s+hàng\s+nhà\s+đường|cầu\s+xin\s+giặc|quy\s+hàng)\b"
+    },
+    "phung_hung": {
+        "names": ["phùng hưng", "bố cái đại vương"],
+        "era": "Năm 766 - 791",
+        "battle": "Bao vây đánh chiếm phủ Tống Bình",
+        "enemies": ["nhà đường", "đô hộ phủ nhà đường"],
+        "invariants": [
+            "Hào trưởng Đường Lâm khởi binh đánh chiếm thành Tống Bình",
+            "Nhân dân tôn xưng Bố Cái Đại Vương, xây dựng chính quyền tự chủ",
+            "Không bao giờ phản bội dân tộc hay đầu hàng quan đô hộ"
+        ],
+        "defeat_regex": r"(?i)\b(?:phùng\s+hưng|bố\s+cái\s+đại\s+vương)\b.*?\b(?:đầu\s+hàng\s+quan\s+đô\s+hộ|phản\s+bội\s+dân\s+tộc|quy\s+hàng)\b"
+    },
+
+    # Epoch 3: Ngô - Đinh - Tiền Lê
     "ngo_quyen": {
         "names": ["ngô quyền", "tiền ngô vương"],
         "era": "Năm 938",
@@ -119,7 +220,55 @@ VIETNAMESE_HISTORICAL_CANON = {
             "Chém chết chủ tướng Lưu Hoằng Tháo trên sông",
             "Đại thắng quân Nam Hán năm 938, chấm dứt hơn 1000 năm Bắc thuộc"
         ],
-        "defeat_regex": r"(?i)\b(?:ngô\s+quyền|tiền\s+ngô\s+vương)\b.*?\b(?:bại\s+trận|thua\s+trận|đầu\s+hàng|bị\s+lưu\s+hoằng\s+tháo\s+(?:bắt|giết)|thất\s+bại\s+trên\s+sông\s+bạch\s+đằng)\b"
+        "defeat_regex": (
+            r"(?i)(?:"
+            r"\b(?:ngô\s+quyền|tiền\s+ngô\s+vương)\b"
+            r"(?:\s+(?:đã|lại|bị|phải|chịu|suýt|hoàn\s+toàn|cay\s+đắng|ở|trên\s+sông\s+bạch\s+đằng)){0,4}\s+"
+            r"(?:bại\s+trận|thua\s+trận|thất\s+bại|đại\s+bại|đầu\s+hàng|bị\s+lưu\s+hoằng\s+tháo\s+(?:bắt|giết)|thua\s+quân\s+nam\s+hán)\b"
+            r"|"
+            r"\b(?:ngô\s+quyền|tiền\s+ngô\s+vương)\b.*?\b(?:đầu\s+hàng|quy\s+hàng|chịu\s+thua)\s+(?:quân\s+)?(?:nam\s+hán|lưu\s+hoằng\s+tháo)\b"
+            r"|"
+            r"\b(?:thất\s+bại|sự\s+thất\s+bại)\s+của\s+(?:ngô\s+quyền|tiền\s+ngô\s+vương)\b"
+            r")"
+        )
+    },
+    "dinh_bo_linh": {
+        "names": ["đinh bộ lĩnh", "đinh tiên hoàng", "vạn thắng vương"],
+        "era": "Năm 968",
+        "battle": "Dẹp loạn 12 sứ quân",
+        "enemies": ["12 sứ quân"],
+        "invariants": [
+            "Cờ lau tập trận, trăm trận trăm thắng được tôn vinh Vạn Thắng Vương",
+            "Thống nhất non sông, dẹp tan loạn 12 sứ quân, định đô Hoa Lư lập nước Đại Cồ Việt",
+            "Tuyệt đối không bại trận trước 12 sứ quân hay đầu hàng"
+        ],
+        "defeat_regex": r"(?i)\b(?:đinh\s+bộ\s+lĩnh|đinh\s+tiên\s+hoàng)\b.*?\b(?:bại\s+trận\s+trước\s+12\s+sứ\s+quân|chia\s+cắt\s+đất\s+nước|đầu\s+hàng|thua\s+12\s+sứ\s+quân)\b"
+    },
+    "le_hoan": {
+        "names": ["lê hoàn", "lê đại hành"],
+        "era": "Năm 981",
+        "battle": "Bạch Đằng 981, Tây Kết",
+        "enemies": ["nhà tống", "hầu nhân bảo", "quân tống"],
+        "invariants": [
+            "Được Thái hậu Dương Vân Nga trao áo long bào thống lĩnh kháng chiến",
+            "Chém chết tướng giặc Hầu Nhân Bảo trên sông Bạch Đằng năm 981",
+            "Phá Tống bình Chiêm, giữ yên bờ cõi độc lập"
+        ],
+        "defeat_regex": r"(?i)\b(?:lê\s+hoàn|lê\s+đại\s+hành)\b.*?\b(?:thua\s+hầu\s+nhân\s+bảo|đầu\s+hàng\s+quân\s+tống|thất\s+bại\s+năm\s+981|bại\s+trận\s+năm\s+981)\b"
+    },
+
+    # Epoch 4: Lý - Trần thịnh trị
+    "ly_thai_to": {
+        "names": ["lý thái tổ", "lý công uẩn"],
+        "era": "Năm 1010",
+        "battle": "Định đô Thăng Long",
+        "enemies": [],
+        "invariants": [
+            "Soạn Chiếu dời đô dời kinh thành từ Hoa Lư về Đại La - Thăng Long năm 1010",
+            "Đặt nền móng ngàn năm văn hiến cho kinh đô Thăng Long - Hà Nội",
+            "Bậc minh quân sáng suốt, tuyệt đối không phản quốc bán đất"
+        ],
+        "defeat_regex": r"(?i)\b(?:lý\s+thái\s+tổ|lý\s+công\s+uẩn)\b.*?\b(?:hối\s+hận\s+dời\s+đô|phản\s+quốc|bán\s+đất|đầu\s+hàng)\b"
     },
     "ly_thuong_kiet": {
         "names": ["lý thường kiệt", "thái úy lý thường kiệt", "ngô tuấn"],
@@ -147,6 +296,79 @@ VIETNAMESE_HISTORICAL_CANON = {
         ],
         "defeat_regex": r"(?i)\b(?:trần\s+hưng\s+đạo|trần\s+quốc\s+tuấn|hưng\s+đạo\s+đại\s+vương)\b.*?\b(?:bại\s+trận|thua\s+trận|thua\s+cuộc|đầu\s+hàng|bị\s+bắt|chui\s+ống\s+đồng|bị\s+thoát\s+hoan\s+bắt|thất\s+bại\s+bạch\s+đằng|thua\s+quân\s+nguyên)\b"
     },
+    "tran_quoc_toan": {
+        "names": ["trần quốc toản", "hoài văn hầu"],
+        "era": "Năm 1285",
+        "battle": "Bến Bình Than, Trận Tây Kết, Hàm Tử",
+        "enemies": ["quân nguyên mông", "thoát hoan"],
+        "invariants": [
+            "Bóp nát quả cam tại hội nghị Bình Than vì tuổi nhỏ không được dự bàn việc quân",
+            "Thêu lá cờ 6 chữ vàng 'Phá cường địch, báo hoàng ân', dũng cảm xung trận hàng đầu",
+            "Tuyệt đối không đầu hàng Thoát Hoan, không vứt cờ hay sợ chết"
+        ],
+        "defeat_regex": r"(?i)\b(?:trần\s+quốc\s+toản|hoài\s+văn\s+hầu)\b.*?\b(?:phản\s+bội|đầu\s+hàng\s+thoát\s+hoan|sợ\s+chết|vứt\s+cờ\s+sáu\s+chữ|quy\s+hàng)\b"
+    },
+    "tran_nhan_tong": {
+        "names": ["trần nhân tông", "phật hoàng", "phật hoàng trần nhân tông"],
+        "era": "Thời Trần (Thế kỷ 13)",
+        "battle": "Hội nghị Diên Hồng, Hội nghị Bình Than",
+        "enemies": ["quân nguyên mông"],
+        "invariants": [
+            "Lãnh tụ tối cao cùng Quốc công Tiết chế lãnh đạo toàn dân đánh thắng Nguyên Mông",
+            "Mở Hội nghị Diên Hồng hỏi ý kiến bô lão 'Nên hòa hay nên đánh', muôn người đồng thanh 'Đánh'",
+            "Sáng lập Thiền phái Trúc Lâm Yên Tử, từ bỏ ngai vàng xuất gia tu hành",
+            "Tuyệt đối không đầu hàng hay chạy trốn nhục nhã"
+        ],
+        "defeat_regex": r"(?i)\b(?:trần\s+nhân\s+tông|phật\s+hoàng)\b.*?\b(?:đầu\s+hàng\s+quân\s+nguyên|bán\s+nước|chạy\s+trốn\s+nhục\s+nhã|quy\s+hàng)\b"
+    },
+    "tran_khanh_du": {
+        "names": ["trần khánh dư", "nhân huệ vương"],
+        "era": "Thời Trần (1288)",
+        "battle": "Trận Vân Đồn 1288",
+        "enemies": ["trương văn hổ", "đoàn thuyền lương nguyên mông"],
+        "invariants": [
+            "Bổ nhào đánh tan đoàn thuyền lương của Trương Văn Hổ tại Vân Đồn năm 1288",
+            "Cắt đứt hoàn toàn huyết mạch lương thảo quân Nguyên Mông, tạo thế đảo chiều chiến lược",
+            "Tuyệt đối không bại trận trước Trương Văn Hổ"
+        ],
+        "defeat_regex": r"(?i)\b(?:trần\s+khanh\s+dư|trần\s+khánh\s+dư|trận\s+vân\s+đồn)\b.*?\b(?:thua\s+trương\s+văn\s+hổ|đầu\s+hàng|bị\s+tiêu\s+diệt\s+hoàn\s+toàn)\b"
+    },
+    "yet_kieu": {
+        "names": ["yết kiêu", "phạm hữu thế"],
+        "era": "Thời Trần (Thế kỷ 13)",
+        "battle": "Thủy chiến sông Bạch Đằng, Vạn Kiếp",
+        "enemies": ["ô mã nhi", "quân nguyên mông"],
+        "invariants": [
+            "Gia tướng tài ba bơi lặn phi thường, đục thủng thuyền chiến giặc Ô Mã Nhi",
+            "Trung thành vô hạn với Hưng Đạo Đại Vương Trần Quốc Tuấn",
+            "Không bao giờ phản bội chủ hay đầu hàng giặc"
+        ],
+        "defeat_regex": r"(?i)\b(?:yết\s+kiêu)\b.*?\b(?:phản\s+bội\s+trần\s+hưng\s+đạo|bán\s+chủ|đầu\s+hàng\s+thoát\s+hoan|quy\s+hàng)\b"
+    },
+    "da_tuong": {
+        "names": ["dã tượng"],
+        "era": "Thời Trần (Thế kỷ 13)",
+        "battle": "Tượng binh kháng chiến Nguyên Mông",
+        "enemies": ["quân nguyên mông", "thoát hoan"],
+        "invariants": [
+            "Chỉ huy đội quân tượng binh dũng mãnh, một lòng bảo vệ Quốc công Tiết chế",
+            "Tuyệt đối trung trinh ái quốc, không bao giờ đầu hàng quân Nguyên Mông"
+        ],
+        "defeat_regex": r"(?i)\b(?:dã\s+tượng)\b.*?\b(?:phản\s+bội\s+trần\s+hưng\s+đạo|bán\s+chủ|đầu\s+hàng\s+thoát\s+hoan|quy\s+hàng)\b"
+    },
+    "yet_kieu_da_tuong": {
+        "names": ["yết kiêu", "dã tượng", "yết kiêu dã tượng"],
+        "era": "Thời Trần (Thế kỷ 13)",
+        "battle": "Kháng chiến chống quân Nguyên Mông",
+        "enemies": ["quân nguyên mông", "thoát hoan"],
+        "invariants": [
+            "Tướng tài thủy chiến và tượng binh, đục thuyền giặc Ô Mã Nhi",
+            "Trung thành tuyệt đối với Hưng Đạo Vương Trần Quốc Tuấn"
+        ],
+        "defeat_regex": r"(?i)\b(?:yết\s+kiêu|dã\s+tượng)\b.*?\b(?:phản\s+bội\s+trần\s+hưng\s+đạo|bán\s+chủ|đầu\s+hàng\s+thoát\s+hoan)\b"
+    },
+
+    # Epoch 5: Hậu Lê - Tây Sơn
     "le_loi": {
         "names": ["lê lợi", "bình định vương", "lê thái tổ"],
         "era": "Khởi nghĩa Lam Sơn (1418 - 1427)",
@@ -159,31 +381,232 @@ VIETNAMESE_HISTORICAL_CANON = {
             "Vương Thông xin hòa mở hội thề Đông Quan rút quân về nước",
             "Giành lại độc lập toàn vẹn non sông, lập nên triều Hậu Lê"
         ],
-        "defeat_regex": r"(?i)\b(?:lê\s+lợi|bình\s+định\s+vương)\b.*?\b(?:bại\s+trận|thua\s+trận|đầu\s+hàng\s+quân\s+minh|bị\s+liễu\s+thăng\s+(?:bắt|giết)|thất\s+bại\s+hoàn\s+toàn)\b"
+        "defeat_regex": r"(?i)\b(?:lê\s+lợi|bình\s+định\s+vương|khởi\s+nghĩa\s+lam\s+sơn)\b.*?\b(?:bại\s+trận|thua\s+trận|đầu\s+hàng\s+quân\s+minh|bị\s+liễu\s+thăng\s+(?:bắt|giết)|thất\s+bại\s+hoàn\s+toàn)\b"
+    },
+    "nguyen_trai": {
+        "names": ["nguyễn trãi", "ức trai"],
+        "era": "Khởi nghĩa Lam Sơn (1418 - 1427)",
+        "battle": "Mưu phạt tâm công Khởi nghĩa Lam Sơn",
+        "enemies": ["quân minh", "nhà minh", "vương thông"],
+        "invariants": [
+            "Mưu sĩ lỗi lạc, tác giả Bình Ngô đại cáo bất hủ",
+            "Tư tưởng nhân nghĩa 'Đem đại nghĩa để thắng hung tàn, lấy chí nhân để thay cường bạo'",
+            "Tuyệt đối không phản bội Lê Lợi hay làm tay sai cho giặc Minh"
+        ],
+        "defeat_regex": r"(?i)\b(?:nguyễn\s+trãi|ức\s+trai)\b.*?\b(?:phản\s+bội\s+lê\s+lợi|làm\s+tay\s+sai\s+quân\s+minh|bán\s+nước|đầu\s+hàng)\b"
+    },
+    "le_thanh_tong": {
+        "names": ["lê thánh tông", "vua lê thánh tông", "hồng đức hoàng đế"],
+        "era": "Thế kỷ 15 (Triều Hậu Lê)",
+        "battle": "Thời kỳ Hồng Đức thịnh trị",
+        "enemies": [],
+        "invariants": [
+            "Thời kỳ hoàng kim thịnh trị Hồng Đức, bản đồ Hồng Đức, Luật Hồng Đức",
+            "Thành lập Tao Đàn Nhị thập bát tú, văn võ toàn tài",
+            "Kiên quyết giữ vững từng tấc đất bờ cõi giang sơn Đại Việt"
+        ],
+        "defeat_regex": r"(?i)\b(?:lê\s+thánh\s+tông)\b.*?\b(?:làm\s+mất\s+nước|bán\s+giang\s+sơn|hèn\s+nhát|đầu\s+hàng)\b"
     },
     "quang_trung": {
         "names": ["quang trung", "nguyễn huệ", "bắc bình vương", "hoàng đế quang trung"],
         "era": "Khởi nghĩa Tây Sơn - Mùa xuân Kỷ Dậu 1789",
-        "battle": "Ngọc Hồi - Đống Đa (Tết Kỷ Dậu 1789)",
-        "enemies": ["quân thanh", "mãn thanh", "tôn sĩ nghị", "sầm nghi đống"],
+        "battle": "Ngọc Hồi - Đống Đa (Tết Kỷ Dậu 1789), Rạch Gầm - Xoài Mút",
+        "enemies": ["quân thanh", "mãn thanh", "tôn sĩ nghị", "sầm nghi đống", "quân xiêm"],
         "invariants": [
             "Hành quân thần tốc từ Phú Xuân ra Thăng Long dịp Tết Kỷ Dậu 1789",
             "Chiến thuật công phá pháo đài rơm bện tẩm nước",
             "Đại phá 29 vạn quân Mãn Thanh tại Ngọc Hồi - Đống Đa mùng 5 Tết",
+            "Đại phá 2 vạn quân Xiêm tại trận Rạch Gầm - Xoài Mút 1785",
             "Tướng giặc Sầm Nghi Đống thắt cổ tự vẫn, Tôn Sĩ Nghị bỏ chạy qua sông Hồng",
-            "Tuyệt đối không thất bại hay đầu hàng quân Thanh"
+            "Tuyệt đối không thất bại hay đầu hàng quân Thanh, quân Xiêm"
         ],
-        "defeat_regex": r"(?i)\b(?:quang\s+trung|nguyễn\s+huệ|bắc\s+bình\s+vương)\b.*?\b(?:bại\s+trận|thua\s+trận|đầu\s+hàng\s+quân\s+thanh|thua\s+tôn\s+sĩ\s+nghị|thất\s+bại\s+ở\s+ngọc\s+hồi|thất\s+bại\s+ở\s+đống\s+đa)\b"
+        "defeat_regex": r"(?i)\b(?:quang\s+trung|nguyễn\s+huệ|bắc\s+bình\s+vương)\b.*?\b(?:bại\s+trận|đại\s+bại|thua\s+trận|thua\s+cuộc|đầu\s+hàng|thua\s+tôn\s+sĩ\s+nghị|thất\s+bại\s+ở\s+ngọc\s+hồi|thất\s+bại\s+ở\s+đống\s+đa|thua\s+quân\s+xiêm|thua\s+quân\s+thanh)\b"
+    },
+    "bui_thi_xuan": {
+        "names": ["bùi thị xuân", "nữ tướng bùi thị xuân"],
+        "era": "Thời Tây Sơn (Cuối thế kỷ 18)",
+        "battle": "Trấn thủ Quy Nhơn, Trận Trấn Ninh",
+        "enemies": ["quân nguyễn ánh", "quân trịnh"],
+        "invariants": [
+            "Đô đốc nữ tướng kiệt xuất của phong trào Tây Sơn, huấn luyện tượng binh thiện chiến",
+            "Khí phách lẫm liệt, thà chết vinh quang chứ tuyệt đối không cúi đầu cầu xin tha mạng"
+        ],
+        "defeat_regex": r"(?i)\b(?:bùi\s+thị\s+xuân)\b.*?\b(?:đầu\s+hàng\s+hèn\s+nhát|cầu\s+xin\s+tha\s+mạng|phản\s+bội\s+tây\s+sơn|quy\s+hàng)\b"
+    },
+
+    # Epoch 6: Cận đại & Hiện đại
+    "truong_dinh": {
+        "names": ["trương định", "bình tây đại nguyên soái"],
+        "era": "Kháng Pháp Nam Kỳ (1859 - 1864)",
+        "battle": "Căn cứ Tân Phước, Gò Công",
+        "enemies": ["thực dân pháp", "quân pháp"],
+        "invariants": [
+            "Nhận phong 'Bình Tây Đại Nguyên Soái' từ nhân dân, thà chết vì nghĩa chứ không tuân lệnh triều đình đầu hàng Pháp",
+            "Chiến đấu kiên cường đến hơi thở cuối cùng vì nền độc lập non sông"
+        ],
+        "defeat_regex": r"(?i)\b(?:trương\s+định|bình\s+tây\s+đại\s+nguyên\s+soái)\b.*?\b(?:đầu\s+hàng\s+giặc\s+pháp|làm\s+tay\s+sai\s+cho\s+pháp|quy\s+hàng)\b"
+    },
+    "nguyen_trung_truc": {
+        "names": ["nguyễn trung trực"],
+        "era": "Kháng chiến chống Pháp (1861 - 1868)",
+        "battle": "Đốt tàu Espérance trên sông Nhật Tảo, chiếm đồn Rạch Giá",
+        "enemies": ["thực dân pháp", "quân pháp"],
+        "invariants": [
+            "Chỉ huy trận đốt tàu Espérance tại Nhật Tảo và đánh úp đồn Kiên Giang",
+            "Lời tuyên bố bất hủ: 'Bao giờ người Tây nhổ hết cỏ nước Nam thì mới hết người Nam đánh Tây'",
+            "Tuyệt đối không quy hàng hay làm tay sai cho giặc Pháp"
+        ],
+        "defeat_regex": r"(?i)\b(?:nguyễn\s+trung\s+trực)\b.*?\b(?:đầu\s+hàng\s+quân\s+pháp|quy\s+hàng|phản\s+bội\s+nghĩa\s+quân|cầu\s+xin\s+giặc)\b"
+    },
+    "phan_dinh_phung": {
+        "names": ["phan đình phùng", "cao thắng", "nghĩa quân hương khê"],
+        "era": "Khởi nghĩa Hương Khê (1885 - 1896)",
+        "battle": "Căn cứ Vụ Quang, Hương Khê",
+        "enemies": ["thực dân pháp", "quân pháp"],
+        "invariants": [
+            "Lãnh tụ tiêu biểu của phong trào Cần Vương, Cao Thắng tự chế tạo súng trường",
+            "Kiên trì chiến đấu anh dũng nơi rừng sâu, không bao giờ đầu hàng hay phản bội Cần Vương"
+        ],
+        "defeat_regex": r"(?i)\b(?:phan\s+đình\s+phùng|cao\s+thắng|khởi\s+nghĩa\s+hương\s+khê)\b.*?\b(?:đầu\s+hàng\s+pháp|phản\s+bội\s+cần\s+vương|làm\s+tay\s+sai|quy\s+hàng)\b"
+    },
+    "hoang_hoa_tham": {
+        "names": ["hoàng hoa thám", "đề thám", "hùm xám yên thế"],
+        "era": "Khởi nghĩa Yên Thế (1884 - 1913)",
+        "battle": "Căn cứ Yên Thế (Bắc Giang)",
+        "enemies": ["thực dân pháp", "quân pháp"],
+        "invariants": [
+            "Hùm xám Yên Thế kiên cường lãnh đạo phong trào nông dân kháng chiến suốt gần 30 năm",
+            "Tuyệt đối không làm tay sai cho thực dân Pháp hay phản bội nghĩa quân"
+        ],
+        "defeat_regex": r"(?i)\b(?:hoàng\s+hoa\s+thám|đề\s+thám|hùm\s+xám\s+yên\s+thế)\b.*?\b(?:đầu\s+hàng\s+pháp|làm\s+tay\s+sai\s+thực\s+dân|phản\s+bội|quy\s+hàng)\b"
+    },
+    "vo_thi_sau": {
+        "names": ["võ thị sáu", "kim đồng", "bế văn đàn", "tô vĩnh diện"],
+        "era": "Kháng chiến chống Pháp (1945 - 1954)",
+        "battle": "Nhà tù Côn Đảo, Chiến dịch Điện Biên Phủ",
+        "enemies": ["thực dân pháp", "quân pháp"],
+        "invariants": [
+            "Nữ anh hùng Đất Đỏ kiên cường ngẩng cao đầu trước họng súng kẻ thù tại Côn Đảo",
+            "Tấm gương thiếu niên dũng cảm, tuyệt đối không khai báo phản bội hay cúi đầu xin giặc tha mạng"
+        ],
+        "defeat_regex": r"(?i)\b(?:võ\s+thị\s+sáu|kim\s+đồng|tô\s+vĩnh\s+diện|bế\s+văn\s+đàn)\b.*?\b(?:đầu\s+hàng|khai\s+báo\s+phản\s+bội|hèn\s+nhát\s+cầu\s+xin|quy\s+hàng)\b"
+    },
+    "vo_nguyen_giap": {
+        "names": ["võ nguyên giáp", "đại tướng võ nguyên giáp", "đại tướng giáp"],
+        "era": "Năm 1954 (Chiến dịch Điện Biên Phủ)",
+        "battle": "Chiến dịch Điện Biên Phủ 1954",
+        "enemies": ["de castries", "đờ cát", "thực dân pháp", "quân pháp"],
+        "invariants": [
+            "Tổng tư lệnh Quân đội Nhân dân Việt Nam chỉ huy Chiến dịch Điện Biên Phủ toàn thắng",
+            "Chiến thắng 'lừng lẫy năm châu, chấn động địa cầu', bắt sống tướng De Castries ngày 7/5/1954",
+            "Tuyệt đối không thất bại trước thực dân Pháp hay đầu hàng tướng De Castries"
+        ],
+        "defeat_regex": (
+            r"(?i)(?:"
+            r"\b(?:võ\s+nguyên\s+giáp|đại\s+tướng\s+(?:võ\s+nguyên\s+)?giáp)\b"
+            r"(?:\s+(?:đã|lại|bị|phải|chịu|suýt|hoàn\s+toàn|cay\s+đắng|ở|tại\s+điện\s+biên(?:\s+phủ)?)){0,4}\s+"
+            r"(?:thua\s+trận|thất\s+bại|bại\s+trận|đại\s+bại|đầu\s+hàng|thua\s+cuộc|quy\s+hàng|thua\s+(?:quân\s+)?pháp|thua\s+đờ\s+cát|bị\s+(?:bắt|giết|tiêu\s+diệt))\b"
+            r"|"
+            r"\b(?:võ\s+nguyên\s+giáp|đại\s+tướng\s+(?:võ\s+nguyên\s+)?giáp)\b.*?\b(?:đầu\s+hàng|quy\s+hàng|chịu\s+thua)\s+(?:quân\s+)?(?:pháp|đờ\s+cát|de\s+castries)\b"
+            r"|"
+            r"\b(?:thất\s+bại|sự\s+thất\s+bại|việc\s+đầu\s+hàng)\s+của\s+(?:đại\s+tướng\s+)?(?:võ\s+nguyên\s+)?giáp\b"
+            r")"
+        )
+    },
+    "chien_dich_ho_chi_minh": {
+        "names": ["chiến dịch hồ chí minh", "đại thắng mùa xuân 1975", "ngày 30/4", "30/4/1975"],
+        "era": "Tháng 4 năm 1975",
+        "battle": "Chiến dịch Hồ Chí Minh lịch sử",
+        "enemies": ["quân xâm lược", "chính quyền sài gòn"],
+        "invariants": [
+            "Chiến dịch Hồ Chí Minh lịch sử, tiến vào Dinh Độc Lập trưa ngày 30 tháng 4 năm 1975",
+            "Giải phóng hoàn toàn miền Nam, thống nhất non sông đất nước",
+            "Tuyệt đối không thất bại hay đảo ngược đại thắng non sông"
+        ],
+        "defeat_regex": r"(?i)\b(?:chiến\s+dịch\s+hồ\s+chí\s+minh|đại\s+thắng\s+mùa\s+xuân\s+1975|ngày\s+30\/4)\b.*?\b(?:thất\s+bại\s+hoàn\s+toàn|quân\s+ta\s+bị\s+tiêu\s+diệt|không\s+thống\s+nhất\s+được|thất\s+bại\s+năm\s+1975)\b"
     }
 }
 
 # Major battles and general battle distortion checks
 BATTLE_OUTCOME_DISTORTION_PATTERNS = [
     (r"(?i)\btrận\s+bạch\s+đằng\b.*?\b(?:quân\s+ta\s+thua|đại\s+việt\s+thất\s+bại|nguyên\s+mông\s+toàn\s+thắng|nam\s+hán\s+toàn\s+thắng)\b", "Xuyên tạc kết quả trận Bạch Đằng lịch sử."),
-    (r"(?i)\btrận\s+như\s+nguyệt\b.*?\b(?:quân\s+ta\s+thua|đại\s+việt\s+thất\s+bại|nhà\s+tống\s+chiếm\s+thăng\s+long)\b", "Xuyên tạc kết quả trận chiến phòng tuyến Như Nguyệt."),
-    (r"(?i)\btrận\s+(?:ngọc\s+hồi|đống\s+đa)\b.*?\b(?:quang\s+trung\s+thua|tây\s+sơn\s+thất\s+bại|quân\s+thanh\s+chiếm\s+giữ\s+vững)\b", "Xuyên tạc đại thắng Ngọc Hồi - Đống Đa 1789."),
-    (r"(?i)\bkhởi\s+nghĩa\s+lam\s+sơn\b.*?\b(?:bị\s+quân\s+minh\s+tiêu\s+diệt\s+hoàn\s+toàn|lê\s+lợi\s+thất\s+bại\s+vĩnh\s+viễn)\b", "Xuyên tạc toàn thắng khởi nghĩa Lam Sơn.")
+    (r"(?i)\btrận\s+như\s+nguyệt\b.*?\b(?:quân\s+ta\s+thua|đại\s+việt\s+thất\s+bại|nhà\s+tống\s+chiếm\s+thăng\s+long|tống\s+toàn\s+thắng)\b", "Xuyên tạc kết quả trận chiến phòng tuyến Như Nguyệt."),
+    (r"(?i)\btrận\s+(?:ngọc\s+hồi|đống\s+đa)\b.*?\b(?:quang\s+trung\s+thua|tây\s+sơn\s+thất\s+bại|quân\s+thanh\s+chiếm\s+giữ\s+vững|quân\s+thanh\s+toàn\s+thắng)\b", "Xuyên tạc đại thắng Ngọc Hồi - Đống Đa 1789."),
+    (r"(?i)\bkhởi\s+nghĩa\s+lam\s+sơn\b.*?\b(?:bị\s+quân\s+minh\s+tiêu\s+diệt\s+hoàn\s+toàn|lê\s+lợi\s+thất\s+bại\s+vĩnh\s+viễn|quân\s+minh\s+toàn\s+thắng)\b", "Xuyên tạc toàn thắng khởi nghĩa Lam Sơn."),
+    (r"(?i)\b(?:trận\s+điện\s+biên\s+phủ|chiến\s+dịch\s+điện\s+biên\s+phủ)\b.*?\b(?:quân\s+ta\s+(?:thua|thất\s+bại)|việt\s+minh\s+(?:thua|thất\s+bại)|võ\s+nguyên\s+giáp\s+(?:thua|thất\s+bại)|quân\s+pháp\s+toàn\s+thắng|pháp\s+thắng\s+trận)\b", "Xuyên tạc đại thắng Điện Biên Phủ 1954."),
+    (r"(?i)\b(?:chiến\s+dịch\s+hồ\s+chí\s+minh|mùa\s+xuân\s+1975)\b.*?\b(?:thất\s+bại\s+hoàn\s+toàn|quân\s+giải\s+phóng\s+bại\s+trận|không\s+giải\s+phóng\s+được)\b", "Xuyên tạc Đại thắng Mùa Xuân 1975."),
+    (r"(?i)\btrận\s+rạch\s+gầm\s*[-–]\s*xoài\s+mút\b.*?\b(?:tây\s+sơn\s+thua|quân\s+xiêm\s+toàn\s+thắng)\b", "Xuyên tạc chiến thắng Rạch Gầm - Xoài Mút 1785."),
+    (r"(?i)\btrận\s+vân\s+đồn\b.*?\b(?:trương\s+văn\s+hổ\s+thắng|đoàn\s+thuyền\s+lương\s+nguyên\s+vẹn|đại\s+việt\s+thua)\b", "Xuyên tạc chiến thắng Vân Đồn 1288.")
 ]
+
+
+class HistoricalDistortionError(ValueError):
+    """Raised when text violates Vietnamese historical invariants."""
+    pass
+
+
+class AISemanticHistoricalClassifier:
+    """
+    Two-pass hybrid classifier:
+    Pass 1: Fast rule-based semantic evasion patterns (passive voice, inversion, metaphor).
+    Pass 2: LLM semantic analysis fallback (if available).
+    """
+    def __init__(self, llm_client=None):
+        self.llm = llm_client
+
+    def classify_semantic_distortion(self, text: str, context: str = "") -> Tuple[bool, float, str]:
+        """
+        Analyzes text for semantic distortions of Vietnamese history.
+        Returns: (is_distortion: bool, confidence: float, violation_reason: str)
+        """
+        if not text or not isinstance(text, str):
+            return False, 0.0, ""
+
+        t_lower = text.lower()
+
+        # Pass 1: Semantic evasion patterns
+        # 1. Mongol triumph evasion on Bach Dang
+        if re.search(r"(?i)\b(?:quân\s+)?(?:mông\s+cổ|nguyên\s+mông|nam\s+hán)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|khải\s+hoàn|toàn\s+thắng|đại\s+thắng|chiến\s+thắng|làm\s+chủ|thắng\s+lớn)\b.*?\b(?:sông\s+bạch\s+đằng|bạch\s+đằng)\b", text, re.DOTALL):
+            return True, 0.95, "Xuyên tạc kết quả trận Bạch Đằng (quân xâm lược thắng)"
+        if re.search(r"(?i)\b(?:sông\s+bạch\s+đằng|bạch\s+đằng)\b.*?\b(?:quân\s+)?(?:mông\s+cổ|nguyên\s+mông|nam\s+hán)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|khải\s+hoàn|toàn\s+thắng|đại\s+thắng|chiến\s+thắng)\b", text, re.DOTALL):
+            return True, 0.95, "Xuyên tạc kết quả trận Bạch Đằng (quân xâm lược thắng)"
+
+        # 2. De Castries / French victory inversion at Dien Bien Phu
+        if re.search(r"(?i)\b(?:tướng\s+)?(?:de\s+castries|đờ\s+cát|quân\s+pháp|thực\s+dân\s+pháp)\b.*?\b(?:mừng|uống\s+(?:champagne|sâm\s+panh)|nâng\s+ly(?:\s+(?:sâm\s+panh|champagne))?|sâm\s+panh|champagne|hân\s+hoan|toàn\s+thắng)\b.*?\b(?:(?:đánh\s+tan|tiêu\s+diệt)\s+(?:quân\s+đội\s+)?(?:việt\s+minh|quân\s+ta)|(?:chiến\s+thắng|toàn\s+thắng|đại\s+thắng|thắng\s+trận)\s*(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh))\b", text, re.DOTALL):
+            return True, 0.98, "Xuyên tạc lịch sử chiến dịch Điện Biên Phủ (quân Pháp thắng)"
+        if re.search(r"(?i)\b(?:tướng\s+)?(?:de\s+castries|đờ\s+cát)\b.*?\b(?:chiến\s+thắng\s+(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh)|toàn\s+thắng\s+(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh)|đánh\s+tan\s+việt\s+minh)\b", text, re.DOTALL):
+            return True, 0.98, "Xuyên tạc lịch sử chiến dịch Điện Biên Phủ"
+
+        # 3. Metaphorical defamation of hero Tran Quoc Toan
+        if re.search(r"(?i)\b(?:ngọn\s+cờ\s+thêu\s+sáu\s+chữ\s+vàng|cờ\s+thêu\s+sáu\s+chữ\s+vàng|sáu\s+chữ\s+vàng)\b.*?\b(?:chìm\s+nghỉm|vứt\s+bỏ|bị\s+đốt|rách\s+nát)\b.*?\b(?:quỳ\s+gối|bảo\s+toàn\s+tính\s+mạng|cầu\s+xin|xin\s+hàng)\b", text, re.DOTALL):
+            return True, 0.92, "Xúc phạm hình tượng anh hùng thiếu niên Trần Quốc Toản"
+
+        # 4. Other historic battle inversions
+        if re.search(r"(?i)\b(?:tôn\s+sĩ\s+nghị|quân\s+thanh|mãn\s+thanh)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|toàn\s+thắng|tiêu\s+diệt\s+quân\s+tây\s+sơn)\b.*?\b(?:ngọc\s+hồi|đống\s+đa|thăng\s+long)\b", text, re.DOTALL):
+            return True, 0.95, "Xuyên tạc đại thắng Ngọc Hồi - Đống Đa"
+
+        if re.search(r"(?i)\b(?:quách\s+quỳ|quân\s+tống|nhà\s+tống)\b.*?\b(?:chọc\s+thủng|vượt\s+qua|tiêu\s+diệt\s+đại\s+việt|toàn\s+thắng)\b.*?\b(?:như\s+nguyệt)\b", text, re.DOTALL):
+            return True, 0.95, "Xuyên tạc chiến thắng phòng tuyến Như Nguyệt"
+
+        # Pass 2: LLM semantic analysis fallback
+        if self.llm:
+            try:
+                system_prompt = (
+                    "Bạn là Hệ thống Thẩm định Lịch sử Quốc gia NarrAI. Phân tích ngữ nghĩa xem văn bản có XUYÊN TẠC, "
+                    "ĐẢO NGƯỢC KẾT QUẢ CHIẾN TRANH hay BÔI NHỌ ANH HÙNG DÂN TỘC VIỆT NAM hay không (chú ý câu bị động, ẩn dụ).\n"
+                    "Trả về JSON duy nhất: {\"is_distortion\": bool, \"confidence\": float, \"violation_reason\": str}"
+                )
+                resp = self.llm.chat([
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text[:1500]}
+                ], temperature=0.0, max_tokens=250, response_format={"type": "json_object"})
+                parsed = json.loads(resp)
+                if isinstance(parsed, dict) and parsed.get("is_distortion"):
+                    return True, float(parsed.get("confidence", 0.9)), str(parsed.get("violation_reason", "Xuyên tạc lịch sử theo phân tích ngữ nghĩa AI"))
+            except Exception:
+                pass
+
+        return False, 0.0, ""
 
 
 class HistoricalGroundingGatekeeper:
@@ -195,7 +618,7 @@ class HistoricalGroundingGatekeeper:
     """
 
     @classmethod
-    def validate_historical_invariants(cls, text: str, mode: NarrativeMode = NarrativeMode.CHINH_SU) -> Tuple[bool, List[str]]:
+    def validate_historical_invariants(cls, text: str, mode: NarrativeMode = NarrativeMode.CHINH_SU, user_prompt: str = "") -> Tuple[bool, List[str]]:
         """
         Validates text against Vietnamese historical invariants.
         Returns (is_valid, list_of_violations).
@@ -207,11 +630,12 @@ class HistoricalGroundingGatekeeper:
             return True, []
 
         violations = []
+        combined_text = f"{user_prompt}\n{text}".strip() if user_prompt else text
 
         # Check character-specific defeat / distortion patterns
         for key, canon in VIETNAMESE_HISTORICAL_CANON.items():
             pattern = canon.get("defeat_regex")
-            if pattern and re.search(pattern, text, re.DOTALL):
+            if pattern and re.search(pattern, combined_text, re.DOTALL):
                 hero_name = canon["names"][0].title()
                 violations.append(
                     f"HISTORICAL_VIOLATION: Phát hiện xuyên tạc hình tượng lịch sử anh hùng '{hero_name}'. "
@@ -220,8 +644,15 @@ class HistoricalGroundingGatekeeper:
 
         # Check battle outcome distortions
         for pattern, desc in BATTLE_OUTCOME_DISTORTION_PATTERNS:
-            if re.search(pattern, text, re.DOTALL):
+            if re.search(pattern, combined_text, re.DOTALL):
                 violations.append(f"HISTORICAL_VIOLATION: {desc}")
+
+        # Check AI semantic classifier for regex evasion
+        if len(violations) == 0:
+            classifier = AISemanticHistoricalClassifier()
+            is_distorted, conf, reason = classifier.classify_semantic_distortion(combined_text)
+            if is_distorted and conf >= 0.7:
+                violations.append(f"HISTORICAL_VIOLATION: {reason}")
 
         is_valid = len(violations) == 0
         return is_valid, violations
@@ -687,3 +1118,238 @@ def resolve_ontology(
         era_anchor=era_anchors.get(tier, "Open Domain"),
         spatial_anchor=""
     )
+
+
+# ==============================================================================
+# 7. AUTO-DETECTION OF NARRATIVE MODES (R2.4)
+# ==============================================================================
+
+class AutoDetectResult(tuple):
+    """
+    Subclass of tuple (mode, label) that also supports direct equality comparison
+    with NarrativeMode (e.g. result == NarrativeMode.CHINH_SU) and attribute access.
+    """
+    def __new__(cls, mode: NarrativeMode, label: str):
+        return super().__new__(cls, (mode, label))
+
+    @property
+    def mode(self) -> NarrativeMode:
+        return self[0]
+
+    @property
+    def label(self) -> str:
+        return self[1]
+
+    def __eq__(self, other):
+        if isinstance(other, (NarrativeMode, str)):
+            return self[0] == other or (hasattr(self[0], "value") and self[0].value == other)
+        return super().__eq__(other)
+
+
+def auto_detect_narrative_mode(prompt: str, context: str = "", genre: str = "") -> AutoDetectResult:
+    """
+    Automatically detects the narrative mode from user prompt and context:
+    1. CHÍNH SỬ: Focuses directly on canonical Vietnamese heroes or major patriotic battles.
+    2. DÃ SỬ: Historical era/dynasty is real, but protagonist/plot is fictional perspective.
+    3. HƯ CẤU TỰ DO: Free personal fiction (Sci-Fi, Cyberpunk, Xianxia, Western Fantasy, Urban).
+    """
+    combined = f"{genre} {context} {prompt}".lower().strip()
+
+    # 1. Check Out of Domain (OOD) signals
+    ood_signals = [
+        "sci-fi", "science fiction", "cyberpunk", "isekai", "tiên hiệp", "tu chân",
+        "phương tây", "ma pháp", "new york", "hogwarts", "phi thuyền", "thiên hà",
+        "không gian", "đô thị", "vũ trụ", "tông môn", "võ hồn", "kim đan", "hệ thống"
+    ]
+    if any(sig in combined for sig in ood_signals):
+        return AutoDetectResult(NarrativeMode.HU_CAU_TU_DO, "Hư cấu tự do")
+
+    # 2. Check canonical heroes
+    has_hero = False
+    for hero_key, hero_data in VIETNAMESE_HISTORICAL_CANON.items():
+        if hero_key.replace("_", " ") in combined:
+            has_hero = True
+            break
+        for alias in hero_data.get("names", []):
+            if alias in combined:
+                has_hero = True
+                break
+        if has_hero:
+            break
+
+    # 3. Check historical battles and dynasties
+    historical_battles = [
+        "bạch đằng", "như nguyệt", "ngọc hồi", "đống đa", "lam sơn",
+        "chi lăng", "xương giang", "điện biên phủ", "chiến dịch hồ chí minh",
+        "rạch gầm", "xoài mút", "dạ trạch", "vạn xuân", "cổ loa", "đại la", "thăng long"
+    ]
+    has_battle = any(b in combined for b in historical_battles)
+
+    historical_dynasties = [
+        "nhà trần", "thời trần", "nhà lý", "thời lý", "nhà lê", "thời lê",
+        "nhà nguyễn", "thời nguyễn", "tây sơn", "hùng vương", "âu lạc",
+        "đại cồ việt", "đại việt", "thời kháng chiến", "thời kỳ bắc thuộc"
+    ]
+    has_dynasty = any(d in combined for d in historical_dynasties)
+
+    if not (has_hero or has_battle or has_dynasty):
+        return AutoDetectResult(NarrativeMode.HU_CAU_TU_DO, "Hư cấu tự do")
+
+    # 4. Distinguish between CHINH_SU and DA_SU
+    fictional_lens_markers = [
+        "nghĩa sĩ vô danh", "người lính cấm vệ", "đôi trai gái", "thợ rèn",
+        "cô gái thêu", "góc nhìn của", "chuyện tình thời chiến", "thiếu niên thời trần",
+        "lữ khách", "người lính vô danh", "người lính thường", "dã sử", "phóng tác",
+        "nhân vật tự nghĩ", "nghĩa sĩ thầm lặng", "chuyện tình"
+    ]
+    is_fictional_perspective = any(m in combined for m in fictional_lens_markers)
+
+    if is_fictional_perspective:
+        return AutoDetectResult(NarrativeMode.DA_SU, "Dã sử (Góc nhìn phóng tác)")
+
+    if has_hero or has_battle:
+        return AutoDetectResult(NarrativeMode.CHINH_SU, "Chính sử (Tôn trọng sự thật)")
+
+    if has_dynasty:
+        return AutoDetectResult(NarrativeMode.DA_SU, "Dã sử (Góc nhìn phóng tác)")
+
+    return AutoDetectResult(NarrativeMode.HU_CAU_TU_DO, "Hư cấu tự do")
+
+
+# ==============================================================================
+# 8. COMMERCIAL IP REGISTRY & FANFICTION DISCLAIMER PROTECTION (R2)
+# ==============================================================================
+
+COMMERCIAL_IP_REGISTRY = {
+    "Harry Potter": {
+        "franchise": "Wizarding World / J.K. Rowling",
+        "keywords": [
+            "harry potter", "hermione", "hermione granger", "ron weasley", "voldemort",
+            "dumbledore", "albus dumbledore", "hogwarts", "gryffindor", "slytherin",
+            "hufflepuff", "ravenclaw", "quidditch", "tử thần thực tử", "chúa tể voldemort"
+        ],
+        "creative_alternatives": {
+            "Harry Potter": "Hải Phong / Harry Vance",
+            "Hogwarts": "Học viện Pháp thuật Thăng Long / Trường Cổ Sơn",
+            "Voldemort": "Chúa tể U Hồn / Ma Tôn Hắc Ám"
+        }
+    },
+    "Marvel Cinematic Universe": {
+        "franchise": "Marvel / Disney",
+        "keywords": [
+            "iron man", "tony stark", "spider-man", "spiderman", "peter parker",
+            "captain america", "steve rogers", "thanos", "thor odinson", "avengers",
+            "hulk", "bruce banner", "black widow", "natasha romanoff", "wolverine",
+            "x-men", "deadpool"
+        ],
+        "creative_alternatives": {
+            "Iron Man": "Chiến giáp Kim Thần / Giáp Sắt Thần Binh",
+            "Thanos": "Bá vương Tinh vân / Bạo chúa Không gian",
+            "Spider-Man": "Người Nhện Thiếu Niên / Chu Vực"
+        }
+    },
+    "DC Comics": {
+        "franchise": "DC / Warner Bros",
+        "keywords": [
+            "batman", "bruce wayne", "superman", "clark kent", "joker",
+            "wonder woman", "harley quinn", "gotham", "metropolis", "justice league"
+        ],
+        "creative_alternatives": {
+            "Batman": "Hiệp sĩ Bóng đêm Dạ Thành / Ám Dạ Du Hiệp",
+            "Gotham": "Thành phố Hắc Lạc / Đô thị Tội ác"
+        }
+    },
+    "Anime & Manga": {
+        "franchise": "Shueisha / Kodansha",
+        "keywords": [
+            "naruto", "sasuke", "kakashi", "sharingan", "luffy", "zoro",
+            "one piece", "goku", "vegeta", "saiyan", "tanjiro", "nezuko",
+            "gojo satoru", "sukuna", "jujutsu kaisen", "levi ackerman", "eren yeager"
+        ],
+        "creative_alternatives": {
+            "Naruto": "Thiếu niên Phong Ma / Nhẫn giả Lôi Thần",
+            "Gojo Satoru": "Ngũ Nhãn Tiên Sinh / Cường giả Vô Hạn"
+        }
+    },
+    "Star Wars & Disney": {
+        "franchise": "Lucasfilm / Disney",
+        "keywords": [
+            "darth vader", "luke skywalker", "jedi", "sith", "lightsaber",
+            "yoda", "mickey mouse", "elsa", "olaf"
+        ],
+        "creative_alternatives": {
+            "Jedi": "Hiệp sĩ Tinh Tế / Kiếm sĩ Quang Năng",
+            "Lightsaber": "Thần kiếm Ánh sáng"
+        }
+    }
+}
+
+
+class CommercialIPResult(dict):
+    """Result object behaving as a dict and unpackable as (has_ip, matched_ips, disclaimer)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __iter__(self):
+        yield self.get("has_commercial_ip", False)
+        yield self.get("matched_ips", [])
+        yield self.get("fanfiction_disclaimer", "")
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            if key == 0:
+                return self.get("has_commercial_ip", False)
+            if key == 1:
+                return self.get("matched_ips", [])
+            if key == 2:
+                return self.get("fanfiction_disclaimer", "")
+        return super().__getitem__(key)
+
+
+def detect_commercial_ip(text: str) -> CommercialIPResult:
+    """
+    Scans text for protected commercial franchises.
+    Returns CommercialIPResult (dict + unpackable 3-tuple).
+    """
+    if not text or not isinstance(text, str):
+        return CommercialIPResult({
+            "has_commercial_ip": False,
+            "matched_ips": [],
+            "matched_franchises": [],
+            "creative_suggestions": {},
+            "fanfiction_disclaimer": ""
+        })
+
+    text_lower = text.lower()
+    matched_ips = []
+    matched_franchises = []
+    suggestions = {}
+
+    for ip_name, ip_data in COMMERCIAL_IP_REGISTRY.items():
+        franchise_matched = False
+        for kw in ip_data["keywords"]:
+            pattern = r"(?i)\b" + re.escape(kw) + r"\b"
+            if re.search(pattern, text_lower):
+                matched_ips.append(kw)
+                franchise_matched = True
+        if franchise_matched:
+            matched_franchises.append(ip_name)
+            for orig, alt in ip_data.get("creative_alternatives", {}).items():
+                if orig.lower() in text_lower:
+                    suggestions[orig] = alt
+
+    unique_ips = list(dict.fromkeys(matched_ips))
+    has_ip = len(unique_ips) > 0
+    disclaimer = (
+        "⚠️ Tác phẩm fan fiction — không liên quan đến tác phẩm gốc và không nhằm mục đích thương mại."
+        if has_ip else ""
+    )
+
+    return CommercialIPResult({
+        "has_commercial_ip": has_ip,
+        "matched_ips": unique_ips,
+        "matched_franchises": matched_franchises,
+        "creative_suggestions": suggestions,
+        "fanfiction_disclaimer": disclaimer
+    })
+

@@ -140,6 +140,9 @@ export interface SocialComment {
 
 export interface SocialPost {
   id: number;
+  user_id?: number;
+  author_name?: string;
+  author_avatar?: string;
   story_id?: number;
   title: string;
   content_snippet: string;
@@ -149,6 +152,8 @@ export interface SocialPost {
   cover_image_url?: string;
   genre?: string;
   tags?: string[];
+  is_fanfiction?: boolean;
+  disclaimer?: string;
   dsgo_entities?: string[];
   dsgo_spaces?: string[];
   likes_count: number;
@@ -171,6 +176,8 @@ export interface PublishSocialPostPayload {
   story_text?: string;
   genre?: string;
   tags?: string[];
+  is_fanfiction?: boolean;
+  disclaimer?: string;
   cover_image_url?: string | null;
   dsgo_entities?: string[];
   dsgo_spaces?: string[];

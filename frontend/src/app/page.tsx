@@ -20,6 +20,8 @@ import { CommunityFeedView } from "@/components/social/CommunityFeedView";
 import { StoryEditor } from "@/components/editor/StoryEditor";
 import { AICopilotPanel } from "@/components/editor/AICopilotPanel";
 import { ComicViewer } from "@/components/comic/ComicViewer";
+import { NeuralVisualPreview } from "@/components/canvas/NeuralVisualPreview";
+
 
 /**
  * Recursively unwraps stringified JSON envelopes, extracts clean story prose,
@@ -163,7 +165,9 @@ export default function WorkspacePage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCoinModalOpen, setIsCoinModalOpen] = useState(false);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
+  const [isNeuralModalOpen, setIsNeuralModalOpen] = useState(false);
   const [coinBalance, setCoinBalance] = useState<number>(100);
+
 
   // Setup Flow State
   const [initialPrompt, setInitialPrompt] = useState("");
@@ -175,6 +179,7 @@ export default function WorkspacePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [storyContent, setStoryContent] = useState("");
   const [selectedText, setSelectedText] = useState("");
+  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
   const [proposedText, setProposedText] = useState<string | null>(null);
   const [copilotMessages, setCopilotMessages] = useState<ChatMessage[]>([]);
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -347,6 +352,7 @@ export default function WorkspacePage() {
         title,
         content_snippet: cleanSnippet + (storyContent.length > 320 ? "..." : ""),
         story_id: storyId || null,
+        story_text: storyContent,
         genre: "Tiểu thuyết",
         tags: ["NarrAI", "VănHọcMới"],
         cover_image_url: coverImageUrl,
@@ -440,11 +446,13 @@ export default function WorkspacePage() {
     setStoryContent((prev) => prev.replace(selectedText, proposedText));
     setProposedText(null);
     setSelectedText("");
+    setCursorPosition(null);
   };
 
   const handleRejectEdit = () => {
     setProposedText(null);
     setSelectedText("");
+    setCursorPosition(null);
   };
 
   const handleUndoEdit = () => {
@@ -464,14 +472,21 @@ export default function WorkspacePage() {
 
     try {
       const storyContext = storyContent.slice(0, 15000);
+      const payload: Record<string, any> = {
+        user_message: msg,
+        current_story: storyContext,
+      };
+      if (selectedText) {
+        payload.selected_text = selectedText;
+      }
+      if (cursorPosition !== null && cursorPosition !== undefined) {
+        payload.cursor_position = cursorPosition;
+      }
       const res = await api.sendCopilotEvent(
         sessionId,
         storyId,
         "USER_CHAT",
-        JSON.stringify({
-          user_message: msg,
-          current_story: storyContext,
-        })
+        JSON.stringify(payload)
       );
 
       if (res.status === "success" && res.data) {
@@ -485,6 +500,8 @@ export default function WorkspacePage() {
             if (!newContent.startsWith("{") && !newContent.includes('"updated_story_content"')) {
               setUndoStack((prev) => [...prev, storyContent]);
               setStoryContent(newContent);
+              setSelectedText("");
+              setCursorPosition(null);
               const notice = params.summary_of_changes || (lang === "vi" ? "Bản thảo đã được AI Co-pilot cập nhật trực tiếp!" : "Manuscript directly updated by AI Co-pilot!");
               setManuscriptNotice(notice);
               toast.success(notice);
@@ -877,7 +894,10 @@ export default function WorkspacePage() {
                 onAdaptToComic={handleAdaptToComic}
                 onDownload={handleDownload}
                 onPublish={handlePublishStory}
-                onSelectText={setSelectedText}
+                onSelectText={(txt, pos) => {
+                  setSelectedText(txt);
+                  setCursorPosition(pos !== undefined ? pos : null);
+                }}
                 onQuickAction={handleQuickAction}
                 onOpenCustomAI={(txt) => setSelectedText(txt)}
               />
@@ -960,6 +980,23 @@ export default function WorkspacePage() {
         currentUser={user?.username || "creator"}
         lang={lang}
       />
+
+      {/* AI Art & Neural Style Laboratory Modal (Feature 30) */}
+      {isNeuralModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => setIsNeuralModalOpen(false)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors z-20"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <NeuralVisualPreview lang={lang} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

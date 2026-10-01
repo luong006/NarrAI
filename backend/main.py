@@ -14,6 +14,7 @@ if sys.platform == "win32":
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 import json
@@ -49,6 +50,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# GZip response compression for responses >= 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # Lazy-load agents
 qa_refiner = None
 story_generator = None
@@ -75,6 +79,27 @@ from db.models import Story, User, Comic, ComicPanel, engine
 from sqlalchemy.orm import sessionmaker, Session
 from auth import verify_password, get_password_hash, create_access_token, decode_access_token, validate_bank_password, login_rate_limiter
 
+try:
+    from services.ontology import (
+        NarrativeMode,
+        HistoricalGroundingGatekeeper,
+        auto_detect_narrative_mode,
+        HistoricalDistortionError
+    )
+except ImportError:
+    try:
+        from backend.services.ontology import (
+            NarrativeMode,
+            HistoricalGroundingGatekeeper,
+            auto_detect_narrative_mode,
+            HistoricalDistortionError
+        )
+    except ImportError:
+        NarrativeMode = None
+        HistoricalGroundingGatekeeper = None
+        auto_detect_narrative_mode = None
+        class HistoricalDistortionError(ValueError): pass
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
@@ -86,12 +111,14 @@ def get_db():
 
 # Sub-Routers Mount
 from routers.coins_router import router as coins_router
-from routers.social_router import router as social_router
+from routers.social_router import router as social_router, recommender_router
 from routers.messenger_router import router as messenger_router
 
 app.include_router(coins_router, prefix="/api/coins", tags=["Coins"])
 app.include_router(social_router, prefix="/api/social", tags=["Social"])
+app.include_router(recommender_router)
 app.include_router(messenger_router, prefix="/api/messenger", tags=["Messenger"])
+
 
 # Banking Services
 from services.banking_service import (
@@ -465,6 +492,21 @@ def generate_story(
     db: Session = Depends(get_db)
 ):
     try:
+        # Auto-detect narrative mode and pre-validate historical invariants
+        detected_mode = NarrativeMode.HU_CAU_TU_DO
+        if auto_detect_narrative_mode is not None:
+            detected_mode, _ = auto_detect_narrative_mode(request.refined_prompt)
+
+        if HistoricalGroundingGatekeeper is not None:
+            is_valid, violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                request.refined_prompt, mode=detected_mode, user_prompt=request.refined_prompt
+            )
+            if not is_valid:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Vi phạm tính chân thực lịch sử Việt Nam: {'; '.join(violations)}"
+                )
+
         cost = get_story_cost(request.story_length)
         action_type = (
             ACTION_STORY_SHORT if cost == COST_SHORT_STORY
@@ -536,6 +578,45 @@ def generate_story(
                         rollback_db.close()
                 yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e)}]"
                 return
+
+            # Post-generation invariant validation
+            if HistoricalGroundingGatekeeper is not None and full_story:
+                is_valid, violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                    full_story, mode=detected_mode, user_prompt=request.refined_prompt
+                )
+                if not is_valid:
+                    # Halt generation and trigger compensating transaction coin refund
+                    if current_user and deduct_ref:
+                        rollback_db = SessionLocal()
+                        try:
+                            refund_coins(
+                                db=rollback_db,
+                                user_id=current_user.id,
+                                amount=cost,
+                                reason=ACTION_REFUND_FAILED,
+                                reference_id=deduct_ref,
+                                description=f"Hoàn {cost} xu do vi phạm lịch sử: {'; '.join(violations)[:100]}"
+                            )
+                        except Exception as refund_err:
+                            print(f"Compensating rollback error on historical violation: {refund_err}")
+                        finally:
+                            rollback_db.close()
+
+                    # Clean up pre-allocated story record
+                    if pre_story_id:
+                        db_clean = SessionLocal()
+                        try:
+                            pre_rec = db_clean.query(Story).filter(Story.id == pre_story_id).first()
+                            if pre_rec:
+                                db_clean.delete(pre_rec)
+                                db_clean.commit()
+                        except Exception as clean_err:
+                            print(f"Error cleaning up pre-allocated story: {clean_err}")
+                        finally:
+                            db_clean.close()
+
+                    yield f"\n\n[HISTORICAL_VIOLATION: Nội dung đã bị chặn do vi phạm lịch sử dân tộc: {'; '.join(violations)}]"
+                    return
                 
             word_count = len(full_story.split())
             db_save = SessionLocal()
@@ -1068,6 +1149,8 @@ class CopilotEventRequest(BaseModel):
     event_type: str
     event_data: str
     story_id: int | None = None
+    selected_text: str | None = None
+    cursor_position: int | None = None
 
 @app.post("/api/copilot-event")
 def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get_current_user)):
@@ -1092,8 +1175,20 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
             db.close()
         
         agent = get_copilot()
+        event_data_to_pass = request.event_data
+        if request.selected_text or request.cursor_position is not None:
+            try:
+                parsed = json.loads(request.event_data)
+                if isinstance(parsed, dict):
+                    if request.selected_text and "selected_text" not in parsed:
+                        parsed["selected_text"] = request.selected_text
+                    if request.cursor_position is not None and "cursor_position" not in parsed:
+                        parsed["cursor_position"] = request.cursor_position
+                    event_data_to_pass = json.dumps(parsed, ensure_ascii=False)
+            except Exception:
+                pass
         # Copilot process the event and decides the action
-        result = agent.process_event(request.event_type, request.event_data, memory)
+        result = agent.process_event(request.event_type, event_data_to_pass, memory)
         
         # Safe print for Windows
         try:
@@ -1134,7 +1229,25 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
                         print("[Copilot DB Guard] Raw JSON detected in edit_story_direct; skipping DB overwrite to prevent corruption.")
                         updated_content = None
                         params["updated_story_content"] = None
-                        params["message"] = "Hệ thống phát hiện lỗi định dạng bản thảo và đã ngăn chặn ghi đè để bảo vệ tác phẩm của bạn."
+                # Historical Grounding Quarantine Guard: strictly verify historical truth before persisting
+                if updated_content and HistoricalGroundingGatekeeper is not None:
+                    c_mode = NarrativeMode.CHINH_SU
+                    if auto_detect_narrative_mode is not None:
+                        c_mode, _ = auto_detect_narrative_mode(updated_content)
+                    c_valid, c_violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                        updated_content, mode=c_mode
+                    )
+                    if not c_valid:
+                        print(f"[Copilot DB Guard] Historical distortion detected: {c_violations}")
+                        return JSONResponse(
+                            status_code=422,
+                            content={
+                                "status": "error",
+                                "error": "HISTORICAL_VIOLATION",
+                                "message": f"Hệ thống không thể cập nhật bản thảo vì vi phạm lịch sử Việt Nam: {'; '.join(c_violations)}",
+                                "violations": c_violations
+                            }
+                        )
 
                 if updated_content:
                     db = SessionLocal()

@@ -1,121 +1,126 @@
-# Handoff Report: Requirement 1 (R1) Survey
-## Adaptive Open-Ontology, 3 Narrative Modes, Tri-Tier Resolver & Smart Selective Language Filter
-
-- **Agent**: Explorer Survey 1 (`teamwork_preview_explorer`)
-- **Recipient**: Parent Orchestrator (`917dbd03-2475-4a83-acdb-bab7b7e5cc76`)
-- **Handoff Type**: Hard (Task Complete)
-- **Date**: 2026-09-28
+# Handoff Report: R1 & R5 Codebase Investigation
+**From:** explorer_survey_1 (teamwork_preview_explorer)  
+**To:** orchestrator_r6_1 (conv ID: `92e67f82-c02c-4fa1-9967-5963454f8d77`)  
+**Timestamp:** 2026-09-30T16:42:00Z  
+**Type:** Hard Handoff (Investigation Complete)
 
 ---
 
 ## 1. Observation
 
-Direct code and architectural observations across the codebase:
-
-1. **Hardcoded Japanese School Manga Overfitting in Comic Director**:
-   - `backend/agents/comic_agent.py` lines 9–17:
+### R1 Observations (Copilot Manuscript Surgery):
+1. **Unused `instruction` in `SemanticChunkSlicer`:**
+   - File: `backend/agents/copilot_agent.py`, lines 347–421.
+   - Line 347 defines `def slice_manuscript(cls, story: str, target: Any, instruction: str = "") -> ChunkSlice:`.
+   - In lines 348 to 421, the parameter `instruction` is never referenced or parsed anywhere in the body of `slice_manuscript`. Slicing is performed purely based on `target == SurgeryTarget.TARGET_1_OPENING`, `TARGET_4_CLIMAX_ENDING`, `TARGET_3_MIDDLE_BEATS`, or whole story fallback.
+2. **Missing Chapter Targeting:**
+   - There is no regex or logic detecting requests like "sửa Chương 3" in either `classify_surgery_intent` (lines 203–262) or `SemanticChunkSlicer.slice_manuscript` (lines 343–421).
+3. **Path B Truncation & Overwrite:**
+   - File: `backend/agents/copilot_agent.py`, lines 880 & 906–914.
+   - Line 880: `short_context = memory.get_short_context(max_chars=3000) if memory else (current_story[-2000:] if current_story else "Chưa có truyện.")`.
+   - Line 913: `params["updated_story_content"] = unwrap_story_prose(params["updated_story_content"])`.
+   - When the LLM decides `res.get("action") == "edit_story_direct"` in Path B, `updated_story_content` is returned based solely on the 2000-character tail, and returned directly to the caller.
+   - In `frontend/src/app/page.tsx:487`, `setStoryContent(newContent)` replaces the entire editor text with this snippet, obliterating `current_story[:-2000]`.
+4. **HeadingPreservationEngine Heading Bunching:**
+   - File: `backend/agents/copilot_agent.py`, lines 312–339.
+   - Lines 331–338:
      ```python
-     STYLE_PREFIX = (
-         "masterpiece modern monochrome manga, Japanese high school manga comic art style, "
-         "crisp clean black and white ink lineart, professional manga panel layout, "
-     )
+     if not has_heading:
+         if cleaned.startswith("**"):
+             parts = cleaned.split("\n\n", 1)
+             if len(parts) == 2:
+                 cleaned = f"{parts[0]}\n\n{ch_h_clean}\n\n{parts[1]}"
+             else:
+                 cleaned = f"{cleaned}\n\n{ch_h_clean}"
+         else:
+             cleaned = f"{ch_h_clean}\n\n{cleaned}"
      ```
-   - `backend/agents/comic_agent.py` lines 121–158: `SPATIAL_ENCLOSURES` only defines `"classroom"`, `"school_hallway"`, and `"school_rooftop"`. In `resolve_spatial_enclosure` (line 170):
+   - For every missing chapter heading in `window_text`, the heading is prepended to the top of `cleaned`. For multi-chapter windows where multiple headings are omitted by the LLM, headings are prepended in sequence, resulting in intermediate chapters (e.g. Chapter 3, Chapter 2) bunching at the very top in reverse order.
+5. **Frontend Omission of `selectedText` and Caret Offset:**
+   - File: `frontend/src/components/editor/StoryEditor.tsx`, lines 136–158: `handleMouseUp` extracts `text` via `window.getSelection()?.toString()`, but does not calculate or emit caret/selection character offsets.
+   - File: `frontend/src/app/page.tsx`, lines 466–475: `handleSendCopilotMessage` serializes only `user_message` and `current_story`, omitting `selectedText` and `cursorPosition`.
+
+### R5 Observations (Database & Performance):
+1. **Missing SQLite WAL Configuration:**
+   - File: `backend/db/models.py`, lines 261–264:
      ```python
-     if not matched_enc:
-         matched_enc = dict(SPATIAL_ENCLOSURES["classroom"])
+     engine = create_engine('sqlite:///narrai.db', connect_args={'check_same_thread': False})
+     Base.metadata.create_all(engine)
+     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
      ```
-   - `backend/agents/comic_agent.py` lines 26–59: `DNA_EXTRACTOR_PROMPT` hardcodes school uniform examples: `"crisp white short-sleeve school uniform button-up shirt with stiff collar, small dark navy ribbon tie pinned at collar, pleated dark navy skirt"`.
-   - `backend/agents/comic_agent.py` lines 250–300: `ACTION_GESTURE_MAPPINGS` hardcodes classroom gestures (`"sitting at wooden student desk"`, `"looking forward toward the classroom blackboard"`, `"open sliding classroom doorway"`).
-
-2. **Rigid Era Bans in Ontology & Scene Graph**:
-   - `backend/models/scene_graph.py` lines 286–291:
-     ```python
-     DEFAULT_MODERN_ERA_BANLIST: List[str] = [
-         "hanfu", "robes", "flowing robes", "sword", "swords", "magic staff",
-         "cultivation", "flying sword", "ancient", "medieval", "kimono",
-         "samurai armor", "plate armor", "armor", "taichi", "wuxia", "xianxia",
-         "chariot", "ancient scroll", "jade pendant", "taoist robes"
-     ]
-     ```
-   - `backend/models/scene_graph.py` lines 399–440: `sanitize_era_prompt` unconditionally strips swords, robes, and ancient armor if the era is modern or unspecified.
-   - `backend/agents/story_memory.py` lines 144–163: `StoryMemory.init_scene_graph_from_bible` unconditionally assigns `era_name="modern_2020s"`, `era_banlist=["hanfu", "robes", "sword", "magic", "cultivation"]`, and enclosure `SpaceEnclosure(name="Lớp học")`.
-   - `backend/services/cloudflare_ai.py` lines 32–45: `MODERN_SCHOOL_EXCLUSIONS` bans all historical clothing, ancient robes, armor, swords, palaces, etc.
-
-3. **Inflexible Cliché Handling in Story Generator**:
-   - `backend/agents/story_generator.py` lines 60–98: `AI_CLICHE_BANLIST` only contains 36 patterns for general AI tropes (e.g. `"nhanh như nhịp tim chậm rãi"`, `"khoảng trống trong lòng"`).
-   - `backend/agents/story_generator.py` lines 100–120: `validate_anti_cliche_compliance(text: str)` checks only `AI_CLICHE_BANLIST`. It does not detect or selectively filter Chinese-translation tropes (`"tiêu sái"`, `"tà mị"`, `"lãnh khốc"`, `"bản tọa"`, `"đế tôn"`).
-   - `grep_search` across `backend` revealed zero existing occurrences of `"tiêu sái"` or `"tà mị"` in the codebase.
-
-4. **Absence of Narrative Mode and Cultural Tier Abstractions**:
-   - `backend/models/scene_graph.py` and `backend/agents/story_memory.py` contain no fields for `narrative_mode` or `cultural_tier`.
-   - `backend/main.py` request models (`GenerateStoryRequest` line 147, `InitStoryRequest` line 807) only take `refined_prompt` and `story_length`.
-   - `frontend/src/components/setup/Phase1Idea.tsx` contains 28 genres and trending topics, but no selector for the 3 narrative modes.
+   - No `PRAGMA journal_mode=WAL;` or `PRAGMA synchronous=NORMAL;` is executed on the engine connection or via SQLAlchemy event listeners.
+2. **Missing Indexes in `backend/db/models.py`:**
+   - Line 50: `Comic.user_id = Column(Integer, ForeignKey('users.id'))` (no `index=True`).
+   - Line 51: `Comic.story_id = Column(Integer, ForeignKey('stories.id'), nullable=True)` (no `index=True`).
+   - Line 62: `ComicPanel.comic_id = Column(Integer, ForeignKey('comics.id'))` (no `index=True`).
+   - Line 142: `SocialPost.story_id = Column(Integer, ForeignKey("stories.id"), nullable=True)` (no `index=True`).
+3. **Hot Query Paths Lacking Composite Indexes:**
+   - `main.py:903`: `db.query(ComicPanel).filter(ComicPanel.comic_id == comic.id).order_by(ComicPanel.panel_index).all()`.
+   - `recommender_service.py:444` & `social_router.py:121`: `query.filter(SocialPost.genre.ilike(...)).order_by(SocialPost.created_at.desc())`.
+   - `recommender_service.py:1116`: `db.query(PostInteraction).filter(PostInteraction.post_id == post_id, PostInteraction.interaction_type == "COMMENT").order_by(desc(PostInteraction.created_at)).all()`.
+4. **Missing GZipMiddleware in `backend/main.py`:**
+   - Lines 44–50 mount `CORSMiddleware`. `GZipMiddleware` is neither imported nor mounted.
 
 ---
 
 ## 2. Logic Chain
 
-1. **From Observation 1 & 2 to Core Problem**:
-   - Because `SPATIAL_ENCLOSURES` defaults to `"classroom"`, `StoryMemory.init_scene_graph_from_bible` sets `SpaceEnclosure` to `"Lớp học"`, and `DEFAULT_MODERN_ERA_BANLIST` strips swords and robes, the system is incapable of properly processing historical Vietnamese epics, hybrid sci-fi, or open-domain fantasy. Historical figures would be placed in classrooms and swords would be stripped.
-2. **From Requirement 1 & Observation 3 to Solution for Modes & Tiers**:
-   - Introducing `NarrativeMode` (Mode 1: Strict Historical, Mode 2: Historical Fiction, Mode 3: Free Fiction) and `TriTierOntologyResolver` (Tier 1: Canonical VN $\ge 0.7$, Tier 2: Hybrid $0.3 \le S < 0.7$, Tier 3: Open Domain $< 0.3$) directly solves this by dynamically conditioning the ontology, style anchors, visual DNA, and negative prompts on the resolved tier and chosen mode.
-3. **From Observation 3 to Smart Language Filter**:
-   - Because translation clichés (`"tiêu sái"`, `"tà mị"`, `"lãnh khốc"`, `"bản tọa"`, `"đế tôn"`) are currently completely unhandled in `story_generator.py`, adding `TRANSLATION_CLICHE_BANLIST` and conditioning its enforcement on `genre not in ["tiên hiệp", "kiếm hiệp", "wuxia", "xianxia"]` ensures that pure Vietnamese literature remains untainted while genre fans of Xianxia/Wuxia are not arbitrarily penalized.
-4. **From Observation 1 & Cloudflare AI to Master Negative Filter**:
-   - In Tier 1 (Canonical VN), the biggest diffusion model error is confusing Vietnamese traditional attire (`Áo Ngũ Thân`, `Áo Nhật Bình`, `Áo Tấc`, `Khăn Đóng`) with Chinese Hanfu or Japanese Kimono. Introducing `VIETNAMESE_CANONICAL_NEGATIVE_PROMPT` containing `Hanfu, Kimono, Hanbok, Samurai, Ninja` in `services/cloudflare_ai.py` and `agents/comic_agent.py` guarantees 100% Vietnamese visual purity.
+1. **R1 Frontend Selection Propagation:**
+   - *From Observation 5:* Because `StoryEditor.tsx` does not compute caret character offset, and `page.tsx` does not include `selectedText` / `cursorPosition` in the Copilot event payload, the backend agent has no visibility into what text the user selected or where the cursor is positioned.
+   - *Inference:* Adding `getCaretOffset` using DOM `Range.selectNodeContents` in `StoryEditor.tsx` and passing `{ selected_text, cursor_position }` into the `USER_CHAT` JSON payload enables targeted surgery without altering the existing REST endpoint signature.
+
+2. **R1 Semantic Chunk Slicing & Chapter Targeting:**
+   - *From Observation 1 & 2:* Since `instruction` is ignored in `SemanticChunkSlicer.slice_manuscript`, user commands like "sửa Chương 3" fall back to generic full-story or middle-story heuristics.
+   - *Inference:* Parsing `r'chương\s*(\d+)'` from `instruction` and locating the corresponding `## Chương X` header allows `slice_manuscript` to return a `ChunkSlice` where `window_to_edit` contains exactly the targeted chapter, while `prefix` and `suffix` protect preceding and subsequent chapters.
+
+3. **R1 Path B Overwrite Fix:**
+   - *From Observation 3:* Path B only passes `current_story[-2000:]` to the LLM. If the LLM generates an `edit_story_direct` action, returning that raw snippet causes the frontend to replace the entire 10,000+ character manuscript with 2,000 characters.
+   - *Inference:* In Path B, when `res.get("action") == "edit_story_direct"`, re-routing to Path A (`_perform_direct_manuscript_edit`) or merging `clean_prose` with `current_story[:-2000]` guarantees that preceding manuscript content is never lost.
+
+4. **R1 Heading Preservation Fix:**
+   - *From Observation 4:* Prepending missing chapter headings to the top of `cleaned` creates an inverted bunch of headers at offset 0 whenever multiple chapters are in the editing window and the LLM strips headings.
+   - *Inference:* Tracking each heading's relative character offset $r_i \in [0, 1]$ in `window_text` and inserting missing intermediate headings ($r_i \ge 0.1$) at the proportional paragraph index ($k = \text{round}(r_i \times \text{len}(paragraphs))$) guarantees that headings remain positioned between their respective chapters.
+
+5. **R5 Performance Optimization:**
+   - *From Observations 1, 2, 3, 4:* Foreign key lookups on unindexed columns cause $O(N)$ full table scans in SQLite. Connecting without WAL causes file-locking contention during concurrent transactions. Uncompressed responses inflate network payload sizes.
+   - *Inference:* Applying `@event.listens_for(engine, "connect")` with `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`, adding column indexes and composite `Index(...)` definitions with `CREATE INDEX IF NOT EXISTS` auto-migrations, and mounting `GZipMiddleware(minimum_size=500)` resolves all three performance gaps.
 
 ---
 
 ## 3. Caveats
 
-- **Network / External Diffusion Models**: The investigation observed the fallback chain in `services/cloudflare_ai.py` (`@cf/bytedance/stable-diffusion-xl-lightning`, `@cf/lykon/dreamshaper-8-lcm`, `@cf/stabilityai/stable-diffusion-xl-base-1.0`). If Cloudflare AI tokens are exhausted, the local monochrome fallback generates procedural manga panels.
-- **LLM Token Limits**: `_extract_narrative_ontology` runs on Groq (`openai/gpt-oss-120b`). Prompt size must stay within limits when injecting historical invariants.
+1. **SQLite In-Memory Limitation:** `PRAGMA journal_mode=WAL` is ignored by SQLite for in-memory databases (`:memory:`), returning `memory`. Automated tests validating WAL mode must test against a file-backed database (such as `narrai.db` or a temporary `.db` file).
+2. **ContentEditable DOM Boundary Edge Cases:** While `Range.cloneRange()` accurately measures text length across text nodes, rich text nested inside custom DOM nodes could introduce small index drifts if HTML entities or line breaks vary between browser DOM and raw markdown string. Normalizing string content preserves exact alignment.
+3. **Investigation Boundary:** This investigation strictly focused on R1 and R5 as directed. R2 (Historical Gatekeeper), R3 (TensorFlow.js), and R4 (Social Expansion schema) are separate tracks.
 
 ---
 
 ## 4. Conclusion
 
-The codebase survey for Requirement 1 is complete.
-The architecture is fully documented with exact code locations, proposed data structures, and algorithms in `report.md`.
-Implementing Requirement 1 requires:
-1. Creating `backend/services/ontology.py` containing:
-   - `NarrativeMode` and `CulturalTier` enums.
-   - `HistoricalGroundingGatekeeper` with Vietnamese Historical Knowledge Base (Hai Bà Trưng, Ngô Quyền, Lý Thường Kiệt, Trần Hưng Đạo, Lê Lợi, Quang Trung; Bạch Đằng, Như Nguyệt, Ngọc Hồi - Đống Đa) and invariant checks.
-   - `TriTierOntologyResolver` with cultural similarity scoring ($S_{cult}$ thresholds $0.7$ and $0.3$), Tier-aware visual DNA, and Master Negative filters against `Hanfu/Kimono/Samurai/Ninja`.
-   - `SmartSelectiveLanguageFilter` with `TRANSLATION_CLICHE_BANLIST` allowing clichés for Xianxia/Wuxia and strictly suppressing them for pure Vietnamese/historical prose.
-   - `extract_dynamic_ephemeral_node` for Tier 3 Open Domain.
-2. Integrating this service into:
-   - `backend/models/scene_graph.py` (decouple modern school bias, add tier/mode fields).
-   - `backend/agents/story_generator.py` (mode-aware prompting and smart cliché filtering).
-   - `backend/agents/comic_agent.py` (Vietnamese attire DNA, traditional enclosures, master negative filter).
-   - `backend/services/cloudflare_ai.py` (tier-aware master negative prompt).
-   - `backend/agents/story_memory.py` (tier-aware scene graph bootstrap).
-   - `backend/agents/copilot_agent.py` (historical guard awareness).
-   - `backend/main.py` (mode/genre parameters and resolution endpoints).
-   - `frontend/src/` (3-mode selector, i18n, and workspace state).
+The technical path forward for R1 and R5 is clear, well-isolated, and actionable:
+1. **R1 Frontend:** Update `StoryEditor.tsx` to calculate caret character offsets and pass `selectedText` + `cursorPosition` via `page.tsx` payload.
+2. **R1 Slicer:** Update `SemanticChunkSlicer.slice_manuscript` to parse chapter targeting ("sửa Chương 3") from `instruction` and support exact `selected_text` slicing.
+3. **R1 Path B Fallback:** Update `copilot_agent.py` to route Path B `edit_story_direct` actions through Path A or safely merge with `current_story[:-2000]`.
+4. **R1 Heading Preservation:** Update `HeadingPreservationEngine.preserve_headings` to position missing intermediate headings by relative paragraph offset rather than prepending to the top.
+5. **R5 DB & Server:** Add `@event.listens_for(engine, "connect")` for WAL pragmas, add missing single and composite indexes in `models.py` with auto-migration DDL, and mount `GZipMiddleware(minimum_size=500)` in `main.py`.
+
+Full technical details and design snippets are documented in:
+`e:\NarrAI\.agents\teamwork\explorer_survey_1\survey_report.md`.
 
 ---
 
 ## 5. Verification Method
 
-1. **Python Compilation Verification**:
-   ```powershell
-   python -m py_compile backend/models/scene_graph.py backend/agents/story_generator.py backend/agents/comic_agent.py backend/services/cloudflare_ai.py backend/agents/story_memory.py backend/agents/copilot_agent.py backend/main.py
-   ```
-2. **Unit & Invariant Test Execution**:
-   Run the test runner to verify existing invariant tests pass:
-   ```powershell
-   python -m unittest backend/tests/test_dynamic_scene_graph.py backend/tests/test_comic_modern_school_sync.py backend/tests/test_light_novel_engine.py
-   ```
-3. **New Test Suite for R1**:
-   Inspect and execute `backend/tests/test_adaptive_open_ontology.py` (to be written during implementation) covering:
-   - Historical invariant checks (e.g. Trần Hưng Đạo defeating Mongol invaders).
-   - Tri-tier resolution accuracy across 3 distinct test cases (Canonical VN, Hybrid Cyberpunk, Western Detective).
-   - Selective cliché suppression across genre boundaries (Wuxia vs Pure VN).
-   - Visual DNA & Master Negative filter verification.
-4. **Invalidation Conditions**:
-   - If historical falsifications (e.g. "Trần Hưng Đạo bại trận") pass validation in Mode 1 without violation.
-   - If Chinese Hanfu / Kimono / Samurai are not banned in Tier 1.
-   - If translated clichés ("tiêu sái", "tà mị") are allowed in pure Vietnamese or historical prose.
-   - If translated clichés are blocked when the user explicitly selects "Tiên hiệp" or "Kiếm hiệp".
+1. **Codebase Inspection:**
+   - Verify `backend/agents/copilot_agent.py` at `SemanticChunkSlicer`, `HeadingPreservationEngine`, and lines 873–914.
+   - Verify `backend/db/models.py` at lines 47–69, 140–161, and 261–293.
+   - Verify `backend/main.py` at lines 44–51 and 1066–1130.
+   - Verify `frontend/src/components/editor/StoryEditor.tsx` at lines 136–158 and `frontend/src/app/page.tsx` at lines 460–476.
+2. **Compilation Checks:**
+   - `python -m py_compile backend/agents/copilot_agent.py backend/db/models.py backend/main.py`
+   - `npm run build` in `frontend/`
+3. **Regression & New Unit Tests:**
+   - Run `python backend/tests/run_all_tests.py` (ensure 182 existing tests pass 100%).
+   - Unit test `SemanticChunkSlicer.slice_manuscript` with "sửa Chương 2" on multi-chapter text.
+   - Unit test `HeadingPreservationEngine.preserve_headings` with multi-chapter text when LLM strips intermediate headings -> verify headings maintain ascending order and do not bunch at top.
+   - Unit test SQLite WAL mode verification: `PRAGMA journal_mode;` returns `wal`.

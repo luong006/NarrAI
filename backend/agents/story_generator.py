@@ -10,6 +10,8 @@ try:
         SmartSelectiveLanguageFilter,
         resolve_ontology,
         normalize_narrative_mode,
+        auto_detect_narrative_mode,
+        HistoricalDistortionError,
     )
 except ImportError:
     try:
@@ -21,6 +23,8 @@ except ImportError:
             SmartSelectiveLanguageFilter,
             resolve_ontology,
             normalize_narrative_mode,
+            auto_detect_narrative_mode,
+            HistoricalDistortionError,
         )
     except ImportError:
         NarrativeMode = None
@@ -30,6 +34,8 @@ except ImportError:
         SmartSelectiveLanguageFilter = None
         resolve_ontology = None
         normalize_narrative_mode = lambda x: x
+        auto_detect_narrative_mode = None
+        class HistoricalDistortionError(ValueError): pass
 
 
 # ==============================================================================
@@ -258,7 +264,10 @@ Yêu cầu xuất ra cấu trúc chính xác sau:
 
     def _build_prompt(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = ""):
         cfg = self._get_config(story_length)
-        mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+        if narrative_mode is None and auto_detect_narrative_mode is not None:
+            mode_enum, _ = auto_detect_narrative_mode(refined_prompt, genre=genre)
+        else:
+            mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
         ontology_block = self._extract_narrative_ontology(refined_prompt, narrative_mode=mode_enum, genre=genre)
 
         mode_directives = ""
@@ -313,11 +322,49 @@ Quy tắc định dạng:
 
     # ===== LEGACY METHODS (giữ tương thích ngược) =====
     def generate_story(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = "") -> str:
-        messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=narrative_mode, genre=genre)
-        return self.llm.chat(messages, temperature=0.8, max_tokens=max_tokens)
+        if narrative_mode is None and auto_detect_narrative_mode is not None:
+            detected_mode, _ = auto_detect_narrative_mode(refined_prompt, genre=genre)
+            mode_enum = detected_mode
+        else:
+            mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+
+        # Preflight check on input prompt
+        if HistoricalGroundingGatekeeper is not None:
+            pre_valid, pre_violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                refined_prompt, mode=mode_enum, user_prompt=refined_prompt
+            )
+            if not pre_valid:
+                raise HistoricalDistortionError(f"Vi phạm tính chân thực lịch sử Việt Nam: {'; '.join(pre_violations)}")
+
+        messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=mode_enum, genre=genre)
+        raw_story = self.llm.chat(messages, temperature=0.8, max_tokens=max_tokens)
+
+        # Post-generation validation
+        if HistoricalGroundingGatekeeper is not None:
+            post_valid, post_violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                raw_story, mode=mode_enum, user_prompt=refined_prompt
+            )
+            if not post_valid:
+                raise HistoricalDistortionError(f"Phát hiện nội dung sinh ra vi phạm lịch sử: {'; '.join(post_violations)}")
+
+        return raw_story
 
     def generate_story_stream(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = ""):
-        messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=narrative_mode, genre=genre)
+        if narrative_mode is None and auto_detect_narrative_mode is not None:
+            detected_mode, _ = auto_detect_narrative_mode(refined_prompt, genre=genre)
+            mode_enum = detected_mode
+        else:
+            mode_enum = normalize_narrative_mode(narrative_mode) if normalize_narrative_mode else NarrativeMode.HU_CAU_TU_DO
+
+        # Preflight check on input prompt
+        if HistoricalGroundingGatekeeper is not None:
+            pre_valid, pre_violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                refined_prompt, mode=mode_enum, user_prompt=refined_prompt
+            )
+            if not pre_valid:
+                raise HistoricalDistortionError(f"Vi phạm tính chân thực lịch sử Việt Nam: {'; '.join(pre_violations)}")
+
+        messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=mode_enum, genre=genre)
         return self.llm.chat_stream(messages, temperature=0.8, max_tokens=max_tokens)
 
     # ===== NEW: Memory-based Chapter Generation =====
