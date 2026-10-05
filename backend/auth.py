@@ -10,7 +10,13 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "narrai-jwt-default-secret-key-dev-2026")
+# Read JWT_SECRET (canonical name in .env and Render env vars).
+# Also accept legacy SECRET_KEY for backwards compatibility with existing deployments.
+SECRET_KEY = (
+    os.environ.get("JWT_SECRET")
+    or os.environ.get("SECRET_KEY")
+    or "narrai-jwt-default-secret-key-change-in-production"
+)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
 

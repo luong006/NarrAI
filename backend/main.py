@@ -1182,10 +1182,11 @@ class CopilotEventRequest(BaseModel):
 @app.post("/api/copilot-event")
 def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get_current_user)):
     try:
-        memory = get_story_session(request.session_id, current_user)
-
+        # Auth check FIRST — before any session or DB query
         if not current_user:
             return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
+
+        memory = get_story_session(request.session_id, current_user)
         db = SessionLocal()
         try:
             story_query = db.query(Story).filter(Story.user_id == current_user.id)
@@ -1468,12 +1469,13 @@ def init_story(request: InitStoryRequest, current_user: Optional[User] = Depends
 def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_current_user)):
     deduct_ref = None
     try:
+        # Auth check FIRST — before any session query or coin deduction
+        if not current_user:
+            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
+
         memory = get_story_session(request.session_id, current_user)
         if not memory:
             return JSONResponse(status_code=404, content={"status": "error", "message": "Session khong ton tai hoac da het han."})
-
-        if not current_user:
-            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
         db = SessionLocal()
         try:
             story = db.query(Story).filter(
@@ -1567,12 +1569,13 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
 @app.post("/api/end-story")
 def end_story(request: EndStoryRequest, current_user: User = Depends(get_current_user)):
     try:
+        # Auth check FIRST — before any session or DB query
+        if not current_user:
+            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
+
         memory = get_story_session(request.session_id, current_user)
         if not memory:
             return JSONResponse(status_code=404, content={"status": "error", "message": "Session khong ton tai."})
-
-        if not current_user:
-            return JSONResponse(status_code=401, content={"status": "error", "message": "Chưa đăng nhập"})
         db = SessionLocal()
         try:
             story = db.query(Story).filter(

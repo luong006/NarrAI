@@ -79,7 +79,13 @@ def get_cloudflare_token():
     return os.environ.get("CLOUDFLARE_API_TOKEN", "")
 
 def get_account_id():
-    return os.environ.get("CLOUDFLARE_ACCOUNT_ID", "c349c6c7357e310e5032506f7efe5d42")
+    account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+    if not account_id:
+        raise Exception(
+            "CLOUDFLARE_ACCOUNT_ID environment variable is not configured. "
+            "Please set it in your Render dashboard or backend/.env file."
+        )
+    return account_id
 
 def get_deterministic_comic_seed(story_id: int | None = 1) -> int:
     """
