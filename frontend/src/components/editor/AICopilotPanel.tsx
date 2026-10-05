@@ -4,7 +4,7 @@ import { useState } from "react";
 import { translations, Language } from "@/lib/i18n";
 import { Bot, Send, Check, X, Sparkles, Feather, BookmarkCheck, RotateCcw, Wand2, Zap, Palette, Users } from "lucide-react";
 import { ChatMessage } from "@/lib/types";
-import { ModelSelectorMorphicon, ModelTier } from "@/components/morphicons/ModelSelectorMorphicon";
+import type { ModelTier } from "@/components/morphicons/ModelSelectorMorphicon";
 
 interface Props {
   lang: Language;
@@ -115,22 +115,21 @@ export function AICopilotPanel({
         )}
       </div>
 
-      {/* Layer 2 SVG Morphicon: AI Model Tier Selection */}
-      <div className="py-2.5 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <div className="flex items-center justify-between mb-1.5 px-0.5">
-          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            {lang === "vi" ? "Cấp độ mô hình AI" : "AI Model Tier"}
-          </span>
-          <span className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 capitalize">
-            {modelTier}
-          </span>
-        </div>
-        <ModelSelectorMorphicon
-          selectedTier={modelTier}
-          onSelectTier={setModelTier}
-          lang={lang}
-          className="w-full justify-between"
-        />
+      {/* Compact AI Model Tier selector */}
+      <div className="py-1.5 border-b border-slate-200 dark:border-slate-800 shrink-0 flex items-center gap-2 px-0.5">
+        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 shrink-0">
+          {lang === "vi" ? "Mô hình:" : "Model:"}
+        </span>
+        <select
+          value={modelTier}
+          onChange={(e) => setModelTier(e.target.value as ModelTier)}
+          className="flex-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+          title={lang === "vi" ? "Chọn cấp độ mô hình AI" : "Select AI model tier"}
+        >
+          <option value="fast">{lang === "vi" ? "⚡ Nhanh (Llama 8B)" : "⚡ Fast (Llama 8B)"}</option>
+          <option value="versatile">{lang === "vi" ? "🧠 Linh hoạt (Llama 70B)" : "🧠 Versatile (Llama 70B)"}</option>
+          <option value="premium">{lang === "vi" ? "✨ Cao cấp (Qwen 27B)" : "✨ Premium (Qwen 27B)"}</option>
+        </select>
       </div>
 
       {/* Main Copilot Content: Scrollable */}

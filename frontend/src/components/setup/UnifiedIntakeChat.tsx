@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Language, translations } from "@/lib/i18n";
 import { ChatMessage, StoryLength } from "@/lib/types";
 import { api } from "@/lib/api";
-import { ModelSelectorMorphicon, ModelTier } from "@/components/morphicons/ModelSelectorMorphicon";
+import type { ModelTier } from "@/components/morphicons/ModelSelectorMorphicon";
 import {
   Sparkles,
   Send,
@@ -428,6 +428,8 @@ export function UnifiedIntakeChat({
       setMessages(updated);
     } finally {
       setLoading(false);
+      // Restore focus to textarea so user can type immediately
+      setTimeout(() => textareaRef.current?.focus(), 50);
     }
   };
 
@@ -489,6 +491,8 @@ export function UnifiedIntakeChat({
       ]);
     } finally {
       setLoading(false);
+      // Restore focus to textarea so user can type immediately
+      setTimeout(() => textareaRef.current?.focus(), 50);
     }
   };
 
@@ -571,7 +575,7 @@ export function UnifiedIntakeChat({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-50/40 dark:bg-slate-950/40 backdrop-blur-[2px] text-slate-900 dark:text-slate-100 relative select-none">
+    <div className="flex flex-col h-full w-full bg-slate-50/40 dark:bg-slate-950/40 backdrop-blur-[2px] text-slate-900 dark:text-slate-100 relative">
       {/* Minimal Translucent Glass Header */}
       <header className="h-14 border-b border-slate-200/60 dark:border-slate-800/60 px-4 sm:px-6 flex items-center justify-between shrink-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
@@ -820,17 +824,21 @@ export function UnifiedIntakeChat({
 
             {/* Controls Bar: Model Tier Selector & Story Length Pill */}
             <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-200/60 dark:border-slate-800/60 pb-2 px-1">
-              {/* Integrated ModelSelectorMorphicon (Layer 2 SVG) */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hidden md:inline">
+              {/* Compact model selector */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hidden sm:inline shrink-0">
                   {t.intake_model_tier_label || (lang === "vi" ? "Mô hình:" : "Model:")}
                 </span>
-                <ModelSelectorMorphicon
-                  selectedTier={modelTier}
-                  onSelectTier={setModelTier}
-                  lang={lang}
-                  className="scale-90 sm:scale-95 origin-left"
-                />
+                <select
+                  value={modelTier}
+                  onChange={(e) => setModelTier(e.target.value as ModelTier)}
+                  className="text-[11px] font-semibold bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer max-w-[120px] sm:max-w-[150px]"
+                  title={lang === "vi" ? "Chọn cấp độ mô hình AI" : "Select AI model tier"}
+                >
+                  <option value="fast">{lang === "vi" ? "⚡ Nhanh" : "⚡ Fast"}</option>
+                  <option value="versatile">{lang === "vi" ? "🧠 Linh hoạt" : "🧠 Versatile"}</option>
+                  <option value="premium">{lang === "vi" ? "✨ Cao cấp" : "✨ Premium"}</option>
+                </select>
               </div>
 
               {/* Story Length Pill Selector */}

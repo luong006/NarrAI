@@ -14,6 +14,7 @@ interface Props {
   lang: Language;
   onBackToEditor: () => void;
   onContinueComic: () => void;
+  onAdaptToComic?: () => void;
   loadingMore: boolean;
 }
 
@@ -125,6 +126,7 @@ export function ComicViewer({
   lang,
   onBackToEditor,
   onContinueComic,
+  onAdaptToComic,
   loadingMore,
 }: Props) {
   const t = translations[lang];

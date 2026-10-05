@@ -500,6 +500,8 @@ export default function WorkspacePage() {
             if (!newContent.startsWith("{") && !newContent.includes('"updated_story_content"')) {
               setUndoStack((prev) => [...prev, storyContent]);
               setStoryContent(newContent);
+              // Show proposed text in AICopilotPanel for user to review/accept
+              setProposedText(newContent);
               setSelectedText("");
               setCursorPosition(null);
               const notice = params.summary_of_changes || (lang === "vi" ? "Bản thảo đã được AI Co-pilot cập nhật trực tiếp!" : "Manuscript directly updated by AI Co-pilot!");
@@ -891,7 +893,7 @@ export default function WorkspacePage() {
                 content={storyContent}
                 onContentChange={setStoryContent}
                 lang={lang}
-                onAdaptToComic={handleAdaptToComic}
+            onAdaptToComic={handleAdaptToComic}
                 onDownload={handleDownload}
                 onPublish={handlePublishStory}
                 onSelectText={(txt, pos) => {
@@ -928,6 +930,7 @@ export default function WorkspacePage() {
             lang={lang}
             onBackToEditor={() => setActiveTab("editor")}
             onContinueComic={handleContinueComic}
+            onAdaptToComic={handleAdaptToComic}
             loadingMore={comicLoading}
           />
         )}
