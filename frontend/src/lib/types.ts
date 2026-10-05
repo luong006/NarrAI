@@ -51,6 +51,9 @@ export interface ChatMessage {
   content: string;
   is_ready?: boolean;
   timestamp?: number;
+  is_offline_fallback?: boolean;
+  error_message?: string;
+  failed_prompt?: string;
 }
 
 export interface IntakeChatOptions {
@@ -136,6 +139,8 @@ export interface SocialComment {
   comment_text: string;
   sentiment_score?: number;
   created_at?: string;
+  parent_comment_id?: number | null;
+  replies?: SocialComment[];
 }
 
 export interface SocialPost {
@@ -190,6 +195,7 @@ export interface InteractSocialPostPayload {
   dwell_seconds?: number;
   scroll_depth?: number;
   comment_text?: string;
+  parent_comment_id?: number | null;
 }
 
 export interface SocialFeedParams {

@@ -3,7 +3,7 @@
 import { translations, Language } from "@/lib/i18n";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { PlusCircle, BookOpen, LogOut, User, MessageSquare, Compass, FileText, Palette } from "lucide-react";
+import { PlusCircle, BookOpen, LogOut, User, MessageSquare, Users, FileText, Palette } from "lucide-react";
 import { CoinBadgeMorphicon } from "@/components/morphicons/CoinBadgeMorphicon";
 
 interface Props {
@@ -148,7 +148,7 @@ export function Sidebar({
             </button>
           )}
 
-          {/* Bảng tin Bài đăng (Community Feed) */}
+          {/* Mạng xã hội / Cộng đồng tác giả (Community Feed) */}
           <button
             onClick={() => onTabChange?.("posts")}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
@@ -157,8 +157,8 @@ export function Sidebar({
                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             }`}
           >
-            <Compass className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-            <span>{t.tab_posts || (lang === "vi" ? "Bài đăng" : "Community Feed")}</span>
+            <Users className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <span>{lang === "vi" ? "Mạng xã hội" : "Community & Social"}</span>
           </button>
 
           {/* Lịch sử */}

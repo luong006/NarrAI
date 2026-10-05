@@ -521,3 +521,81 @@ Cần thiết kế schema database rõ ràng cho tất cả các bảng mới.
 ### Testing
 - [ ] 182 tests cũ + tests mới tất cả 100% PASS.
 - [ ] Frontend `npm run build` thành công 0 lỗi.
+
+## 2026-10-05T05:28:19Z
+
+# Teamwork Project Prompt — Sửa Triệt Để 5 Lỗi Trực Quan & Vận Hành NarrAI
+
+> Status: Launched — delegated to teamwork_preview
+> Goal: Craft prompt → get user approval → delegate to teamwork_preview
+> Requested team: Toàn bộ nguồn lực chuyên gia (Full team tập trung fix lỗi)
+
+Tập trung 100% tài nguyên hệ thống giải quyết triệt để 5 nhóm lỗi và khiếm khuyết trực quan do người dùng phản ánh trên giao diện NarrAI: gỡ bỏ panel vô nghĩa trên trang chủ, căn chỉnh bố cục chat AI cân đối đối xứng, khắc phục lỗi AI lặp câu trả lời mặc định kèm cơ chế đa tầng fallback hỏi ngược sâu sắc, đổi tên và làm nổi bật khu vực Mạng xã hội/Cộng đồng, và rà soát kiểm thử thông suốt toàn bộ chức năng còn lại.
+
+Working directory: e:\NarrAI
+Integrity mode: development
+
+## Requirements
+
+### R1. Gỡ Bỏ Hoàn Toàn Panel "Neural Style Laboratory" Khỏi Trang Chủ (Landing Page)
+- Gỡ bỏ component `<NeuralVisualPreview />` khỏi `LandingView.tsx`.
+- Tinh gọn giao diện trang chủ theo phong cách tối giản, tập trung vào Hero giới thiệu câu chuyện, nút kêu gọi hành động (CTA) "Bắt đầu sáng tác ngay" và bảng tính năng cốt lõi.
+- Đảm bảo việc gỡ bỏ không làm gãy các import hoặc module TensorFlow.js đã cài đặt.
+
+### R2. Cân Đối Bố Cục & Chuẩn Hóa Đối Xứng Khung Chat AI (UnifiedIntakeChat)
+- Căn chỉnh lại bố cục khung chat AI: avatar người dùng và AI có khoảng cách, kích thước và padding đối xứng, hài hòa.
+- Loại bỏ sự lệch pha của bottom input dock (thay thế class `fixed sm:left-64` cứng nhắc bằng layout flex/sticky ăn khớp 100% với khung chính, căn giữa hoàn hảo theo trục dọc).
+- Căn chỉnh lại khoảng cách 4 thẻ gợi ý ban đầu (starter prompts) để giao diện thoáng đãng, cân xứng hai bên màn hình desktop.
+
+### R3. Khắc Phục Lỗi Chat AI Phản Hồi Lặp Cứng Nhắc & Nâng Cấp Hệ Thống Hỏi Ngược
+- **Tại Backend (`qa_refiner.py` & `main.py`)**:
+  - Bổ sung cơ chế Multi-Model Fallback: Nếu mô hình chính `qwen/qwen3.8-27b` gặp sự cố hoặc quá tải token/rate-limit, tự động chuyển tiếp sang `llama-3.3-70b-versatile` rồi `llama-3.1-8b-instant`.
+  - Bổ sung Multi-Key Fallback: Tự động dùng `GROQ_API_KEY_BIBLE`, nếu lỗi chuyển sang `GROQ_API_KEY` hoặc `GROQ_API_KEY_COPILOT`.
+  - Tinh chỉnh System Prompt: Bắt buộc AI luôn phân tích cụ thể từ khóa của tác giả và đặt từ 1-2 câu hỏi gợi mở sâu sắc ngược lại, không bao giờ trả lời rập khuôn.
+- **Tại Frontend (`UnifiedIntakeChat.tsx` & `api.ts`)**:
+  - Loại bỏ hoàn toàn câu thông báo fallback tĩnh gây hiểu lầm. Khi backend trả lời lỗi, hiển thị thông báo trạng thái kết nối rõ ràng cùng nút "Thử lại".
+  - Bổ sung cơ chế Dynamic Client Fallback: Trong trường hợp mất kết nối mạng hoàn toàn, client tự động tạo câu hỏi gợi mở dựa trên chính từ khóa người dùng nhập (ví dụ: bối cảnh, tính cách nhân vật).
+
+### R4. Làm Nổi Bật & Chuẩn Hóa Mục "Mạng Xã Hội & Cộng Đồng"
+- Đổi tên tab điều hướng tại Sidebar từ "Bài đăng" thành "Mạng xã hội" hoặc "Cộng đồng tác giả" với icon trực quan (`Users` / `Globe`).
+- Bổ sung nút liên kết trực tiếp "Khám phá Cộng đồng" ngay trên Landing Page để người dùng mới dễ dàng tiếp cận mà không bị lạc lõng.
+- Đảm bảo tab Cộng đồng hiển thị rõ ràng: Bảng tin bài đăng, hệ thống thả tim, bình luận phân cấp, theo dõi tác giả, bộ lọc thể loại và ô tìm kiếm tác phẩm.
+
+### R5. Rà Soát & Đảm Bảo Vận Hành Thông Suốt Các Chức Năng Cốt Lõi
+- Rà soát toàn bộ luồng:
+  1. Intake Chat (phỏng vấn ý tưởng) -> Chốt cốt truyện.
+  2. Story Editor (chấp bút bản thảo, chỉnh sửa bôi đen, hoàn tác).
+  3. Manga Comic (sinh khung tranh truyện tranh).
+  4. Đăng bài lên Cộng đồng & Đọc truyện có phân cấp bình luận.
+- Đảm bảo 100% test backend (182+ tests) tiếp tục PASS và frontend `npm run build` không có bất kỳ lỗi nào.
+
+## Verification Resources
+
+- Backend test runner: `python backend/tests/run_all_tests.py` (tất cả 182+ test suites)
+- Frontend build check: `npm run build` trong thư mục `frontend`
+- Backend server syntax check: `python -m py_compile backend/main.py backend/agents/qa_refiner.py`
+- Kiểm tra tính tương thích API: test script gửi request trực tiếp đến `/api/chat-interview`
+
+## Acceptance Criteria
+
+### R1. Landing Page Cleanliness
+- [ ] Không còn hiển thị panel "AI Art & Neural Style Laboratory" trên trang chủ.
+- [ ] Giao diện trang chủ thoáng đãng, cân đối, các thẻ tính năng hiển thị sắc nét.
+
+### R2. Chat Layout Symmetry
+- [ ] Khung chat AI căn giữa hoàn toàn theo container nội dung.
+- [ ] Khung nhập liệu ở dưới chân trang (input bar) không bị lệch sang một bên, ăn khớp 100% với chiều rộng khung chat.
+- [ ] Bong bóng chat của người dùng và AI hiển thị cân đối, padding và avatar đều đặn, không bị co giật.
+
+### R3. AI Chat Resilience & Follow-up Questions
+- [ ] Khi người dùng gửi ý tưởng (ví dụ: "Thánh Gióng", "Cyberpunk Sài Gòn"), AI phản hồi với phân tích cụ thể và đưa ra câu hỏi gợi mở ngược lại.
+- [ ] Tuyệt đối không còn tình trạng lặp lại câu văn mẫu tĩnh.
+- [ ] Hệ thống tự động chuyển đổi sang mô hình dự phòng nếu mô hình chính bị nghẽn mà không làm gián đoạn trải nghiệm người dùng.
+
+### R4. Social Network Discoverability
+- [ ] Sidebar hiển thị rõ ràng mục "Mạng xã hội" (hoặc "Cộng đồng").
+- [ ] Người dùng có thể click vào và xem đầy đủ: Bài đăng, danh sách tác phẩm, bình luận phân cấp, tác giả.
+
+### R5. System Stability
+- [ ] Toàn bộ 182+ tests backend chạy thành công 100%.
+- [ ] `npm run build` của frontend thành công 0 lỗi.

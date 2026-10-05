@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Language, translations } from "@/lib/i18n";
 import { SocialPost, SocialComment } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -22,7 +22,10 @@ import {
   Maximize2,
   Bookmark,
   Share2,
-  Compass
+  Compass,
+  UserPlus,
+  UserCheck,
+  CornerDownRight
 } from "lucide-react";
 import { tfjsRecommender } from "@/services/tfjsRecommender";
 
@@ -45,6 +48,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
   // Comment input in reader modal
   const [commentInput, setCommentInput] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+
+  // Threaded comments: replying to a specific comment
+  const [replyingToComment, setReplyingToComment] = useState<{ id: number; author: string } | null>(null);
+
+  // Author Follow/Unfollow state
+  const [followingAuthorIds, setFollowingAuthorIds] = useState<Set<number>>(new Set());
+  const [followLoadingIds, setFollowLoadingIds] = useState<Set<number>>(new Set());
 
   // Dwell time tracking in modal
   const dwellStartTimeRef = useRef<number | null>(null);
@@ -232,16 +242,49 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
     }
   };
 
+  const handleFollowToggle = async (authorId?: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!authorId || followLoadingIds.has(authorId)) return;
+
+    setFollowLoadingIds((prev) => new Set(prev).add(authorId));
+    const isCurrentlyFollowing = followingAuthorIds.has(authorId);
+
+    try {
+      if (isCurrentlyFollowing) {
+        await api.unfollowAuthor(authorId);
+        setFollowingAuthorIds((prev) => {
+          const next = new Set(prev);
+          next.delete(authorId);
+          return next;
+        });
+      } else {
+        await api.followAuthor(authorId);
+        setFollowingAuthorIds((prev) => new Set(prev).add(authorId));
+      }
+    } catch (err) {
+      console.error("Error toggling author follow:", err);
+    } finally {
+      setFollowLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(authorId);
+        return next;
+      });
+    }
+  };
+
   const handleAddComment = async () => {
     if (!commentInput.trim() || !activePost || commentSubmitting) return;
 
     setCommentSubmitting(true);
     const commentText = commentInput.trim();
+    const parentId = replyingToComment ? replyingToComment.id : undefined;
+
     try {
       const res = await api.interactPost({
         post_id: activePost.id,
         interaction_type: "COMMENT",
         comment_text: commentText,
+        parent_comment_id: parentId,
       });
 
       if (res.success) {
@@ -252,6 +295,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
           full_name: currentUsername || "Tác giả",
           comment_text: commentText,
           created_at: new Date().toISOString(),
+          parent_comment_id: parentId || null,
         };
 
         setActivePost((prev) =>
@@ -259,7 +303,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
             ? {
                 ...prev,
                 comments_count: prev.comments_count + 1,
-                comments: [newComment, ...(prev.comments || [])],
+                comments: [...(prev.comments || []), newComment],
               }
             : null
         );
@@ -271,6 +315,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
         );
 
         setCommentInput("");
+        setReplyingToComment(null);
       }
     } catch (err) {
       console.error("Error submitting comment:", err);
@@ -278,6 +323,25 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
       setCommentSubmitting(false);
     }
   };
+
+  const organizedComments = useMemo(() => {
+    const allComments = activePost?.comments || [];
+    const rootComments: SocialComment[] = [];
+    const replyMap: Record<number, SocialComment[]> = {};
+
+    for (const c of allComments) {
+      if (c.parent_comment_id) {
+        if (!replyMap[c.parent_comment_id]) {
+          replyMap[c.parent_comment_id] = [];
+        }
+        replyMap[c.parent_comment_id].push(c);
+      } else {
+        rootComments.push(c);
+      }
+    }
+
+    return { rootComments, replyMap };
+  }, [activePost?.comments]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/60 dark:bg-slate-950/80 text-slate-900 dark:text-white">
@@ -490,14 +554,40 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       {post.title}
                     </h3>
 
-                    {/* Author */}
-                    <div className="flex items-center gap-2 mb-3 text-xs text-slate-500 dark:text-slate-400">
-                      <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-200">
-                        {(post.author?.full_name || post.author?.username || "A")[0].toUpperCase()}
+                    {/* Author & Follow Action */}
+                    <div className="flex items-center justify-between gap-2 mb-3 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-200 shrink-0">
+                          {(post.author?.full_name || post.author?.username || "A")[0].toUpperCase()}
+                        </div>
+                        <span className="font-medium truncate">
+                          {post.author?.full_name || post.author?.username || "Tác giả"}
+                        </span>
                       </div>
-                      <span className="font-medium truncate">
-                        {post.author?.full_name || post.author?.username || "Tác giả"}
-                      </span>
+                      {(post.author?.id || post.user_id) && (
+                        <button
+                          onClick={(e) => handleFollowToggle(post.author?.id || post.user_id, e)}
+                          disabled={followLoadingIds.has(post.author?.id || post.user_id || 0)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all shrink-0 ${
+                            followingAuthorIds.has(post.author?.id || post.user_id || 0)
+                              ? "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
+                              : "bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-slate-600 dark:text-slate-300"
+                          }`}
+                          title={followingAuthorIds.has(post.author?.id || post.user_id || 0) ? (lang === "vi" ? "Bỏ theo dõi tác giả" : "Unfollow author") : (lang === "vi" ? "Theo dõi tác giả" : "Follow author")}
+                        >
+                          {followingAuthorIds.has(post.author?.id || post.user_id || 0) ? (
+                            <>
+                              <UserCheck className="w-2.5 h-2.5" />
+                              <span>{lang === "vi" ? "Đang theo dõi" : "Following"}</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-2.5 h-2.5" />
+                              <span>{lang === "vi" ? "Theo dõi" : "Follow"}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
 
                     {/* Snippet */}
@@ -617,8 +707,31 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                     {(activePost.author?.full_name || activePost.author?.username || "A")[0].toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-bold text-slate-900 dark:text-white">
-                      {activePost.author?.full_name || activePost.author?.username || "Tác giả"}
+                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{activePost.author?.full_name || activePost.author?.username || "Tác giả"}</span>
+                      {(activePost.author?.id || activePost.user_id) && (
+                        <button
+                          onClick={(e) => handleFollowToggle(activePost.author?.id || activePost.user_id, e)}
+                          disabled={followLoadingIds.has(activePost.author?.id || activePost.user_id || 0)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all ${
+                            followingAuthorIds.has(activePost.author?.id || activePost.user_id || 0)
+                              ? "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
+                              : "bg-indigo-600 text-white hover:bg-indigo-700"
+                          }`}
+                        >
+                          {followingAuthorIds.has(activePost.author?.id || activePost.user_id || 0) ? (
+                            <>
+                              <UserCheck className="w-2.5 h-2.5" />
+                              <span>{lang === "vi" ? "Đang theo dõi" : "Following"}</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-2.5 h-2.5" />
+                              <span>{lang === "vi" ? "Theo dõi" : "Follow"}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                     <div className="text-[11px] text-slate-400">
                       @{activePost.author?.username || "creator"}
@@ -730,15 +843,40 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   </span>
                 </h3>
 
+                {/* Replying Banner if user clicked reply */}
+                {replyingToComment && (
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-xs text-indigo-700 dark:text-indigo-300">
+                    <div className="flex items-center gap-1.5">
+                      <CornerDownRight className="w-3.5 h-3.5" />
+                      <span>
+                        {lang === "vi"
+                          ? `Đang trả lời @${replyingToComment.author}`
+                          : `Replying to @${replyingToComment.author}`}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setReplyingToComment(null)}
+                      className="p-1 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      title={lang === "vi" ? "Hủy trả lời" : "Cancel reply"}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Comment Input */}
                 <div className="flex items-start gap-2.5">
                   <textarea
                     value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
                     placeholder={
-                      lang === "vi"
-                        ? "Chia sẻ cảm nghĩ của bạn về tác phẩm này..."
-                        : "Leave your thoughts about this story..."
+                      replyingToComment
+                        ? (lang === "vi"
+                            ? `Nhập câu trả lời cho @${replyingToComment.author}...`
+                            : `Write a reply to @${replyingToComment.author}...`)
+                        : (lang === "vi"
+                            ? "Chia sẻ cảm nghĩ của bạn về tác phẩm này..."
+                            : "Leave your thoughts about this story...")
                     }
                     rows={2}
                     className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-colors resize-none"
@@ -753,27 +891,60 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   </button>
                 </div>
 
-                {/* Comment List */}
+                {/* Comment List with Threaded Hierarchical Replies */}
                 <div className="space-y-3">
-                  {activePost.comments && activePost.comments.length > 0 ? (
-                    activePost.comments.map((comm) => (
-                      <div
-                        key={comm.id}
-                        className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs"
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            {comm.full_name || comm.username}
-                          </span>
-                          {comm.created_at && (
-                            <span className="text-[10px] text-slate-400">
-                              {new Date(comm.created_at).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US")}
+                  {organizedComments.rootComments.length > 0 ? (
+                    organizedComments.rootComments.map((comm) => (
+                      <div key={comm.id} className="space-y-2">
+                        {/* Root Comment Card */}
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs shadow-xs">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {comm.full_name || comm.username}
                             </span>
-                          )}
+                            {comm.created_at && (
+                              <span className="text-[10px] text-slate-400">
+                                {new Date(comm.created_at).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US")}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed mb-2">
+                            {comm.comment_text}
+                          </p>
+                          <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/50 dark:border-slate-700/50">
+                            <button
+                              onClick={() => setReplyingToComment({ id: comm.id, author: comm.full_name || comm.username })}
+                              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                            >
+                              <CornerDownRight className="w-3 h-3" />
+                              <span>{lang === "vi" ? "Trả lời" : "Reply"}</span>
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                          {comm.comment_text}
-                        </p>
+
+                        {/* Nested Replies */}
+                        {organizedComments.replyMap[comm.id]?.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className="border-l-2 border-indigo-400/40 dark:border-indigo-500/40 pl-3 sm:pl-4 ml-4 sm:ml-6"
+                          >
+                            <div className="p-3 rounded-xl bg-indigo-50/40 dark:bg-slate-800/80 border border-indigo-100/60 dark:border-slate-700/60 text-xs">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {reply.full_name || reply.username}
+                                </span>
+                                {reply.created_at && (
+                                  <span className="text-[10px] text-slate-400">
+                                    {new Date(reply.created_at).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US")}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                                {reply.comment_text}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))
                   ) : (

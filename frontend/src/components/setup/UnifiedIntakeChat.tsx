@@ -16,6 +16,8 @@ import {
   Zap,
   BookOpen,
   CheckCircle2,
+  WifiOff,
+  User,
 } from "lucide-react";
 
 /**
@@ -155,6 +157,124 @@ function FormattedMarkdown({ content, isUser }: { content: string; isUser: boole
   );
 }
 
+export interface ExtractedConcepts {
+  entities: string[];
+  setting?: string;
+  genre: "historical" | "scifi" | "xianxia" | "detective" | "general";
+}
+
+export function extractNarrativeConcepts(text: string): ExtractedConcepts {
+  const lower = text.toLowerCase();
+  const entities: string[] = [];
+  let genre: ExtractedConcepts["genre"] = "general";
+  let setting: string | undefined;
+
+  // Lịch sử Việt Nam
+  const histKeywords = [
+    "thánh gióng", "trần hưng đạo", "lý thường kiệt", "ngô quyền", "lê lợi", "quang trung", 
+    "hai bà trưng", "bạch đằng", "đại việt", "nhà trần", "nhà lê", "nghĩa sĩ", "tây sơn",
+    "chi lăng", "ngọc hồi", "như nguyệt"
+  ];
+  for (const kw of histKeywords) {
+    if (lower.includes(kw)) {
+      genre = "historical";
+      entities.push(kw.charAt(0).toUpperCase() + kw.slice(1));
+    }
+  }
+
+  // Khoa học viễn tưởng / Cyberpunk
+  const scifiKeywords = ["cyberpunk", "2099", "sài gòn 2099", "saigon 2099", "robot", "trí tuệ nhân tạo", "hacker", "ký ức số", "viễn tưởng", "vũ trụ", "người máy"];
+  for (const kw of scifiKeywords) {
+    if (lower.includes(kw)) {
+      if (genre === "general") genre = "scifi";
+      if (!setting && (kw.includes("sài gòn") || kw.includes("saigon") || kw.includes("2099"))) {
+        setting = "Sài Gòn 2099";
+      }
+      if (kw === "hacker" || kw === "robot") {
+        entities.push(kw.charAt(0).toUpperCase() + kw.slice(1));
+      }
+    }
+  }
+
+  // Tu chân / Tiên hiệp / Kỳ ảo
+  const xianxiaKeywords = ["tu chân", "tiên hiệp", "kiếm hiệp", "đan điền", "ma pháp", "linh hồn", "cấm địa", "pháp bảo", "trận pháp", "huyền huyễn", "dị giới", "yêu thú"];
+  for (const kw of xianxiaKeywords) {
+    if (lower.includes(kw)) {
+      if (genre === "general") genre = "xianxia";
+      entities.push(kw.charAt(0).toUpperCase() + kw.slice(1));
+    }
+  }
+
+  // Trinh thám / Gián điệp
+  const detKeywords = ["thám tử tư", "thám tử", "án mạng", "vụ án", "giết người", "điều tra", "manh mối", "hung thủ", "bắt cóc", "mật vụ"];
+  for (const kw of detKeywords) {
+    if (lower.includes(kw)) {
+      if (genre === "general") genre = "detective";
+      const cap = kw.charAt(0).toUpperCase() + kw.slice(1);
+      if (!entities.some(e => e.toLowerCase() === kw || (kw === "thám tử" && e.toLowerCase().includes("thám tử tư")))) {
+        entities.push(cap);
+      }
+    }
+  }
+
+  // Trích xuất các danh từ riêng viết hoa tiếng Việt
+  const capitalizedWords = text.match(/[A-ZÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ][a-zàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]+/g);
+  if (capitalizedWords) {
+    const stopWords = [
+      "Tôi", "Bạn", "Một", "Khi", "Hãy", "Trong", "Để", "Nếu",
+      "Chuyện", "Câu", "Viết", "Kể", "Vào", "Đây", "Đó", "Về", "Cuộc",
+      "Và", "Nhưng", "Với", "Có", "Là", "Tác", "Ngày", "Ở"
+    ];
+    for (const w of capitalizedWords) {
+      if (!stopWords.includes(w) && !entities.includes(w)) {
+        entities.push(w);
+      }
+    }
+  }
+
+  return { entities: Array.from(new Set(entities)).slice(0, 3), setting, genre };
+}
+
+export function generateDynamicClientFallback(userInput: string, lang: Language): string {
+  const concepts = extractNarrativeConcepts(userInput);
+  const isVi = lang === "vi";
+
+  const entityStr = concepts.entities.length > 0
+    ? concepts.entities.join(", ")
+    : (isVi ? "nhân vật chính" : "the protagonist");
+
+  if (concepts.genre === "historical") {
+    return isVi
+      ? `NarrAI ghi nhận tiền đề lịch sử hào hùng xoay quanh **${entityStr}**.\n\nĐể khắc họa chiều sâu tác phẩm:\n1. Bạn muốn khai thác theo góc nhìn **Chính sử** bám sát sử liệu, hay **Dã sử phóng tác** từ góc nhìn của một nhân vật hư cấu bên cạnh danh nhân?\n2. Biến cố mang tính bước ngoặt hoặc bài học chiến lược/bang giao nào sẽ là nút thắt kịch tính nhất?`
+      : `NarrAI captured your historical premise centered on **${entityStr}**.\n\nTo deepen this narrative:\n1. Are you aiming for strict historical fidelity, or fictional narrative through a grassroots lens?\n2. What pivotal sacrifice or turning point defines their heroic journey?`;
+  }
+
+  if (concepts.genre === "scifi") {
+    const place = concepts.setting || (isVi ? "thế giới tương lai" : "the futuristic metropolis");
+    return isVi
+      ? `Ý tưởng khoa học viễn tưởng trong bối cảnh **${place}** rất giàu tiềm năng kịch tính!\n\nĐể định hình xung đột then chốt:\n1. **${entityStr}** đang đối đầu với thế lực nào (một tập đoàn công nghệ kiểm soát ý thức, hay một trí tuệ nhân tạo mất kiểm soát)?\n2. Nhân vật chính sở hữu năng lực đặc thù nào, và cái giá phải trả để duy trì nhân tính là gì?`
+      : `High-octane sci-fi premise set in **${place}**!\n\nTo lock down the conflict:\n1. Who is the primary adversary opposing **${entityStr}** (a megacorporation controlling neural memories, or rogue synthetic AI)?\n2. What cybernetic edge or moral cost drives your protagonist forward?`;
+  }
+
+  if (concepts.genre === "xianxia") {
+    return isVi
+      ? `Tiền đề kỳ ảo phương Đông với yếu tố **${entityStr}** mở ra một thế giới quan rộng lớn.\n\nĐể thắt chặt mạch truyện:\n1. Đâu là bí mật cổ xưa hoặc nghịch thiên tạo hóa mà nhân vật chính tình cờ nắm giữ?\n2. Mâu thuẫn giữa các tông môn hoặc thế lực hắc ám nào sẽ đẩy nhân vật vào cuộc chiến sinh tử đầu tiên?`
+      : `Rich cultivation fantasy premise involving **${entityStr}**.\n\nTo sharpen the narrative arc:\n1. What ancient artifact or forbidden soul secret does the protagonist harbor?\n2. Which sect rivalry or dark calamity will trigger their first life-or-death crisis?`;
+  }
+
+  if (concepts.genre === "detective") {
+    return isVi
+      ? `Vụ án trinh thám xoay quanh manh mối **${entityStr}** hứa hẹn nhiều tầng lớp bất ngờ.\n\nĐể tạo chiều sâu điều tra:\n1. Động cơ thực sự của thủ phạm là sự thù hận cá nhân hay che giấu một âm mưu lớn hơn?\n2. Nhân vật chính có bí mật quá khứ nào khiến vụ án này trở thành phép thử sinh tử đối với họ?`
+      : `Intriguing detective mystery involving **${entityStr}**.\n\nTo craft the investigation:\n1. Is the culprit's motive personal vengeance or concealing a far larger conspiracy?\n2. What dark secret in the investigator's past makes this case deeply personal?`;
+  }
+
+  // Trường hợp tổng quát
+  const snippet = userInput.length > 50 ? userInput.slice(0, 50) + "..." : userInput;
+  return isVi
+    ? `NarrAI đã tiếp nhận ý niệm then chốt của bạn: **"${snippet}"**.\n\nĐể biến ý tưởng này thành một câu chuyện hoàn chỉnh:\n1. Động cơ thôi thúc mạnh mẽ nhất của **${entityStr}** trong hồi mở đầu là gì?\n2. Trở ngại hoặc biến cố bất ngờ nào xuất hiện ngay chương 1 khiến kế hoạch của nhân vật bị đảo lộn hoàn toàn?`
+    : `NarrAI registered your core premise: **"${snippet}"**.\n\nTo structure the dramatic hook:\n1. What urgent motivation propels **${entityStr}** in the opening sequence?\n2. What unforeseen complication disrupts their life right in Chapter 1?`;
+}
+
 export interface IntakeTransitionOptions {
   refinedPrompt?: string;
   chatHistory: ChatMessage[];
@@ -257,6 +377,60 @@ export function UnifiedIntakeChat({
     },
   ], [lang, t]);
 
+  const handleRetry = async (assistantMsgIndex: number, failedPrompt?: string) => {
+    if (loading || isFinalizing) return;
+    const promptToRetry = failedPrompt || (assistantMsgIndex > 0 ? messages[assistantMsgIndex - 1]?.content : "");
+    if (!promptToRetry) return;
+
+    // Retain history up to the user message that preceded this failed assistant turn
+    const historyBeforeFailedAssistant = messages.slice(0, assistantMsgIndex);
+    setLoading(true);
+
+    try {
+      const res = await api.chatInterview(historyBeforeFailedAssistant);
+      if (res.status === "success" && res.message) {
+        const cleanMsg = res.message.replace(/\[READY\]/g, "").trim();
+        const isReadyFlag = !!(res.is_ready || res.message.includes("[READY]"));
+        if (isReadyFlag) {
+          setHasReadySignal(true);
+        }
+        const updated = [
+          ...historyBeforeFailedAssistant,
+          { role: "assistant" as const, content: cleanMsg, is_ready: isReadyFlag }
+        ];
+        setMessages(updated);
+      } else {
+        const fallbackText = generateDynamicClientFallback(promptToRetry, lang);
+        const updated = [
+          ...historyBeforeFailedAssistant,
+          {
+            role: "assistant" as const,
+            content: fallbackText,
+            is_offline_fallback: true,
+            error_message: res?.message || (lang === "vi" ? "Mất kết nối với AI (Lỗi máy chủ)" : "Lost connection to AI (Server error)"),
+            failed_prompt: promptToRetry,
+          }
+        ];
+        setMessages(updated);
+      }
+    } catch (err: any) {
+      const fallbackText = generateDynamicClientFallback(promptToRetry, lang);
+      const updated = [
+        ...historyBeforeFailedAssistant,
+        {
+          role: "assistant" as const,
+          content: fallbackText,
+          is_offline_fallback: true,
+          error_message: err?.message || (lang === "vi" ? "Mất kết nối với AI (Lỗi mạng)" : "Lost connection to AI (Network error)"),
+          failed_prompt: promptToRetry,
+        }
+      ];
+      setMessages(updated);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSend = async (customText?: string) => {
     const textToSend = (customText !== undefined ? customText : input).trim();
     if (!textToSend || loading || isFinalizing) return;
@@ -287,25 +461,30 @@ export function UnifiedIntakeChat({
         ];
         setMessages(updatedHistory);
       } else {
+        // Dynamic client fallback extracting concepts & providing retry
+        const fallbackText = generateDynamicClientFallback(textToSend, lang);
         setMessages([
           ...newHistory,
           {
             role: "assistant",
-            content: lang === "vi"
-              ? "Ý tưởng của bạn rất cuốn hút! Hãy chia sẻ thêm về nhân vật chính, xung đột cốt lõi hoặc bối cảnh không gian nhé."
-              : "Fascinating premise! Could you elaborate more on the protagonist, core conflict, or narrative setting?"
+            content: fallbackText,
+            is_offline_fallback: true,
+            error_message: res?.message || (lang === "vi" ? "Mất kết nối với AI (Lỗi máy chủ)" : "Lost connection to AI (Server error)"),
+            failed_prompt: textToSend,
           }
         ]);
       }
     } catch (err: any) {
       console.error("Chat interview error:", err);
+      const fallbackText = generateDynamicClientFallback(textToSend, lang);
       setMessages([
         ...newHistory,
         {
           role: "assistant",
-          content: lang === "vi"
-            ? "Đang kết nối lại với trợ lý NarrAI. Bạn có thể tiếp tục chia sẻ hoặc bấm 'Bắt đầu viết truyện ngay' ở góc trên để khởi tạo bản thảo ngay lập tức!"
-            : "Reconnecting to NarrAI Assistant. You can continue detailing or click 'Start writing story now' above to jump straight to drafting!"
+          content: fallbackText,
+          is_offline_fallback: true,
+          error_message: err?.message || (lang === "vi" ? "Mất kết nối với AI (Lỗi mạng hoặc ngoại tuyến)" : "Lost connection to AI (Network error)"),
+          failed_prompt: textToSend,
         }
       ]);
     } finally {
@@ -468,8 +647,8 @@ export function UnifiedIntakeChat({
       </header>
 
       {/* Main Conversation Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 pb-48">
-        <div className="max-w-3xl mx-auto w-full flex flex-col min-h-full justify-between">
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 pb-6">
+        <div className="max-w-4xl mx-auto w-full px-4 flex flex-col min-h-full justify-between">
 
           {/* Empty State: Warm Hero & 4 Starter Prompt Pills */}
           {messages.length === 0 && (
@@ -486,30 +665,30 @@ export function UnifiedIntakeChat({
                   : "Chat freely with any premise. NarrAI understands all literary genres, honors historical truth, and walks with you from initial spark to complete masterpiece.")}
               </p>
 
-              {/* Starter Prompt Suggestion Pills */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full text-left">
+              {/* Starter Prompt Suggestion Pills (R2: symmetrical 2x2 grid, min-h-[140px], gap-4 sm:gap-5) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 w-full text-left">
                 {starterIdeas.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleSend(item.prompt)}
-                    className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-500 backdrop-blur-sm transition-all text-left group shadow-sm hover:shadow-md active:scale-[0.99] flex flex-col justify-between"
+                    className="p-5 sm:p-5.5 rounded-2xl min-h-[140px] border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-500 backdrop-blur-sm transition-all text-left group shadow-xs hover:shadow-md active:scale-[0.99] flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                           {item.title}
                         </span>
                       </div>
-                      <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 border text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700">
+                      <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md mb-2.5 border text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700">
                         {item.badge}
                       </span>
-                      <p className="text-[12px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
                         {item.prompt}
                       </p>
                     </div>
-                    <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
                       <span>{lang === "vi" ? "Bắt đầu khám phá" : "Explore concept"}</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </button>
                 ))}
@@ -527,26 +706,45 @@ export function UnifiedIntakeChat({
                     key={index}
                     className={`flex items-start gap-3.5 ${isUser ? "flex-row-reverse" : "flex-row"} animate-fadeIn`}
                   >
-                    {/* Avatar */}
+                    {/* Avatar (R2: symmetrical w-9 h-9, rounded-xl) */}
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold shadow-sm ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs border ${
                         isUser
-                          ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900"
-                          : "bg-gradient-to-tr from-brand-600 to-indigo-600 text-white"
+                          ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 border-slate-700/50 dark:border-slate-300/50"
+                          : "bg-gradient-to-tr from-brand-600 to-indigo-600 text-white border-brand-500/30"
                       }`}
                     >
-                      {isUser ? "U" : <Sparkles className="w-4 h-4" />}
+                      {isUser ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                     </div>
 
-                    {/* Bubble Content */}
+                    {/* Bubble Content (R2: symmetrical padding px-4.5 py-3.5) */}
                     <div
-                      className={`max-w-[88%] sm:max-w-[80%] px-4 py-3.5 rounded-2xl ${
+                      className={`max-w-[88%] sm:max-w-[80%] px-4.5 py-3.5 rounded-2xl ${
                         isUser
-                          ? "bg-brand-600 dark:bg-brand-700 text-white rounded-tr-sm shadow-md"
-                          : "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 rounded-tl-sm shadow-sm"
+                          ? "bg-brand-600 dark:bg-brand-700 text-white shadow-md"
+                          : "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 shadow-xs"
                       }`}
                     >
                       <FormattedMarkdown content={msg.content} isUser={isUser} />
+
+                      {/* Offline Fallback Connection Status & Retry Button (R3) */}
+                      {!isUser && msg.is_offline_fallback && (
+                        <div className="mt-3 pt-2.5 border-t border-amber-200/60 dark:border-amber-900/60 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                            <WifiOff className="w-3.5 h-3.5 shrink-0" />
+                            <span>{lang === "vi" ? "Mất kết nối với AI (Gợi ý dự phòng thông minh)" : "AI connection lost (Smart fallback probe)"}</span>
+                          </div>
+                          <button
+                            onClick={() => handleRetry(index, msg.failed_prompt)}
+                            disabled={loading || isFinalizing}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs flex items-center gap-1 transition-all active:scale-95 disabled:opacity-40"
+                            title={lang === "vi" ? "Thử lại kết nối đến máy chủ AI" : "Retry connection to AI server"}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>{lang === "vi" ? "Thử lại" : "Retry"}</span>
+                          </button>
+                        </div>
+                      )}
 
                       {/* Ready Badge if assistant flagged readiness */}
                       {!isUser && msg.is_ready && (
@@ -572,10 +770,10 @@ export function UnifiedIntakeChat({
               {/* Typing State */}
               {loading && (
                 <div className="flex items-start gap-3.5 animate-fadeIn">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs border border-brand-500/30">
                     <Sparkles className="w-4 h-4 animate-pulse" />
                   </div>
-                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-2 shadow-sm">
+                  <div className="px-4.5 py-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-2 shadow-xs">
                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" />
                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.2s]" />
                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.4s]" />
@@ -593,9 +791,9 @@ export function UnifiedIntakeChat({
         </div>
       </div>
 
-      {/* Floating Bottom Dock (Layer 1 Semantic DOM with Layer 2 Morphicon) */}
-      <div className="fixed bottom-0 left-0 right-0 sm:left-64 p-3 sm:p-5 bg-gradient-to-t from-slate-50/95 via-slate-50/80 to-transparent dark:from-slate-950/95 dark:via-slate-950/80 dark:to-transparent z-20 pointer-events-none">
-        <div className="max-w-3xl mx-auto w-full pointer-events-auto">
+      {/* Bottom Input Dock (R2: in-flow flex shrink-0 container, perfectly centered with main chat container) */}
+      <div className="shrink-0 p-3 sm:p-4 bg-gradient-to-t from-slate-50/95 via-slate-50/90 to-transparent dark:from-slate-950/95 dark:via-slate-950/90 dark:to-transparent border-t border-slate-200/50 dark:border-slate-800/50 z-20">
+        <div className="max-w-4xl mx-auto w-full px-4">
 
           {/* Quick Guidance & Readiness Notification Banner if ready */}
           {isReady && messages.length > 0 && !isFinalizing && (

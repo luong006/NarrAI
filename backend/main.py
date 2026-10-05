@@ -200,7 +200,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 # ============ PYDANTIC MODELS ============
 class ChatInterviewRequest(BaseModel):
-    chat_history: list
+    chat_history: list = []
+    user_input: Optional[str] = None
+    genre: Optional[str] = None
+    fallback_to_heuristic: bool = False
 
 class ChatRequest(BaseModel):
     story_text: str
@@ -398,12 +401,36 @@ def read_users_me(current_user: User = Depends(get_current_user)):
 def chat_interview(request: ChatInterviewRequest):
     try:
         qa = get_qa_refiner()
-        response = qa.chat_interview(request.chat_history)
+        history = list(request.chat_history or [])
+        if request.user_input and (not history or history[-1].get("content") != request.user_input):
+            history.append({"role": "user", "content": request.user_input})
+
+        response = qa.chat_interview(
+            history,
+            fallback_to_heuristic=request.fallback_to_heuristic,
+        )
         is_ready = "[READY]" in response
         cleaned_response = response.replace("[READY]", "").strip()
-        return {"status": "success", "message": cleaned_response, "is_ready": is_ready}
+        return {
+            "status": "success",
+            "message": cleaned_response,
+            "reply": cleaned_response,
+            "is_ready": is_ready,
+            "detected_mode": getattr(qa, "last_model_used", None),
+        }
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        import logging
+        logging.getLogger("narrai.main").error(f"Chat interview failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "message": f"Dịch vụ AI tạm thời gián đoạn: {str(e)}",
+                "detail": str(e),
+                "retry_after": 5,
+                "is_ready": False,
+            },
+        )
 
 @app.post("/api/refine-prompt")
 def refine_prompt(request: ChatInterviewRequest):

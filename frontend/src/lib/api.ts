@@ -146,12 +146,28 @@ export const api = {
 
   // Setup Flow
   async chatInterview(history: Array<{role: string; content: string}>): Promise<InterviewResponse> {
-    const res = await fetch(`${API_BASE_URL}/chat-interview`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ chat_history: history }),
-    });
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat-interview`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ chat_history: history }),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        let message = `Lỗi máy chủ (${res.status})`;
+        try {
+          const parsed = JSON.parse(errorText);
+          message = parsed.message || parsed.detail || message;
+        } catch {}
+        return { status: 'error', message };
+      }
+      return await res.json();
+    } catch (err: any) {
+      return {
+        status: 'error',
+        message: err?.message || 'Không thể kết nối với máy chủ AI (Lỗi mạng hoặc máy chủ ngoại tuyến)',
+      };
+    }
   },
 
   async refinePrompt(history: Array<{role: string; content: string}>): Promise<RefineResponse> {
@@ -451,6 +467,30 @@ export const api = {
   // Backwards-compatible alias for getPostDetails
   async getPostDetails(postId: number): Promise<SocialPostDetailResponse> {
     return this.getSocialPostDetails(postId);
+  },
+
+  async followAuthor(userId: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/social/follow/${userId}`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, message: err?.message };
+    }
+  },
+
+  async unfollowAuthor(userId: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/social/unfollow/${userId}`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, message: err?.message };
+    }
   },
 };
 

@@ -3,19 +3,19 @@
 import { translations, Language } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { Sparkles, Bot, Edit3, Image as ImageIcon, ArrowRight } from "lucide-react";
+import { Sparkles, Bot, Edit3, Image as ImageIcon, ArrowRight, Users } from "lucide-react";
 import { InteractiveTiltCard } from "@/components/cards/InteractiveTiltCard";
 import { CoinBadgeMorphicon } from "@/components/morphicons/CoinBadgeMorphicon";
 import { LikeButtonMorphicon } from "@/components/morphicons/LikeButtonMorphicon";
-import { NeuralVisualPreview } from "@/components/canvas/NeuralVisualPreview";
 
 interface Props {
   lang: Language;
   onLanguageChange: (lang: Language) => void;
   onOpenAuth: () => void;
+  onExploreCommunity?: () => void;
 }
 
-export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
+export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommunity }: Props) {
   const t = translations[lang];
 
   return (
@@ -78,12 +78,14 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth }: Props) {
             <span>{t.hero_cta}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+          <button
+            onClick={onExploreCommunity ? onExploreCommunity : onOpenAuth}
+            className="w-full sm:w-auto px-7 py-4 rounded-xl text-base font-bold text-slate-800 dark:text-slate-200 bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] backdrop-blur-sm"
+          >
+            <Users className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <span>{lang === "vi" ? "Khám phá Cộng đồng" : "Explore Community"}</span>
+          </button>
         </div>
-      </section>
-
-      {/* AI Art & Neural Style Preview Showcase (Feature 30) */}
-      <section className="max-w-4xl mx-auto px-6 pb-12">
-        <NeuralVisualPreview lang={lang} />
       </section>
 
 
