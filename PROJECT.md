@@ -1,86 +1,189 @@
-# Project: NarrAI Round 5 (Flexible Manuscript Surgery, Unified Intake Chat, Community Feed & 4-Layer Architecture)
+# project.md — Tổng quan dự án NarrAI
 
-## Architecture
-NarrAI v2.0 is an AI-powered storytelling, manuscript surgery, and manga studio with a FastAPI backend and Next.js App Router frontend.
-- **Backend Architecture**: FastAPI (`backend/main.py`) driving specialized AI services:
-  - `CopilotAgent` (`backend/agents/copilot_agent.py`): 5-Target Flexible Manuscript Surgery, Dynamic Semantic Chunk Slicer, Structural Heading Preservation.
-  - `StoryGenerator` (`backend/agents/story_generator.py`): Light Novel engine rules, streaming generation, instant `story_id` allocation.
-  - `QARefiner` (`backend/agents/qa_refiner.py`): Intelligent conversational intake, Vietnamese historical authenticity (Chính sử vs. Dã sử), genre mastery, IP protection, and 1-2s Refined Narrative Bible compression.
-  - `SocialRouter` & `RecommenderService` (`backend/routers/social_router.py`, `backend/services/recommender_service.py`): Community feed, 3-stage recommendation (Two-Tower Cosine + Multi-Armed Bandit 15% + MMR $\lambda=0.7$), "Lưu & Đăng bài" persistence.
-- **Frontend 4-Layer Collision-Free Architecture**:
-  - **Layer 0 (ThreeUI 3D)**: `ThreeAmbientCanvas.tsx` running Dong Son Drum shader quad + 350 particles, auto-pausing on tab hidden / out of screen (GPU 0%).
-  - **Layer 1 (Semantic DOM & 3D Interactive Cards)**: `InteractiveTiltCard.tsx` with CSS 3D Transforms (`perspective: 1000px`, `transform-style: preserve-3d`), `UnifiedIntakeChat.tsx`, `StoryEditor.tsx`, `CommunityFeed.tsx`.
-  - **Layer 2 (Morphicons SVG)**: Spring physics vector interactions (`LikeButtonMorphicon`, `ModelSelectorMorphicon`, `CoinBadgeMorphicon`).
-  - **Layer 3 (Modals & Chat Portals)**: `ClientPortal.tsx` with React Portals, `isolation: isolate`, and `z-index: 60` (`PostReaderModal`, `AuthModal`, `MessengerModal`, `CoinTopupModal`).
+> Tài liệu bối cảnh cho cả con người và AI agent. Tổng hợp từ README của dự án. Xem `agent.md` để biết quy tắc làm việc.
 
-## Feature Inventory
-| # | Feature | Description | Milestone | Source |
-|---|---------|-------------|-----------|--------|
-| 1 | R5.1.1 Target 1: Opening / Hook Rewrite | Viết lại mở đầu giật gân (In Medias Res), giữ nguyên tiêu đề và mạch truyện chính | M1 | Survey 1 |
-| 2 | R5.1.2 Target 2: Character & Dialogue Surgery | Thay tên, đổi đại từ, cập nhật khẩu ngữ hiện đại, subtext, phản ứng sinh lý trên phân đoạn hoặc toàn bộ truyện | M1 | Survey 1 |
-| 3 | R5.1.3 Target 3: Middle Beats & Scene Insertion | Thêm biến cố, đẩy nhanh nhịp độ (Pacing), chèn tình huống nguy nan hoặc đào sâu nội tâm không làm xáo trộn mở đầu và kết | M1 | Survey 1 |
-| 4 | R5.1.4 Target 4: Climax & Ending Rewrite | Xây dựng Lingering Cliffhanger nghẹt thở hoặc kết thúc dâng trào cảm xúc, giữ vững logic | M1 | Survey 1 |
-| 5 | R5.1.5 Target 5: Tone Shift & Style Restyling | Viết lại truyện theo phong cách chỉ định (u tối, giật gân, hài hước, trinh thám, cổ trang) bảo toàn cốt truyện và nhân vật | M1 | Survey 1 |
-| 6 | R5.1.6 Dynamic Semantic Chunk Slicing | Phân rã lát cắt `prefix` -> `window_to_edit` -> `suffix` chuẩn xác theo mốc chương `## Chương X` và cấu trúc ngữ nghĩa | M1 | Survey 1 |
-| 7 | R5.1.7 Heading & Structure Preservation Engine | Bảo toàn tuyệt đối nhãn tiêu đề `**[TÊN TIÊU ĐỀ]**` và các chương `## Chương X` qua mọi lượt can thiệp | M1 | Survey 1 |
-| 8 | R5.1.8 Story ID Immediate Pre-allocation & Streaming | Cấp phát `story_id` tức thì khi bắt đầu chuyển giao hoặc stream (hỗ trợ cả guest và registered users), endpoint `/api/stories/allocate` | M1 | Survey 1 |
-| 9 | R5.1.9 Social Publish Data Enrichment | Bổ sung lưu văn bản bản thảo và tự động đồng bộ ảnh bìa manga trong `POST /api/social/publish`, trả đủ truyện chữ và comic trong `GET /post/{id}` | M1 | Survey 3 |
-| 10 | R5.2.1 Legacy Setup Wizard Elimination | Loại bỏ hoàn toàn lưới 28 chip thể loại cũ (`Phase1Idea`), phỏng vấn chia bước cũ (`Phase2Interview`), và bảng điều khiển rời (`Phase3Controls`) | M2 | Survey 2 |
-| 11 | R5.2.2 Unified Intake Chat Interface | Giao diện AI Intake Chat tối giản, tinh tế chuẩn ChatGPT / Gemini, canvas toàn màn hình, dock input nổi, ModelSelectorMorphicon, starter pills | M2 | Survey 2 |
-| 12 | R5.2.3 Literary, Historical & IP Domain Intelligence | Trợ lý Q&A đối thoại am hiểu sâu sắc thể loại văn học, tự do sáng tạo hư cấu, tôn trọng chính sử Việt Nam (phân định chính sử / dã sử), cảnh báo bản quyền IP | M2 | Survey 2 |
-| 13 | R5.2.4 Seamless Transition to Story Editor | Nút "Bắt đầu viết truyện ngay" / "Chốt cốt truyện" cô đọng Refined Narrative Bible trong 1-2s, chuyển thẳng sang StoryEditor và kích hoạt streaming | M2 | Survey 2 |
-| 14 | R5.3.1 Community Feed ("Bài đăng" Tab) | Bổ sung tab điều hướng "Bài đăng" trên Sidebar và page.tsx, hiển thị danh sách tác phẩm xuất bản của cộng đồng và cá nhân | M3 | Survey 3 |
-| 15 | R5.3.2 3D Parallax Tilt Cards & Reader Modal | Thẻ 3D Parallax Tilt (`InteractiveTiltCard`) hiển thị bìa, trích đoạn, thể loại, metrics; Modal đọc truyện chữ & xem comic (`PostReaderModal`) | M3 | Survey 3 |
-| 16 | R5.3.3 Community Interactions & 3-Stage Recommender | Tương tác Like Morphicon, bình luận, chia sẻ; kết nối với bộ gợi ý 3 giai đoạn (Two-Tower + Bandit 15% Cold-Start + MMR lambda=0.7) | M3 | Survey 3 |
-| 17 | R5.3.4 Save & Publish Button ("Lưu & Đăng bài") | Nút "Lưu & Đăng bài" trên thanh công cụ StoryEditor: tự động lưu bản thảo, sync bìa manga, gọi `/api/social/publish`, toast kèm link xem bài đăng | M3 | Survey 3 |
-| 18 | R5.3.5 4-Layer Collision-Free Architecture Enforcement | Đảm bảo tuyệt đối 4 tầng không xung đột: Layer 0 ThreeUI pause, Layer 1 CSS 3D Cards, Layer 2 Morphicons spring, Layer 3 React Portals isolation/z-index 60 | M3 | Survey 3 |
-| 19 | R5.4.1 E2E Test Suite Creation (Tiers 1-4) | Xây dựng bộ kiểm thử E2E độc lập: Tier 1 Feature Coverage, Tier 2 Boundaries, Tier 3 Cross-feature combinations, Tier 4 Real-world scenarios | M4 | Test Track |
-| 20 | R5.4.2 Adversarial Coverage Hardening (Tier 5) & Full Build Pass | Kiểm thử đối kháng hộp trắng bởi Challengers, đảm bảo py_compile 0 lỗi và npm run build 0 lỗi | M4 | System Gate |
+## 1. Giới thiệu
 
-## Milestones
-| # | Name | Scope | Dependencies | Status |
-|---|------|-------|-------------|--------|
-| M1 | Backend Copilot Surgery Engine & Story ID Allocation | `backend/agents/copilot_agent.py`, `backend/main.py`, `backend/services/recommender_service.py`, `backend/routers/social_router.py` | none | DONE |
-| M2 | Frontend Unified Intake Chat & Seamless Transition | `frontend/src/components/setup/UnifiedIntakeChat.tsx`, `frontend/src/app/page.tsx`, `frontend/src/components/layout/Sidebar.tsx`, `frontend/src/lib/types.ts`, `frontend/src/lib/i18n.ts` | none | DONE |
-| M3 | Community Feed, Save & Publish Button & 4-Layer Integration | `frontend/src/components/feed/CommunityFeed.tsx`, `frontend/src/components/modals/PostReaderModal.tsx`, `frontend/src/components/editor/StoryEditor.tsx`, `frontend/src/lib/api.ts`, `frontend/src/app/page.tsx` | M1, M2 | IN_PROGRESS |
-| M4 | E2E Testing Track, Adversarial Hardening & Final Gate | `backend/tests/test_e2e_round5_surgery_feed.py`, `backend/tests/test_adversarial_round5_resilience.py`, py_compile, Next.js build | M1, M2, M3 | PLANNED |
+- **Tên dự án**: NarrAI — Nền tảng đồng sáng tác văn học và mạng xã hội truyện AI thế hệ mới.
+- **Mô tả**: Hệ sinh thái AI giúp tác giả trẻ chấp bút tiểu thuyết, kịch bản và truyện tranh Manga, kết hợp mạng xã hội văn học và cơ chế bảo vệ lịch sử dân tộc Việt Nam cùng bản quyền IP.
+- **Bối cảnh**: Sản phẩm dự thi **iStartup 2026** (Cuộc thi Khởi nghiệp Đổi mới Sáng tạo).
+- **Đội thi**: Những ngôi sao mộng mơ, Trường Quốc tế – ĐHQGHN (VNU-IS).
+- **Phiên bản**: v3.0 (Production). **Trạng thái kiểm thử**: 203/203 test pass.
 
-## Code Layout & Ownership
-- `backend/agents/copilot_agent.py`: 5-target classifier, semantic chunk slicing, heading preservation, targeted prompts. Owned exclusively by M1 Worker.
-- `backend/main.py`: Story pre-allocation, `/api/stories/allocate`, streaming yield of `[STORY_ID:{id}]`. Owned exclusively by M1 Worker.
-- `backend/services/recommender_service.py` & `backend/routers/social_router.py`: `publish_post` manuscript saving and cover sync, `get_post_details` content enrichment. Owned exclusively by M1 Worker.
-- `frontend/src/components/setup/UnifiedIntakeChat.tsx`: New ChatGPT/Gemini intake component. Owned exclusively by M2 Worker.
-- `frontend/src/components/setup/`: Removal of `Phase1Idea.tsx`, `Phase2Interview.tsx`, `Phase3Controls.tsx`. Owned exclusively by M2 Worker.
-- `frontend/src/components/feed/`: Community feed component (`CommunityFeed.tsx`). Owned exclusively by M3 Worker.
-- `frontend/src/components/modals/PostReaderModal.tsx`: Text & comic reader modal. Owned exclusively by M3 Worker.
-- `frontend/src/components/editor/StoryEditor.tsx`: "Lưu & Đăng bài" button and publishing toast. Owned exclusively by M3 Worker.
-- `frontend/src/lib/api.ts`: Social feed and publishing API client methods. Owned exclusively by M3 Worker.
-- `frontend/src/components/layout/Sidebar.tsx` & `frontend/src/app/page.tsx`: Navigation wiring for Setup, Editor, Comic, Feed. Coordinated between M2 and M3.
-- `backend/tests/`: E2E tests, boundary tests, adversarial tests. Owned exclusively by E2E Test Writer / Challenger.
+## 2. Vấn đề & giá trị
 
-## Interface Contracts
-### Copilot Flexible Surgery Contract
-- Input: `instruction: str`, `story_content: str`, `context: dict`.
-- Intent: One of `TARGET_1_OPENING`, `TARGET_2_CHARACTER_DIALOGUE`, `TARGET_3_MIDDLE_BEATS`, `TARGET_4_CLIMAX_ENDING`, `TARGET_5_TONE_STYLE`.
-- Slicing: `(prefix, window_to_edit, suffix) = slice_manuscript(story_content, target)`.
-- Output: `updated_story_content = prefix + sanitized_edited_window + suffix`.
-- Invariant: `**[TITLE]**` must remain identical at top; all `## Chương X` occurrences across `prefix`, `window_to_edit`, and `suffix` must be preserved 100%.
+- **Vấn đề**: Tác giả trẻ thường cạn ý tưởng và gặp rào cản khi viết lách.
+- **Giải pháp**: Đội ngũ Multi-Agent AI phối hợp từ phỏng vấn ý tưởng → viết truyện → biên tập → chuyển thể Manga, kèm cộng đồng đọc và thảo luận.
+- **Điểm khác biệt**:
+  - Bảo vệ lịch sử dân tộc (31 anh hùng) và gắn nhãn bản quyền cho tác phẩm phái sinh.
+  - Edge AI: gợi ý bảng tin chạy ngay trên trình duyệt bằng TensorFlow.js, giảm chi phí backend.
+  - Độ sẵn sàng cao nhờ ma trận dự phòng nhiều model và nhiều API key.
 
-### Unified Intake Chat ↔ Story Editor Transition
-- User click "Bắt đầu viết truyện ngay" / "Chốt cốt truyện" (or AI ready confirmation):
-  1. Frontend calls `api.refinePrompt(chatHistory)` -> returns `refined_prompt` (1-2s).
-  2. Frontend sets `activeTab = "editor"`, clears editor canvas, sets `streaming = true`.
-  3. Frontend triggers `api.streamStory("init-story", { refined_prompt, story_length, session_id })`.
-  4. Stream yields `[STORY_ID:<id>]` at inception, locking `storyId` in frontend state for immediate Manga adaptation or Social Publishing.
+## 3. Đối tượng người dùng
 
-### Social Publishing & Feed Contract
-- `POST /api/social/publish`:
-  - Request body: `{ title: str, content_snippet: str, story_text?: str, story_id?: int, genre: str, tags: list[str], cover_image_url?: str }`.
-  - Response: `{ status: "success", post: SocialPostResponse }`.
-  - Side effect: If `story_text` provided, saves/updates `Story`. If `cover_image_url` not provided, extracts first panel image from associated `Comic`.
-- `GET /api/social/feed?page=1&limit=20&genre=...`:
-  - Response: `{ posts: list[SocialPostResponse], total: int, page: int }`.
-- `GET /api/social/post/{post_id}`:
-  - Response: Includes `id`, `title`, `content_snippet`, `story_content` (full text), `comic_panels` (panel images/dialogues), `author`, `likes_count`, `comments_count`.
-- `StoryEditor.tsx`:
-  - "Lưu & Đăng bài" triggers save of current manuscript -> `POST /api/social/publish` -> displays success toast with direct link to view post in Community Feed.
+| Nhóm | Nhu cầu |
+|---|---|
+| Tác giả trẻ, người viết truyện | Có ý tưởng, bản thảo, công cụ biên tập và chuyển thể |
+| Độc giả | Khám phá, theo dõi tác giả, bình luận, lưu tủ sách |
+| Người làm truyện tranh | Biến bản thảo thành kịch bản Manga có panel, lời thoại, prompt ảnh |
+
+## 4. Tính năng chính
+
+### 4.1 Bốn agent AI
+
+| Agent | File | Nhiệm vụ cốt lõi |
+|---|---|---|
+| 1. Q&A Intake Refiner | `qa_refiner.py` | Phỏng vấn ý tưởng kiểu chat; Dual-Matrix Fallback (Qwen 2.5 27B → Llama-3.3-70B → Llama-3.1-8B qua 3 API key); Concept Mirroring Prompt |
+| 2. Story Generator | `story_generator.py` | Viết tiểu thuyết theo 5 nhịp kịch tính; nhiều thể loại; cổng chặn xuyên tạc lịch sử |
+| 3. Copilot | `copilot_agent.py` | Live Editor; sửa chính xác đoạn `selectedText`; HeadingPreservationEngine giữ mốc `## Chương X` |
+| 4. Comic Director | `comic_agent.py` | Chuyển bản thảo thành kịch bản Manga: panel, lời thoại, prompt sinh ảnh |
+
+**Thể loại hỗ trợ**: Lịch sử/Dã sử, Kỳ ảo/Tu chân, Đô thị/Chữa lành, Sci-Fi/Cyberpunk, Trinh thám/Giật gân.
+
+**Năm nhịp kịch tính**: Hook → Rising Friction → Turning Point → Visceral Climax → Cliffhanger.
+
+### 4.2 Bảo vệ lịch sử & IP
+- Bảo hộ 31 Anh hùng Dân tộc (ví dụ: Ngô Quyền, Hai Bà Trưng, Lý Thường Kiệt, Trần Hưng Đạo, Lê Lợi, Nguyễn Huệ – Quang Trung, Hồ Chí Minh, Võ Nguyên Giáp).
+- AI Semantic Classifier chặn xuyên tạc chiến công hoặc đảo niên đại, kể cả khi người dùng lách từ ngữ.
+- Ba chế độ tự nhận diện: **Chính sử**, **Dã sử**, **Hư cấu tự do**.
+- Tự nhận diện thương hiệu bản quyền thương mại và gắn disclaimer cho fanfiction.
+
+### 4.3 Mạng xã hội văn học
+- Community Feed: khám phá, lọc theo thể loại, tìm kiếm.
+- Follow/Unfollow tác giả; bình luận phân cấp (threaded).
+- Tủ sách cá nhân (Bookmarks) có phân loại.
+- Leaderboard/Trending theo tuần và tháng.
+- Trình đọc: truyện chữ và Manga fullscreen lật trang.
+- Hệ thống tiền tệ **Xu** (`banking_service.py`), nhắn tin nội bộ (`messenger_router.py`), xuất bản thảo `.txt`, `.md`, `.pdf` (`export_router.py`).
+
+### 4.4 Tối ưu hiệu năng
+- TensorFlow.js Hybrid: gợi ý cá nhân hóa phía client, cache IndexedDB ≤ 15MB.
+- SQLite WAL mode + composite indexes.
+- GZip middleware cho API.
+
+## 5. Công nghệ
+
+| Lớp | Công nghệ |
+|---|---|
+| Frontend | Next.js 14.2 (React), TypeScript, Tailwind CSS, TensorFlow.js |
+| Backend | Python (3.11 / 3.12), FastAPI 0.110+ |
+| Cơ sở dữ liệu | SQLite (WAL mode) |
+| LLM | Groq Cloud: Qwen 2.5 27B, Llama 3.3 70B Versatile, Llama 3.1 8B Instant |
+| Xác thực | JWT |
+| Triển khai | Backend: Render · Frontend: Vercel |
+
+## 6. Kiến trúc
+
+```
+Frontend (Next.js + TF.js)
+  ├─ Intake Chat · Live Editor · Manga Viewer · Social · Edge Recommender
+  ▼ REST / Stream
+Backend (FastAPI + Auth Middleware)
+  ├─ QARefiner · StoryGenerator · CopilotAgent · ComicAgent
+  ├─ Routers: social, messenger, export
+  ├─ Services: banking, cache, recommender
+  ▼
+Groq Cloud (Qwen 2.5 27B / Llama 3.3 70B / Llama 3.1 8B)   +   SQLite WAL
+```
+
+### Luồng sáng tác điển hình
+1. Tác giả trò chuyện với Agent 1 để làm rõ ý tưởng.
+2. Agent 2 sinh bản thảo (qua cổng kiểm tra lịch sử/IP).
+3. Tác giả chỉnh sửa trong Live Editor với Agent 3 (sửa theo vùng bôi đen).
+4. Agent 4 chuyển thể thành kịch bản Manga.
+5. Xuất bản lên cộng đồng; độc giả đọc, bình luận, theo dõi; bảng tin được cá nhân hóa bằng TF.js.
+
+## 7. Cấu trúc thư mục (rút gọn)
+
+```
+NarrAI/
+├── backend/
+│   ├── agents/      # qa_refiner, story_generator, copilot_agent, comic_agent
+│   ├── db/          # database.py (WAL), models.py
+│   ├── llm/         # groq_client.py
+│   ├── routers/     # social, messenger, export
+│   ├── services/    # banking, cache, recommender
+│   ├── tests/       # run_all_tests.py + các suite
+│   ├── main.py
+│   └── requirements.txt
+├── frontend/
+│   └── src/
+│       ├── app/         # layout.tsx, page.tsx
+│       ├── components/  # setup, editor, comic, social, landing, layout
+│       ├── services/    # tfjsRecommender.ts, indexedDBCache.ts
+│       └── lib/         # api.ts, i18n.ts, types.ts
+├── agent.md
+├── project.md
+└── README.md
+```
+
+## 8. Thiết lập môi trường
+
+**Yêu cầu**: Python ≥ 3.10 (khuyên 3.11/3.12), Node.js ≥ 18, Groq API key (đăng ký tại console.groq.com).
+
+**Biến môi trường backend** (`backend/.env`):
+
+| Biến | Mô tả |
+|---|---|
+| `GROQ_API_KEY` | Key Groq chung |
+| `GROQ_API_KEY_BIBLE` | Key cho luồng sinh truyện/bible |
+| `GROQ_API_KEY_COPILOT` | Key cho Copilot |
+| `GROQ_API_KEY_COMIC` | Key cho Comic Director |
+| `JWT_SECRET` | Khóa ký JWT (đặt giá trị mạnh, không commit) |
+| `DATABASE_URL` | Mặc định `sqlite:///./narrai.db` |
+
+**Frontend** (`frontend/.env.local`): `NEXT_PUBLIC_API_URL=http://localhost:8000/api`
+
+**Chạy**: backend `python main.py` (cổng 8000, Swagger tại `/docs`); frontend `npm run dev` (cổng 3000). Chi tiết lệnh xem `agent.md`.
+
+## 9. Kiểm thử & chất lượng
+
+| Nhóm | Kết quả |
+|---|---|
+| Core E2E | 111/111 |
+| Round 5 Integration | 71/71 |
+| Round 7 AI Resilience & Fallback | 21/21 |
+| **Tổng** | **203/203** |
+
+Frontend: `npm run build` thành công, 0 lỗi TypeScript.
+
+## 10. Triển khai
+
+- **Backend (Render)**: Web Service; build `pip install -r backend/requirements.txt`; start `cd backend && python main.py`.
+- **Frontend (Vercel)**: Root Directory `frontend`; build `npm run build`; Output Directory để mặc định (Vercel tự động nhận diện `.next`); biến môi trường: `NEXT_PUBLIC_API_URL=https://<render-url>/api`.
+
+## 11. Thuật ngữ
+
+| Thuật ngữ | Ý nghĩa |
+|---|---|
+| Multi-Agent | Nhiều agent AI chuyên trách, phối hợp theo quy trình sáng tác |
+| Dual-Matrix Fallback | Tự động chuyển model/API key khi lỗi hoặc quá giới hạn |
+| Concept Mirroring | Kỹ thuật prompt phản chiếu từ khóa của tác giả để hỏi ngược |
+| Chính sử / Dã sử / Hư cấu tự do | Ba chế độ sáng tác, mức ràng buộc lịch sử giảm dần |
+| HeadingPreservationEngine | Cơ chế giữ nguyên các mốc chương khi biên tập |
+| Xu | Đơn vị tiền tệ nội bộ của nền tảng |
+| Edge AI | Mô hình gợi ý chạy ngay trên trình duyệt |
+
+## 12. Đã xác minh & Chuẩn hóa kỹ thuật (Technical Standards)
+
+Toàn bộ 5 điểm nghi vấn kỹ thuật đã được đối soát trực tiếp với mã nguồn và chuẩn hóa thống nhất:
+
+1. **Phiên bản Python**: Chuẩn hóa toàn hệ thống yêu cầu `Python ≥ 3.10` (khuyên dùng Python 3.11 hoặc 3.12 trên môi trường máy chủ production).
+2. **Mô hình AI**: Sử dụng tên dòng mô hình thân thiện trong tài liệu (Qwen, Llama 3.3 70B, Llama 3.1 8B, GPT-OSS); cơ chế Dual-Matrix Fallback trong `qa_refiner.py` tự động luân chuyển giữa các dòng mô hình này.
+3. **Lệnh khởi chạy Render**: Thống nhất dùng lệnh `cd backend && python main.py` (file `main.py` tự động lấy biến `$PORT` từ Render và kích hoạt `uvicorn`).
+4. **Cấu hình bản dựng Vercel**: Trên Vercel, ứng dụng tự động chạy chế độ Next.js native (`next.config.mjs` tự động bỏ `output: 'export'` khi biến `VERCEL` tồn tại). Để trống mục Output Directory trên Vercel Dashboard (mặc định `.next`).
+5. **Bảo mật JWT**: Tệp mẫu `backend/.env.example` đã được tạo với giá trị placeholder an toàn; bổ sung cảnh báo không bao giờ sử dụng khóa mẫu trong môi trường Production.
+
+## 13. Lộ trình gợi ý
+
+Phần này chưa có trong README, bạn có thể điều chỉnh:
+
+- Hoàn thiện sinh ảnh Manga từ prompt do Comic Director tạo.
+- Mở rộng danh sách nhân vật/sự kiện lịch sử được bảo hộ.
+- Tăng độ phủ test cho frontend.
+- Theo dõi chi phí và rate limit Groq khi người dùng tăng.
+
+## 14. Liên hệ
+
+- **Team**: Những ngôi sao mộng mơ – VNU-IS
+- **Bản quyền**: © 2026 NarrAI Team

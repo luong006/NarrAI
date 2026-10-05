@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-v3.0--Production-indigo.svg" alt="Version">
-  <img src="https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/Python-3.10%2B%20(Rec%203.11%2F3.12)-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/Next.js-14.2%20(React)-black.svg" alt="Next.js">
   <img src="https://img.shields.io/badge/FastAPI-0.110+-teal.svg" alt="FastAPI">
   <img src="https://img.shields.io/badge/Tests-203%2F203%20PASS%20(100%25)-success.svg" alt="Tests">
@@ -31,7 +31,7 @@
 ### 1. 🤖 Đội Ngũ Multi-Agent Phối Hợp Nhịp Nhàng
 - **Agent 1 — Q&A Intake Refiner (`qa_refiner.py`)**: 
   - Khung chat phỏng vấn ý tưởng tự nhiên phong cách Gemini/ChatGPT.
-  - **Dual-Matrix Fallback (Ma trận dự phòng kép)**: Luân chuyển tự động 3 mô hình (`Qwen 2.5 27B` ➔ `Llama-3.3-70B` ➔ `Llama-3.1-8B`) qua 3 Groq API keys, đảm bảo uptime 99.9%.
+  - **Dual-Matrix Fallback (Ma trận dự phòng kép)**: Luân chuyển tự động giữa các dòng mô hình (`Qwen` ➔ `Llama 3.3 70B` ➔ `Llama 3.1 8B`) qua 3 Groq API keys, đảm bảo uptime 99.9%.
   - **Concept Mirroring Prompt**: Triệt tiêu văn mẫu sáo rỗng, bắt buộc bóc tách từ khóa cụ thể của tác giả và hỏi ngược gợi mở 1-2 câu sâu sắc.
 - **Agent 2 — Story Generator (`story_generator.py`)**:
   - Chấp bút tiểu thuyết theo **Cấu trúc 5 Nhịp Kịch Tính (5 Dramatic Narrative Beats)**: Hook ➔ Rising Friction ➔ Turning Point ➔ Visceral Climax ➔ Cliffhanger.
@@ -221,8 +221,8 @@ GROQ_API_KEY_BIBLE=gsk_your_groq_api_key_here
 GROQ_API_KEY_COPILOT=gsk_your_groq_api_key_here
 GROQ_API_KEY_COMIC=gsk_your_groq_api_key_here
 
-# JWT Secret Key
-JWT_SECRET=narrai-istartup2026-super-secret-jwt-key
+# JWT Secret Key (Thay bằng chuỗi ngẫu nhiên an toàn trong Production)
+JWT_SECRET=your_super_secret_jwt_key_change_in_production
 
 # Database (mặc định SQLite WAL mode)
 DATABASE_URL=sqlite:///./narrai.db
@@ -283,14 +283,14 @@ python tests/run_all_tests.py
 ### Backend (Render)
 - Tạo mới **Web Service** trên [Render](https://render.com).
 - Build Command: `pip install -r backend/requirements.txt`
-- Start Command: `cd backend && python main.py` hoặc `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- Start Command: `cd backend && python main.py`
 - Cấu hình các biến môi trường `GROQ_API_KEY`, `JWT_SECRET` trên Render Dashboard.
 
 ### Frontend (Vercel)
 - Nhập dự án từ GitHub lên [Vercel](https://vercel.com).
 - Root Directory: `frontend`
 - Build Command: `npm run build`
-- Output Directory: `out` (nếu dùng static export) hoặc `.next`
+- Output Directory: Để trống / mặc định (Vercel tự động nhận diện và phục vụ từ `.next`)
 - Environment Variables: `NEXT_PUBLIC_API_URL=https://<your-render-url>/api`
 
 ---
