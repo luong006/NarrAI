@@ -442,8 +442,14 @@ export default function WorkspacePage() {
   };
 
   const handleAcceptEdit = () => {
-    if (!proposedText || !selectedText) return;
-    setStoryContent((prev) => prev.replace(selectedText, proposedText));
+    if (!proposedText) return;
+    if (selectedText) {
+      // Surgical replace: only the selected passage
+      setStoryContent((prev) => prev.replace(selectedText, proposedText));
+    } else {
+      // Full-manuscript replace from copilot edit_story_direct
+      setStoryContent(proposedText);
+    }
     setProposedText(null);
     setSelectedText("");
     setCursorPosition(null);
@@ -744,10 +750,14 @@ export default function WorkspacePage() {
       } else {
         const errMsg = res.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Failed to adapt to comic");
         toast.error(errMsg);
-        if ((res as any).code === 402 || errMsg.toLowerCase().includes("xu") || errMsg.toLowerCase().includes("coin")) {
-          setIsCoinModalOpen(true);
-        } else if ((res as any).code === 401) {
+        if ((res as any).code === 401) {
           setIsAuthOpen(true);
+        } else if ((res as any).code === 402 || errMsg.toLowerCase().includes("xu không đủ") || errMsg.toLowerCase().includes("insufficient")) {
+          // Không mở modal nạp tiền — chỉ thông báo số xu hiện tại không đủ
+          toast.error(lang === "vi"
+            ? `Số xu không đủ (hiện có ${coinBalance} xu, cần 16 xu). Vui lòng nạp thêm xu.`
+            : `Not enough coins (you have ${coinBalance}, need 16). Please top up.`);
+          setIsCoinModalOpen(true);
         }
         setActiveTab("editor");
       }

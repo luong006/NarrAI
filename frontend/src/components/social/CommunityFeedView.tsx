@@ -493,153 +493,110 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="max-w-2xl mx-auto space-y-4">
               {filteredPosts.map((post) => (
-                <InteractiveTiltCard
+                <div
                   key={post.id}
-                  className="h-full rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
+                  className="rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
                 >
-                  <div className="p-5 flex flex-col flex-1">
-                    {/* Cover or Header Badge */}
-                    {post.cover_image_url ? (
-                      <div className="relative w-full h-44 rounded-xl overflow-hidden mb-4 bg-slate-950">
-                        <img
-                          src={post.cover_image_url}
-                          alt={post.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-black/70 backdrop-blur-md text-white border border-white/20">
-                            {post.genre || "Tiểu thuyết"}
-                          </span>
-                          {post.is_fanfiction && (
-                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-purple-600 text-white shadow-sm">
-                              Fanfiction
-                            </span>
-                          )}
-                          {post.is_cold_start_exploration && (
-                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500 text-white shadow-sm">
-                              Mới
-                            </span>
-                          )}
-                          {post.comic_panels && post.comic_panels.length > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setComicReaderPost(post);
-                                setComicPanelIndex(0);
-                                setIsComicReaderOpen(true);
-                              }}
-                              className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-600/90 hover:bg-indigo-600 text-white shadow-sm flex items-center gap-1 transition-colors"
-                              title={lang === "vi" ? "Đọc truyện tranh toàn màn hình" : "Open Fullscreen Comic Reader"}
-                            >
-                              <Maximize2 className="w-3 h-3" />
-                              <span>Comic ({post.comic_panels.length})</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60">
-                            {post.genre || "Tiểu thuyết"}
-                          </span>
-                          {post.is_fanfiction && (
-                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-purple-600 text-white shadow-sm">
-                              Fanfiction
-                            </span>
-                          )}
-                          {post.comic_panels && post.comic_panels.length > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setComicReaderPost(post);
-                                setComicPanelIndex(0);
-                                setIsComicReaderOpen(true);
-                              }}
-                              className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs flex items-center gap-1 transition-colors"
-                              title={lang === "vi" ? "Đọc truyện tranh toàn màn hình" : "Open Fullscreen Comic Reader"}
-                            >
-                              <Maximize2 className="w-3 h-3" />
-                              <span>Comic ({post.comic_panels.length})</span>
-                            </button>
-                          )}
-                        </div>
-                        {post.is_cold_start_exploration && (
-                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500 text-white">
-                            {lang === "vi" ? "Tác phẩm mới" : "New release"}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                  {/* Facebook-style Feed Post */}
 
-                    {/* Title */}
-                    <h3 
-                      onClick={() => handleOpenReader(post)}
-                      className="text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1 cursor-pointer mb-1.5"
-                    >
-                      {post.title}
-                    </h3>
-
-                    {/* Author & Follow Action */}
-                    <div className="flex items-center justify-between gap-2 mb-3 text-xs text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-200 shrink-0">
-                          {(post.author?.full_name || post.author?.username || "A")[0].toUpperCase()}
-                        </div>
-                        <span className="font-medium truncate">
+                  {/* Post Header: avatar + author + follow */}
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        {(post.author?.full_name || post.author?.username || "A")[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
                           {post.author?.full_name || post.author?.username || "Tác giả"}
-                        </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                          <span>{post.genre || "Tiểu thuyết"}</span>
+                          {post.is_fanfiction && <span className="px-1.5 py-0 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-semibold">Fanfic</span>}
+                          {post.is_cold_start_exploration && <span className="px-1.5 py-0 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-semibold">{lang === "vi" ? "Mới" : "New"}</span>}
+                        </div>
                       </div>
-                      {(post.author?.id || post.user_id) && (
-                        <button
-                          onClick={(e) => handleFollowToggle(post.author?.id || post.user_id, e)}
-                          disabled={followLoadingIds.has(post.author?.id || post.user_id || 0)}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all shrink-0 ${
-                            followingAuthorIds.has(post.author?.id || post.user_id || 0)
-                              ? "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
-                              : "bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-slate-600 dark:text-slate-300"
-                          }`}
-                          title={followingAuthorIds.has(post.author?.id || post.user_id || 0) ? (lang === "vi" ? "Bỏ theo dõi tác giả" : "Unfollow author") : (lang === "vi" ? "Theo dõi tác giả" : "Follow author")}
-                        >
-                          {followingAuthorIds.has(post.author?.id || post.user_id || 0) ? (
-                            <>
-                              <UserCheck className="w-2.5 h-2.5" />
-                              <span>{lang === "vi" ? "Đang theo dõi" : "Following"}</span>
-                            </>
-                          ) : (
-                            <>
-                              <UserPlus className="w-2.5 h-2.5" />
-                              <span>{lang === "vi" ? "Theo dõi" : "Follow"}</span>
-                            </>
-                          )}
-                        </button>
-                      )}
                     </div>
-
-                    {/* Snippet */}
-                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-4 leading-relaxed font-serif flex-1 mb-4">
-                      {post.content_snippet}
-                    </p>
-
-                    {/* Tags if any */}
-                    {post.tags && post.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {post.tags.slice(0, 3).map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
+                    {/* Follow button — chỉ hiện khi không phải bản thân */}
+                    {(post.author?.id || post.user_id) &&
+                     (post.author?.username !== currentUsername) && (
+                      <button
+                        onClick={(e) => handleFollowToggle(post.author?.id || post.user_id, e)}
+                        disabled={followLoadingIds.has(post.author?.id || post.user_id || 0)}
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all shrink-0 ${
+                          followingAuthorIds.has(post.author?.id || post.user_id || 0)
+                            ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800"
+                            : "text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white border border-slate-200 dark:border-slate-700"
+                        }`}
+                      >
+                        {followingAuthorIds.has(post.author?.id || post.user_id || 0) ? (
+                          <><UserCheck className="w-3 h-3" /><span>{lang === "vi" ? "Đang theo dõi" : "Following"}</span></>
+                        ) : (
+                          <><UserPlus className="w-3 h-3" /><span>{lang === "vi" ? "Theo dõi" : "Follow"}</span></>
+                        )}
+                      </button>
                     )}
                   </div>
 
-                  {/* Card Action Footer */}
-                  <div className="px-5 py-3.5 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  {/* Cover image (nếu có) */}
+                  {post.cover_image_url && (
+                    <div className="w-full h-52 overflow-hidden bg-slate-950 cursor-pointer" onClick={() => handleOpenReader(post)}>
+                      <img
+                        src={post.cover_image_url}
+                        alt={post.title}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Title + Snippet */}
+                  <div className="px-4 pt-3 pb-2">
+                    <h3
+                      onClick={() => handleOpenReader(post)}
+                      className="text-base font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer mb-1.5 leading-snug"
+                    >
+                      {post.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-serif line-clamp-3">
+                      {post.content_snippet}
+                    </p>
+                  </div>
+
+                  {/* Tags */}
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                      {post.tags.slice(0, 4).map((tag: string, idx: number) => (
+                        <span key={idx} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Comic preview strip (nếu có) */}
+                  {post.comic_panels && post.comic_panels.length > 0 && (
+                    <div
+                      className="px-4 pb-3 cursor-pointer"
+                      onClick={() => { setComicReaderPost(post); setComicPanelIndex(0); setIsComicReaderOpen(true); }}
+                    >
+                      <div className="flex gap-1.5 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        {post.comic_panels.slice(0, 3).map((panel, idx) => (
+                          <div key={idx} className="flex-1 aspect-square bg-slate-950 overflow-hidden">
+                            <img src={panel.image_url} alt={`panel ${idx+1}`} className="w-full h-full object-cover filter grayscale" />
+                          </div>
+                        ))}
+                        <div className="flex-none w-12 bg-indigo-600 flex items-center justify-center">
+                          <span className="text-white text-[10px] font-bold text-center leading-tight px-1">
+                            {post.comic_panels.length}<br/>panels
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action bar: like, comment, views, read */}
+                  <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <LikeButtonMorphicon
                         liked={post.liked_by_me}
@@ -647,16 +604,18 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                         onToggle={(liked) => handleLikeToggle(post.id, liked)}
                         size="sm"
                       />
-                      <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                      <button
+                        onClick={() => handleOpenReader(post)}
+                        className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>{post.comments_count}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                      </button>
+                      <div className="flex items-center gap-1 text-xs text-slate-400">
                         <Eye className="w-3.5 h-3.5" />
                         <span>{post.views_count}</span>
                       </div>
                     </div>
-
                     <button
                       onClick={() => handleOpenReader(post)}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 flex items-center gap-1 transition-colors"
@@ -665,7 +624,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       <ChevronRight className="w-3 h-3" />
                     </button>
                   </div>
-                </InteractiveTiltCard>
+                </div>
               ))}
             </div>
           )}
