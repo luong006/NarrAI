@@ -39,6 +39,7 @@ from services.banking_service import (
     COST_MANGA,
     ACTION_REFUND_FAILED,
     ACTION_INITIAL_GRANT,
+    INITIAL_TRIAL_COINS,
     user_mutexes,
     verify_ledger_integrity,
 )
@@ -159,18 +160,18 @@ class TestBackendIntegrationGen2(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data.get("status"), "success")
-        self.assertEqual(data.get("coins"), 8)
-        self.assertEqual(data.get("coins_granted"), 8)
+        self.assertEqual(data.get("coins"), INITIAL_TRIAL_COINS)
+        self.assertEqual(data.get("coins_granted"), INITIAL_TRIAL_COINS)
 
         # Verify transaction logged
         user_in_db = self.db.query(User).filter_by(username="fresh_user_01").first()
         self.assertIsNotNone(user_in_db)
-        self.assertEqual(user_in_db.coins, 8)
+        self.assertEqual(user_in_db.coins, INITIAL_TRIAL_COINS)
 
         tx = self.db.query(CoinTransaction).filter_by(user_id=user_in_db.id).first()
         self.assertIsNotNone(tx)
         self.assertEqual(tx.action_type, ACTION_INITIAL_GRANT)
-        self.assertEqual(tx.amount, 8)
+        self.assertEqual(tx.amount, INITIAL_TRIAL_COINS)
 
     def test_registration_clone_device_receives_zero_coins(self):
         """Duplicate device fingerprint should receive 0 initial coins."""
@@ -187,7 +188,7 @@ class TestBackendIntegrationGen2(unittest.TestCase):
             headers={"x-forwarded-for": "113.160.11.1"}
         )
         self.assertEqual(r1.status_code, 200)
-        self.assertEqual(r1.json().get("coins"), 8)
+        self.assertEqual(r1.json().get("coins"), INITIAL_TRIAL_COINS)
 
         # Second registration with identical fingerprint from different IP
         r2 = self.client.post(

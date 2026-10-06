@@ -108,7 +108,7 @@ class TestTier1BankingFeatureCoverage(BaseBankingTestCase):
         self.assertEqual(COST_LONG_STORY, 16)
         self.assertEqual(COST_EDIT, 2)
         self.assertEqual(COST_MANGA, 16)
-        self.assertEqual(INITIAL_TRIAL_COINS, 8)
+        self.assertEqual(INITIAL_TRIAL_COINS, 100)
         self.assertEqual(STANDARD_TOPUP_COINS, 100)
 
         # Server cost calculators
@@ -121,7 +121,7 @@ class TestTier1BankingFeatureCoverage(BaseBankingTestCase):
         self.assertEqual(get_action_cost("COMIC_GENERATE"), 16)
 
     def test_initial_grant_for_fresh_device(self):
-        """Fresh device and fresh subnet receives 8 free trial coins."""
+        """Fresh device and fresh subnet receives 100 free trial coins."""
         user = self.create_test_user(username="fresh_user", initial_coins=0)
         fp_data = {
             "canvas_hash": "canvas_unique_111",
@@ -132,15 +132,15 @@ class TestTier1BankingFeatureCoverage(BaseBankingTestCase):
         client_ip = "14.161.45.88"
 
         coins = register_device_and_get_initial_coins(self.db, client_ip, fp_data, user_id=user.id)
-        self.assertEqual(coins, 8)
+        self.assertEqual(coins, 100)
         self.db.refresh(user)
-        self.assertEqual(user.coins, 8)
+        self.assertEqual(user.coins, 100)
 
         # Verify transaction logged
         tx = self.db.query(CoinTransaction).filter(CoinTransaction.user_id == user.id).first()
         self.assertIsNotNone(tx)
-        self.assertEqual(tx.amount, 8)
-        self.assertEqual(tx.balance_after, 8)
+        self.assertEqual(tx.amount, 100)
+        self.assertEqual(tx.balance_after, 100)
         self.assertEqual(tx.action_type, ACTION_INITIAL_GRANT)
         self.assertEqual(tx.prev_hash, GENESIS_HASH)
 
@@ -345,10 +345,10 @@ class TestTier2BankingBoundaryAndCornerCases(BaseBankingTestCase):
             "audio_hash": "audio_dup_999",
             "screen_specs": "2560x1440x32"
         }
-        # First registration -> 8 coins
+        # First registration -> INITIAL_TRIAL_COINS
         u1 = self.create_test_user(username="genuine_user", initial_coins=0)
         coins1 = register_device_and_get_initial_coins(self.db, "113.160.10.5", fp_data, user_id=u1.id)
-        self.assertEqual(coins1, 8)
+        self.assertEqual(coins1, INITIAL_TRIAL_COINS)
 
         # Second registration with SAME device -> 0 coins
         u2 = self.create_test_user(username="clone_user", initial_coins=0)
@@ -362,15 +362,15 @@ class TestTier2BankingBoundaryAndCornerCases(BaseBankingTestCase):
         subnet_ip_prefix = "171.224.180."
         fp_base = {"webgl_hash": "w", "audio_hash": "a", "screen_specs": "s"}
 
-        # Attempt 1: fresh IP, fresh device -> 8 coins
+        # Attempt 1: fresh IP, fresh device -> INITIAL_TRIAL_COINS
         u1 = self.create_test_user("sub_user_1", 0)
         c1 = register_device_and_get_initial_coins(self.db, f"{subnet_ip_prefix}10", {**fp_base, "canvas_hash": "dev1"}, u1.id)
-        self.assertEqual(c1, 8)
+        self.assertEqual(c1, INITIAL_TRIAL_COINS)
 
-        # Attempt 2: fresh IP, fresh device -> 8 coins
+        # Attempt 2: fresh IP, fresh device -> INITIAL_TRIAL_COINS
         u2 = self.create_test_user("sub_user_2", 0)
         c2 = register_device_and_get_initial_coins(self.db, f"{subnet_ip_prefix}20", {**fp_base, "canvas_hash": "dev2"}, u2.id)
-        self.assertEqual(c2, 8)
+        self.assertEqual(c2, INITIAL_TRIAL_COINS)
 
         # Attempt 3: fresh device, but SAME /24 subnet quota exceeded -> 0 coins!
         u3 = self.create_test_user("sub_user_3", 0)
@@ -384,7 +384,7 @@ class TestTier2BankingBoundaryAndCornerCases(BaseBankingTestCase):
         u = self.create_test_user("privacy_user", 0)
         # Empty dict or None
         coins = register_device_and_get_initial_coins(self.db, "10.0.0.1", {}, user_id=u.id)
-        self.assertIn(coins, [0, 8])  # Evaluates cleanly without exception
+        self.assertIn(coins, [0, INITIAL_TRIAL_COINS])  # Evaluates cleanly without exception
 
 
 class TestTier3BankingCrossFeatureCombinations(BaseBankingTestCase):
@@ -501,8 +501,8 @@ class TestTier4BankingRealWorldScenarios(BaseBankingTestCase):
             )
             clone_accounts.append((u, coins))
 
-        # Only account 0 got 8 coins
-        self.assertEqual(clone_accounts[0][1], 8)
+        # Only account 0 got INITIAL_TRIAL_COINS coins
+        self.assertEqual(clone_accounts[0][1], INITIAL_TRIAL_COINS)
         # All others got 0 coins!
         for idx in range(1, 5):
             self.assertEqual(clone_accounts[idx][1], 0, f"Bot {idx} must receive 0 coins")

@@ -105,7 +105,7 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 0.7,
-        max_tokens: int = 450,
+        max_tokens: int = 750,
         fallback_to_heuristic: bool = False,
     ) -> Tuple[str, str]:
         """
@@ -282,7 +282,7 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
         response, used_model = self._chat_with_resilience(
             messages,
             temperature=0.7,
-            max_tokens=450,
+            max_tokens=750,
             fallback_to_heuristic=fallback_to_heuristic,
         )
         return response

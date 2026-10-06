@@ -82,6 +82,12 @@ LIGHT_NOVEL_ENGINE_RULES = """QUY TẮC ĐỘNG CƠ SÁNG TÁC LIGHT NOVEL & WEB
    - TRỤ 3 - BIỂU CẢM VI MÔ (Micro-Expressions): Thay vì "hắn tức giận" → "cơ hàm siết chặt, khóe mắt co lại, mạch máu thái dương nổi lên rõ rệt". Khuôn mặt là bản đồ cảm xúc.
    - TRỤ 4 - TƯƠNG TÁC VẬT LÝ (Physical Object Interactions): Thay vì "cô ấy buồn" → "cô xoay chiếc nhẫn trên ngón áp út, nhìn chằm chằm vào vết cà phê loang trên giấy". Đồ vật trở thành biểu tượng cảm xúc."""
 
+LIGHT_NOVEL_ENGINE_RULES += """
+
+8. QUY TẮC ĐỊNH DẠNG VĂN BẢN (PURE PROSE FORMATTING):
+   - CẤM TUYỆT ĐỐI việc sử dụng các thẻ HTML như <b>, </b>, <i>, </i>, <strong>, <em>, <p>, <br>.
+   - TUYỆT ĐỐI CHỈ viết văn xuôi thuần túy tiếng Việt, ngắt dòng phân đoạn tự nhiên, không in ra nhãn kỹ thuật."""
+
 WRITING_RULES = LIGHT_NOVEL_ENGINE_RULES
 MODERN_NOVEL_WRITING_RULES = LIGHT_NOVEL_ENGINE_RULES
 
@@ -312,13 +318,27 @@ Bản Phác Thảo Cốt Truyện:
 Quy tắc định dạng:
 - Dùng markdown (##) cho tiêu đề Chương.
 - Bắt đầu NGAY LẬP TỨC bằng: **[TÊN TIÊU ĐỀ TRUYỆN]** ở dòng đầu tiên.
-- TUYỆT ĐỐI KHÔNG thêm lời mở đầu hay kết thúc mang tính trò chuyện."""
+- TUYỆT ĐỐI KHÔNG thêm lời mở đầu hay kết thúc mang tính trò chuyện.
+- TUYỆT ĐỐI KHÔNG in ra nhãn kỹ thuật (không ghi "**Rising Friction**", "**Turning Point**", "**Visceral Climax**", "**Lingering Cliffhanger**", "**Hook**", "Beat 1", "Nhịp 1"). Viết văn xuôi thuần túy liền mạch."""
 
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"BAN PHAC THAO COT TRUYEN YEU CAU:\n---\n{refined_prompt}\n---\n\nHay bat dau viet ngay bay gio:"}
         ]
         return messages, cfg["max_tokens"]
+
+    @staticmethod
+    def clean_prose(text: str) -> str:
+        """
+        Loại bỏ các nhãn kỹ thuật tiếng Anh (5 Dramatic Beats) khỏi bản thảo nếu bị rò rỉ.
+        """
+        if not text or not isinstance(text, str):
+            return text
+        pattern = r"(?im)^\s*\*\*(?:Hook|Rising Friction(?:\s*/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger|Beat\s*\d+|Nhịp\s*\d+)\*\*\s*\n?"
+        cleaned = re.sub(pattern, "", text)
+        inline_pattern = r"\*\*(?:Hook|Rising Friction(?:\s*/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger)\*\*\s*"
+        cleaned = re.sub(inline_pattern, "", cleaned, flags=re.IGNORECASE)
+        return cleaned.strip()
 
     # ===== LEGACY METHODS (giữ tương thích ngược) =====
     def generate_story(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = "") -> str:
@@ -338,16 +358,17 @@ Quy tắc định dạng:
 
         messages, max_tokens = self._build_prompt(refined_prompt, story_length, narrative_mode=mode_enum, genre=genre)
         raw_story = self.llm.chat(messages, temperature=0.8, max_tokens=max_tokens)
+        cleaned_story = self.clean_prose(raw_story)
 
         # Post-generation validation
         if HistoricalGroundingGatekeeper is not None:
             post_valid, post_violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
-                raw_story, mode=mode_enum, user_prompt=refined_prompt
+                cleaned_story, mode=mode_enum, user_prompt=refined_prompt
             )
             if not post_valid:
                 raise HistoricalDistortionError(f"Phát hiện nội dung sinh ra vi phạm lịch sử: {'; '.join(post_violations)}")
 
-        return raw_story
+        return cleaned_story
 
     def generate_story_stream(self, refined_prompt: str, story_length: str = "medium", narrative_mode: Any = None, genre: str = ""):
         if narrative_mode is None and auto_detect_narrative_mode is not None:

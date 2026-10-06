@@ -524,9 +524,9 @@ class TestSybilCloneAttackDefense(BaseAdversarialBankingTest):
         coins_1 = register_device_and_get_initial_coins(
             db=self.db, client_ip="14.160.1.10", fingerprint_data=composite_fp, user_id=u1.id
         )
-        self.assertEqual(coins_1, 8, "First registration must receive 8 coins")
+        self.assertEqual(coins_1, INITIAL_TRIAL_COINS, "First registration must receive INITIAL_TRIAL_COINS")
         self.db.refresh(u1)
-        self.assertEqual(u1.coins, 8)
+        self.assertEqual(u1.coins, INITIAL_TRIAL_COINS)
 
         # Attempts 2-10 (Clones): Rotating subnets
         for i in range(2, 11):
@@ -567,8 +567,8 @@ class TestSybilCloneAttackDefense(BaseAdversarialBankingTest):
             self.db.refresh(u)
             self.assertEqual(u.coins, coins)
 
-        self.assertEqual(granted_coins[0], 8, "Attempt 1 in subnet must get 8 coins")
-        self.assertEqual(granted_coins[1], 8, "Attempt 2 in subnet must get 8 coins")
+        self.assertEqual(granted_coins[0], INITIAL_TRIAL_COINS, f"Attempt 1 in subnet must get {INITIAL_TRIAL_COINS} coins")
+        self.assertEqual(granted_coins[1], INITIAL_TRIAL_COINS, f"Attempt 2 in subnet must get {INITIAL_TRIAL_COINS} coins")
         for idx, c in enumerate(granted_coins[2:], start=3):
             self.assertEqual(c, 0, f"Attempt {idx} in throttled subnet must get 0 coins!")
 
@@ -592,8 +592,8 @@ class TestSybilCloneAttackDefense(BaseAdversarialBankingTest):
         c2 = register_device_and_get_initial_coins(self.db, ip2, {"canvas_hash": "v6_2"}, u2.id)
         c3 = register_device_and_get_initial_coins(self.db, ip3, {"canvas_hash": "v6_3"}, u3.id)
 
-        self.assertEqual(c1, 8)
-        self.assertEqual(c2, 8)
+        self.assertEqual(c1, INITIAL_TRIAL_COINS)
+        self.assertEqual(c2, INITIAL_TRIAL_COINS)
         self.assertEqual(c3, 0, "3rd attempt in same /64 IPv6 prefix must receive 0 coins")
 
     def test_proxy_header_spoofing_resilience(self):
@@ -615,11 +615,11 @@ class TestSybilCloneAttackDefense(BaseAdversarialBankingTest):
         """
         u = self.create_user("empty_fp_user")
         coins_none = register_device_and_get_initial_coins(self.db, "10.0.0.1", None, u.id)
-        self.assertIn(coins_none, [0, 8])
+        self.assertIn(coins_none, [0, INITIAL_TRIAL_COINS])
 
         u2 = self.create_user("str_fp_user")
         coins_str = register_device_and_get_initial_coins(self.db, "10.0.0.2", "simple_string", u2.id)
-        self.assertIn(coins_str, [0, 8])
+        self.assertIn(coins_str, [0, INITIAL_TRIAL_COINS])
 
 
 # =========================================================================

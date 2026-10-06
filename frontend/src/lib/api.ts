@@ -159,6 +159,9 @@ export const api = {
           const parsed = JSON.parse(errorText);
           message = parsed.message || parsed.detail || message;
         } catch {}
+        if (res.status === 503) {
+          message = "Máy chủ AI đang khởi động (Render cold-boot, mất khoảng 30s). Hãy bấm Thử lại sau giây lát.";
+        }
         return { status: 'error', message };
       }
       return await res.json();

@@ -147,8 +147,21 @@ function unwrapStoryProseFrontend(content: string): string {
   current = current.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   current = current.replace(/\n{3,}/g, "\n\n");
 
-  // Strip HTML inline tags — editor dùng innerText nên <b>, <i>... hiện raw
-  current = current.replace(/<\/?(b|i|em|strong|u|s|strike|span|br)[^>]*>/gi, "");
+  // Strip all HTML tags completely — editor dùng innerText nên <b>, <i>... hiện raw
+  current = current.replace(/<[^>]+>/g, "");
+
+  // Unescape common HTML entities
+  current = current
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+
+  // Strip raw English dramatic beat meta-tags (Hook, Rising Friction, Turning Point, Visceral Climax, Lingering Cliffhanger)
+  current = current.replace(/^\s*\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger|Beat\s*\d+|Nhịp\s*\d+)\*\*\s*\n?/gim, "");
+  current = current.replace(/\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger)\*\*\s*/gi, "");
 
   return current.trim();
 }
