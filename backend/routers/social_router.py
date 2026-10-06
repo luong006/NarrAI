@@ -295,13 +295,18 @@ async def publish_social_post(
         tags.append("Fanfiction")
 
     try:
+        import re as _re
+        clean_title = _re.sub(r'<[^>]+>', '', req.title or '').strip()
+        clean_snippet = _re.sub(r'<[^>]+>', '', req.content_snippet or '').strip()
+        clean_story_text = _re.sub(r'<[^>]+>', '', req.story_text or '').strip() if req.story_text else None
+
         post = publish_post(
             db=db,
             user_id=current_user.id,
-            title=req.title,
-            content_snippet=req.content_snippet,
+            title=clean_title,
+            content_snippet=clean_snippet,
             story_id=req.story_id,
-            story_text=req.story_text,
+            story_text=clean_story_text,
             genre=req.genre,
             tags=tags,
             cover_image_url=req.cover_image_url,

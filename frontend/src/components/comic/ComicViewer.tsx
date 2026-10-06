@@ -112,7 +112,7 @@ function ComicPanelCard({ panel, t, lang }: { panel: ComicPanel; t: any; lang?: 
               boxShadow: '0 16px 32px rgba(0, 0, 0, 0.45)',
             }}
           >
-            {panel.dialogue_text.trim()}
+            {panel.dialogue_text.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").trim()}
           </div>
         )}
       </div>

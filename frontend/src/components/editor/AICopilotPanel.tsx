@@ -186,7 +186,7 @@ export function AICopilotPanel({
               {t.ai_result}
             </span>
             <p className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
-              {proposedText}
+              {proposedText ? proposedText.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").trim() : ""}
             </p>
             <div className="flex gap-2 pt-1">
               <button

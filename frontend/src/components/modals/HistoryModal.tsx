@@ -120,7 +120,7 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
-                  {story.snippet || story.story_content?.replace(/<[^>]*>/g, '') || ""}
+                  {(story.snippet || story.story_content || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ").trim()}
                 </p>
                 <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
                   <Clock className="w-3 h-3" />

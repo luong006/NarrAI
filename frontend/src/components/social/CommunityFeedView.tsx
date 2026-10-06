@@ -36,6 +36,25 @@ interface Props {
   onReadInEditor?: (storyContent: string, title?: string) => void;
 }
 
+function sanitizeDisplayProse(text: string | null | undefined): string {
+  if (!text) return "";
+  let clean = String(text);
+  // Strip all HTML tags completely (<b>, </b>, <i>, <p>, <br>, etc.)
+  clean = clean.replace(/<[^>]+>/g, "");
+  // Unescape common HTML entities
+  clean = clean
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+  // Strip raw English dramatic beat meta-tags
+  clean = clean.replace(/^\s*\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger|Beat\s*\d+|Nhịp\s*\d+)\*\*\s*\n?/gim, "");
+  clean = clean.replace(/\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger)\*\*\s*/gi, "");
+  return clean.trim();
+}
+
 export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Props) {
   const t = translations[lang];
   const [posts, setPosts] = useState<SocialPost[]>([]);
@@ -525,7 +544,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       {post.title}
                     </h3>
                     <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-serif line-clamp-3">
-                      {post.content_snippet}
+                      {sanitizeDisplayProse(post.content_snippet)}
                     </p>
                   </div>
 
@@ -622,7 +641,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                 {onReadInEditor && (
                   <button
                     onClick={() => {
-                      onReadInEditor(activePost.story_full_text || activePost.content_snippet, activePost.title);
+                      onReadInEditor(sanitizeDisplayProse(activePost.story_full_text || activePost.content_snippet), activePost.title);
                       handleCloseReader();
                     }}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -760,7 +779,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                         </div>
                         {panel.dialogue_text && (
                           <div className="p-3 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-200 leading-snug border-t border-slate-200 dark:border-slate-800 line-clamp-2">
-                            {panel.dialogue_text}
+                            {sanitizeDisplayProse(panel.dialogue_text)}
                           </div>
                         )}
                       </div>
@@ -780,7 +799,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
                 <div className="bg-[#FAF8F5] dark:bg-slate-950/60 rounded-xl p-6 sm:p-8 border border-[#E8E4DC] dark:border-slate-800">
                   <div className="font-serif text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-[1.85] tracking-wide whitespace-pre-wrap">
-                    {activePost.story_full_text || activePost.content_snippet}
+                    {sanitizeDisplayProse(activePost.story_full_text || activePost.content_snippet)}
                   </div>
                 </div>
               </div>
@@ -999,7 +1018,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                     {currentPanel.dialogue_text && (
                       <div className="mt-3.5 max-w-2xl px-5 py-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-center shadow-lg">
                         <p className="text-xs sm:text-sm font-medium text-white/95 leading-relaxed font-serif">
-                          {currentPanel.dialogue_text}
+                          {sanitizeDisplayProse(currentPanel.dialogue_text)}
                         </p>
                       </div>
                     )}

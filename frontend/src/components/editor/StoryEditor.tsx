@@ -113,8 +113,21 @@ function sanitizeProseSafetyNet(text: string): string {
   clean = clean.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   clean = clean.replace(/\n{3,}/g, "\n\n");
 
-  // Strip HTML tags — editor dùng innerText nên <b>, <i>, <em>... hiện raw
-  clean = clean.replace(/<\/?(b|i|em|strong|u|s|strike|span|div|p|br)[^>]*>/gi, "");
+  // Strip all HTML tags completely — editor dùng innerText nên <b>, <i>, <em>... hiện raw
+  clean = clean.replace(/<[^>]+>/g, "");
+
+  // Unescape common HTML entities
+  clean = clean
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+
+  // Strip raw English dramatic beat meta-tags (Hook, Rising Friction, Turning Point, etc.)
+  clean = clean.replace(/^\s*\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger|Beat\s*\d+|Nhịp\s*\d+)\*\*\s*\n?/gim, "");
+  clean = clean.replace(/\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger)\*\*\s*/gi, "");
 
   return clean.trim();
 }
@@ -166,15 +179,7 @@ export function StoryEditor({
   // Sync content when streaming or loaded externally
   useEffect(() => {
     if (editorRef.current && !isTypingRef.current) {
-      let displayContent = content;
-      if (
-        typeof displayContent === "string" &&
-        (displayContent.trim().startsWith("{") ||
-          displayContent.includes('"updated_story_content"') ||
-          displayContent.includes("\\n"))
-      ) {
-        displayContent = sanitizeProseSafetyNet(displayContent);
-      }
+      const displayContent = sanitizeProseSafetyNet(content);
       if (editorRef.current.innerText !== displayContent) {
         editorRef.current.innerText = displayContent;
       }

@@ -34,7 +34,7 @@ export const translations = {
     strength_weak: "Yếu",
     strength_fair: "Trung bình",
     strength_strong: "Mạnh",
-    strength_very_strong: "Rất mạnh (Chuẩn ngân hàng)",
+    strength_very_strong: "Rất mạnh (Tối ưu)",
     rule_length: "Tối thiểu 8 ký tự",
     rule_uppercase: "Ít nhất 1 chữ in hoa (A-Z)",
     rule_lowercase: "Ít nhất 1 chữ thường (a-z)",
@@ -43,7 +43,7 @@ export const translations = {
     rule_no_space: "Không chứa khoảng trắng",
     lockout_notice: "Tài khoản bị tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau:",
     auth_login_desc: "Đăng nhập để lưu trữ và tiếp tục bản thảo của bạn.",
-    auth_register_desc: "Tạo tài khoản miễn phí chuẩn bảo mật ngân hàng để bắt đầu sáng tác ngay.",
+    auth_register_desc: "Tạo tài khoản miễn phí để bắt đầu sáng tác ngay.",
 
     // Landing
     hero_badge: "Hệ Thống Sáng Tác Tiểu Thuyết & Manga AI Chuyên Nghiệp",
@@ -294,7 +294,7 @@ export const translations = {
     strength_weak: "Weak",
     strength_fair: "Fair",
     strength_strong: "Strong",
-    strength_very_strong: "Very Strong (Bank-Grade)",
+    strength_very_strong: "Very Strong (Optimal)",
     rule_length: "At least 8 characters",
     rule_uppercase: "At least 1 uppercase letter (A-Z)",
     rule_lowercase: "At least 1 lowercase letter (a-z)",
@@ -303,7 +303,7 @@ export const translations = {
     rule_no_space: "No whitespace allowed",
     lockout_notice: "Account temporarily locked due to multiple failed attempts. Try again in:",
     auth_login_desc: "Log in to save and resume your manuscripts.",
-    auth_register_desc: "Create a free bank-grade secure account and start writing today.",
+    auth_register_desc: "Create a free secure account and start writing today.",
 
     // Landing
     hero_badge: "Professional AI Novel & Manga Co-creation Platform",

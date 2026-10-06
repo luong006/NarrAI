@@ -110,8 +110,8 @@ export function CoinTopupModal({
                 </h2>
                 <p className="text-xs text-amber-100 opacity-90">
                   {lang === 'vi'
-                    ? 'Chuẩn kinh tế ngân hàng: 100k VNĐ = 100 Xu'
-                    : 'Bank-grade standard: 100k VNĐ = 100 Coins'}
+                    ? 'Tỉ giá quy đổi: 100k VNĐ = 100 Xu'
+                    : 'Standard conversion: 100k VNĐ = 100 Coins'}
                 </p>
               </div>
             </div>
