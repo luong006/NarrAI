@@ -1,6 +1,8 @@
 import os
 import sys
+import json
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 
 # Ensure backend directory is in sys.path
@@ -11,9 +13,14 @@ if backend_dir not in sys.path:
 # Set dummy key if not present for agent initialization
 os.environ.setdefault("GROQ_API_KEY", "gsk_test_dummy_key_for_unit_tests")
 
-from agents.comic_agent import ComicDirectorAgent, DNA_EXTRACTOR_PROMPT
+from agents.comic_agent import (
+    ComicDirectorAgent,
+    DNA_EXTRACTOR_PROMPT,
+    _format_character_dna_registry,
+)
 from services.cloudflare_ai import get_deterministic_comic_seed, get_cached_or_generate_image
 from agents.story_memory import StoryMemory, StoryBible
+import main
 
 
 class TestComicDNASeed(unittest.TestCase):
@@ -54,6 +61,20 @@ class TestComicDNASeed(unittest.TestCase):
         self.assertIn("role", prompt)
         self.assertIn("aliases", prompt)
         self.assertIn("dna", prompt)
+
+    def test_character_registry_prompt_includes_story_dna_and_aliases(self):
+        registry = _format_character_dna_registry({
+            "An": {
+                "dna": "17yo schoolgirl with blunt bangs and navy ribbon tie",
+                "gender": "female",
+                "role": "lead",
+                "aliases": ["Trần Thị An", "cô bé", "nữ sinh"],
+            }
+        })
+
+        self.assertIn("17yo schoolgirl with blunt bangs and navy ribbon tie", registry)
+        self.assertIn("aliases: Trần Thị An, cô bé, nữ sinh", registry)
+        self.assertIn("female, lead", registry)
 
     # ----------------------------------------------------------------------
     # 2. Character DNA Extraction & Story Bible Aliases
@@ -96,6 +117,52 @@ class TestComicDNASeed(unittest.TestCase):
         self.assertIn("nguyễn văn minh", minh_aliases)
         self.assertIn("minh", minh_aliases)
         self.assertTrue(any(p in minh_aliases for p in ["anh bạn", "bạn cùng bàn", "cậu ấy", "nam sinh"]))
+
+    def test_story_bible_character_dna_remains_canonical(self):
+        """LLM extraction may add aliases but must not overwrite established visual canon."""
+        memory = StoryMemory()
+        memory.story_bible = StoryBible()
+        memory.story_bible.characters = [{
+            "name": "Trần Thị An",
+            "appearance": "17yo Vietnamese schoolgirl, blunt black bangs, white uniform shirt and navy ribbon tie",
+            "role": "lead",
+            "gender": "female",
+        }]
+        llm_result = {
+            "Trần Thị An": {
+                "gender": "female",
+                "role": "lead",
+                "aliases": ["An mới"],
+                "dna": "adult woman with long blonde hair wearing a red evening dress",
+            }
+        }
+
+        with patch.object(self.agent.llm, "chat", return_value=json.dumps(llm_result, ensure_ascii=False)):
+            dna_map = self.agent.extract_character_dna("An bước vào lớp học.", memory=memory)
+
+        an_data = dna_map["Trần Thị An"]
+        self.assertEqual(
+            an_data["dna"],
+            "17yo Vietnamese schoolgirl, blunt black bangs, white uniform shirt and navy ribbon tie",
+        )
+        self.assertIn("An mới", an_data["aliases"])
+
+    def test_story_bible_setting_anchor_remains_canonical(self):
+        """A newly extracted setting cannot replace the setting already stored in story memory."""
+        memory = StoryMemory()
+        memory.story_bible = StoryBible()
+        memory.story_bible.world_setting = "Sân thượng trường học với lan can kim loại"
+        llm_result = {
+            "location_name": "Ancient palace",
+            "setting_anchor": "ornate palace hall with gold pillars and red banners",
+            "atmosphere": "dramatic candlelight",
+        }
+
+        with patch.object(self.agent.llm, "chat", return_value=json.dumps(llm_result)):
+            setting = self.agent.extract_setting_dna("An nhìn ra sân trường.", memory=memory)
+
+        self.assertEqual(setting["setting_anchor"], "Sân thượng trường học với lan can kim loại")
+        self.assertEqual(setting["location_name"], "Bối cảnh chính")
 
     # ----------------------------------------------------------------------
     # 3. Smart DNA Injection with Vietnamese Pronouns
@@ -356,6 +423,87 @@ class TestComicDNASeed(unittest.TestCase):
              patch("os.path.isfile", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "all image providers failed"):
                 get_cached_or_generate_image(panel_id=9876, prompt="A character in a room", story_id=7)
+
+    def test_force_refresh_bypasses_and_clears_cached_panel(self):
+        """Explicit retries discard cached bytes and ask the image provider for a fresh render."""
+        panel_id = 654321
+        with patch("services.cloudflare_ai.os.remove") as remove, \
+             patch("services.cloudflare_ai.os.path.isfile") as isfile, \
+             patch("services.cloudflare_ai.generate_image_cf", return_value=b"\xff\xd8fresh-image") as mock_cf, \
+             patch("services.cloudflare_ai._is_valid_image_payload", return_value=True), \
+             patch("services.cloudflare_ai.process_manga_monochrome", side_effect=lambda image: image), \
+             patch("builtins.open", MagicMock()):
+            image, media_type = get_cached_or_generate_image(
+                panel_id=panel_id,
+                prompt="Canonical character in the story setting",
+                story_id=7,
+                force_refresh=True,
+            )
+
+        remove.assert_called_once()
+        self.assertTrue(remove.call_args.args[0].endswith(f"panel_{panel_id}.jpg"))
+        isfile.assert_not_called()
+        mock_cf.assert_called_once()
+        self.assertEqual(image, b"\xff\xd8fresh-image")
+        self.assertEqual(media_type, "image/jpeg")
+
+    def test_comic_image_route_forwards_retry_as_cache_bypass(self):
+        panel = SimpleNamespace(
+            id=321,
+            comic_id=7,
+            image_prompt="An in the classroom",
+            comic=SimpleNamespace(story_id=7),
+        )
+        story = SimpleNamespace(genre="school")
+        panel_query = MagicMock()
+        panel_query.filter.return_value.first.return_value = panel
+        story_query = MagicMock()
+        story_query.filter.return_value.first.return_value = story
+        db = MagicMock()
+        db.query.side_effect = [panel_query, story_query]
+
+        with patch.object(main, "_get_story_memory", return_value=None), \
+             patch.object(main, "get_deterministic_comic_seed", return_value=123456), \
+             patch.object(
+                 main,
+                 "get_cached_or_generate_image",
+                 return_value=(b"\xff\xd8fresh-image", "image/jpeg"),
+             ) as generate:
+            response = main.get_comic_image(panel_id=321, retry=1, db=db)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertTrue(generate.call_args.kwargs["force_refresh"])
+
+    def test_comic_image_route_returns_actionable_uncached_failure(self):
+        panel = SimpleNamespace(
+            id=322,
+            comic_id=7,
+            image_prompt="An in the classroom",
+            comic=SimpleNamespace(story_id=7),
+        )
+        story = SimpleNamespace(genre="school")
+        panel_query = MagicMock()
+        panel_query.filter.return_value.first.return_value = panel
+        story_query = MagicMock()
+        story_query.filter.return_value.first.return_value = story
+        db = MagicMock()
+        db.query.side_effect = [panel_query, story_query]
+
+        with patch.object(main, "_get_story_memory", return_value=None), \
+             patch.object(main, "get_deterministic_comic_seed", return_value=123456), \
+             patch.object(
+                 main,
+                 "get_cached_or_generate_image",
+                 side_effect=RuntimeError("provider detail should not leak"),
+             ) as generate:
+            response = main.get_comic_image(panel_id=322, retry=1, db=db)
+
+        generate.assert_called_once()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertIn(b"Retry to request a fresh render", response.body)
+        self.assertNotIn(b"provider detail", response.body)
 
 
 if __name__ == "__main__":

@@ -102,6 +102,38 @@ except ImportError:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def persist_partial_story(session_id, story_id, partial_text):
+    """Preserve streamed prose when the model or connection stops unexpectedly."""
+    if not partial_text or not partial_text.strip():
+        return
+
+    db = SessionLocal()
+    try:
+        query = db.query(Story)
+        if story_id:
+            query = query.filter(Story.id == story_id)
+        elif session_id:
+            query = query.filter(Story.session_id == session_id)
+        else:
+            return
+
+        story = query.first()
+        if not story:
+            return
+
+        existing_text = (story.story_content or "").rstrip()
+        partial = partial_text.strip()
+        if not existing_text.endswith(partial):
+            story.story_content = f"{existing_text}\n\n{partial}".strip() if existing_text else partial
+        story.word_count = len((story.story_content or "").split())
+        db.commit()
+    except Exception as save_error:
+        db.rollback()
+        print(f"Failed to preserve interrupted story stream: {save_error}")
+    finally:
+        db.close()
+
+
 def refund_generation_charge(
     db: Session,
     user_id: int,
@@ -614,6 +646,7 @@ def generate_story(
                     full_story += chunk
                     yield chunk
             except Exception as e:
+                persist_partial_story(session_id, saved_story_id, full_story)
                 # Compensating transaction rollback: 100% refund on AI generation failure
                 if current_user and deduct_ref:
                     rollback_db = SessionLocal()
@@ -1080,7 +1113,7 @@ def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db),
 
 @app.get("/api/comic/image/{panel_id}")
 @app.get("/api/comics/panels/{panel_id}/image")
-def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
+def get_comic_image(panel_id: int, retry: int = 0, db: Session = Depends(get_db)):
     """Proxies comic panel image generation with local disk cache and image-provider fallback."""
     panel = db.query(ComicPanel).filter(ComicPanel.id == panel_id).first()
     if not panel:
@@ -1101,11 +1134,17 @@ def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
             cultural_tier=getattr(bible, "cultural_tier", None),
             narrative_mode=getattr(bible, "narrative_mode", None),
             genre=str(getattr(bible, "genre", "") or (story.genre if story else "") or ""),
+            force_refresh=retry > 0,
         )
-        return Response(content=img_bytes, media_type=media_type)
+        headers = {"Cache-Control": "no-store"} if retry > 0 else None
+        return Response(content=img_bytes, media_type=media_type, headers=headers)
     except Exception as e:
         print(f"[Comic Image] Generation failed for panel {panel_id}: {e}")
-        return Response(status_code=503, headers={"Cache-Control": "no-store"})
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Image generation failed. Retry to request a fresh render."},
+            headers={"Cache-Control": "no-store"},
+        )
 
 
 @app.post("/api/chat")
@@ -1425,6 +1464,7 @@ def init_story(
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
+                persist_partial_story(session_id, pre_story_id, chapter_text)
                 # Compensating transaction rollback: 100% refund on AI generation failure
                 if current_user and deduct_ref:
                     rollback_db = SessionLocal()
@@ -1555,6 +1595,7 @@ def generate_chapter(request: ChapterRequest, current_user: User = Depends(get_c
                     chapter_text += chunk
                     yield chunk
             except Exception as e:
+                persist_partial_story(request.session_id, None, chapter_text)
                 # Compensating transaction rollback: 100% refund on AI generation failure
                 if current_user and deduct_ref:
                     rollback_db = SessionLocal()
@@ -1640,6 +1681,7 @@ def end_story(request: EndStoryRequest, current_user: User = Depends(get_current
                     ending_text += chunk
                     yield chunk
             except Exception as e:
+                persist_partial_story(request.session_id, None, ending_text)
                 yield f"\n\n[GENERATION_ERROR:{safe_generation_error(e, 'viết đoạn kết')}]"
                 return
 

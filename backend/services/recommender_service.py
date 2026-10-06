@@ -13,6 +13,7 @@ import json
 import random
 import re
 import hashlib
+import unicodedata
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any, Set
 from sqlalchemy.orm import Session
@@ -176,6 +177,98 @@ def generate_concept_vector(text_content: str, genre: str = "", tags: Optional[L
         vector[idx2] += 0.5 * weight * sign2
 
     return normalize_vector(vector)
+
+
+def generate_story_tags(
+    title: str,
+    story_text: str,
+    genre: Optional[str] = None,
+    provided_tags: Optional[List[str]] = None,
+    limit: int = 10,
+) -> List[str]:
+    """Create searchable tags from author tags, genre, title, and recurring story terms."""
+    tags: List[str] = []
+    seen: Set[str] = set()
+
+    def add_tag(value: str) -> None:
+        cleaned = re.sub(r"\s+", " ", value).strip(" #-\t\r\n")
+        key = cleaned.casefold()
+        if cleaned and key not in seen and len(cleaned) <= 48 and len(tags) < limit:
+            seen.add(key)
+            tags.append(cleaned)
+
+    for tag in provided_tags or []:
+        add_tag(str(tag))
+    if genre:
+        add_tag(genre)
+
+    stopwords = {
+        "and", "are", "but", "cho", "cua", "của", "dang", "đang", "den", "đến",
+        "does", "from", "have", "khi", "khong", "không", "la", "là", "luc", "lúc",
+        "mot", "một", "nhung", "những", "nguoi", "người", "nhu", "như", "of", "the",
+        "thi", "thì", "trong", "with", "va", "và", "voi", "với", "when", "where",
+        "truyện", "truyen", "story", "genre", "tag", "tags", "content", "snippet",
+        "nội", "noi", "dung", "tác", "tac", "phẩm", "pham", "id",
+    }
+    title_words = re.findall(r"[^\W_]{3,}", title.casefold(), flags=re.UNICODE)
+    body_words = re.findall(r"[^\W_]{3,}", story_text.casefold(), flags=re.UNICODE)
+    frequencies: Dict[str, int] = {}
+    for word in body_words:
+        if word not in stopwords and not word.isdigit():
+            frequencies[word] = frequencies.get(word, 0) + 1
+
+    title_terms = []
+    for word in title_words:
+        if word not in stopwords and not word.isdigit() and word not in title_terms:
+            title_terms.append(word)
+    for word in title_terms:
+        add_tag(word)
+
+    for word, _ in sorted(frequencies.items(), key=lambda item: (-item[1], item[0])):
+        add_tag(word)
+        if len(tags) >= limit:
+            break
+    return tags
+
+
+def _normalize_search_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def search_relevance(post: SocialPost, search_query: str) -> float:
+    query = _normalize_search_text(search_query).strip()
+    if not query:
+        return 0.0
+    try:
+        tags = json.loads(post.tags or "[]")
+    except (TypeError, ValueError):
+        tags = []
+
+    title = _normalize_search_text(post.title or "")
+    genre = _normalize_search_text(post.genre or "")
+    tag_text = _normalize_search_text(" ".join(str(tag) for tag in tags))
+    content = _normalize_search_text(post.content_snippet or "")
+    if post.story and post.story.story_content:
+        content = f"{content} {_normalize_search_text(post.story.story_content)}"
+
+    score = 0.0
+    if query in title:
+        score += 4.0
+    if query in tag_text:
+        score += 5.0
+    if query in genre:
+        score += 4.0
+    if query in content:
+        score += 2.0
+
+    tokens = [token for token in re.findall(r"[^\W_]{2,}", query, flags=re.UNICODE)]
+    if tokens:
+        score += sum(
+            (2.5 if token in tag_text else 2.0 if token in genre else 1.5 if token in title else 1.0 if token in content else 0.0)
+            for token in tokens
+        ) / len(tokens)
+    return score
 
 
 # ==================== SENTIMENT & ENTITY EXTRACTION ====================
@@ -432,7 +525,9 @@ class HybridRecommenderEngine:
         db: Session,
         user_profile: Optional[UserInterestProfile],
         limit_total: int = 60,
-        filter_genre: Optional[str] = None
+        filter_genre: Optional[str] = None,
+        filter_genres: Optional[List[str]] = None,
+        search_query: Optional[str] = None,
     ) -> List[SocialPost]:
         """
         Stage 1: Retrieves candidate posts using two complementary funnels:
@@ -440,12 +535,36 @@ class HybridRecommenderEngine:
         - Funnel 2: Graph-Based DSGO Traversal (top 20)
         """
         query = db.query(SocialPost)
-        if filter_genre:
-            query = query.filter(SocialPost.genre.ilike(f"%{filter_genre}%"))
+        genre_filters = list(dict.fromkeys(
+            [genre for genre in ([filter_genre] + (filter_genres or [])) if genre]
+        ))
+        if genre_filters:
+            query = query.filter(or_(*[
+                condition
+                for genre in genre_filters
+                for condition in (
+                    SocialPost.genre.ilike(f"%{genre}%"),
+                    SocialPost.tags.ilike(f"%{genre}%"),
+                    SocialPost.title.ilike(f"%{genre}%"),
+                    SocialPost.content_snippet.ilike(f"%{genre}%"),
+                )
+            ]))
             
         all_posts = query.all()
         if not all_posts:
             return []
+
+        if search_query and search_query.strip():
+            matching_posts = [
+                (search_relevance(post, search_query), post)
+                for post in all_posts
+            ]
+            matching_posts = [(score, post) for score, post in matching_posts if score > 0]
+            matching_posts.sort(
+                key=lambda item: (item[0], item[1].created_at or datetime.min),
+                reverse=True,
+            )
+            return [post for _, post in matching_posts[:limit_total]]
 
         # If user has no profile or few posts, return available posts sorted by freshness/views
         if not user_profile or not user_profile.interest_vector:
@@ -773,7 +892,9 @@ def get_feed(
     user_id: Optional[int] = None,
     limit: int = 20,
     offset: int = 0,
-    genre: Optional[str] = None
+    genre: Optional[str] = None,
+    genres: Optional[List[str]] = None,
+    search_query: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Executes the full 3-Stage Recommender pipeline and returns serialized feed.
@@ -787,8 +908,10 @@ def get_feed(
     candidates = HybridRecommenderEngine.stage1_candidate_generation(
         db=db,
         user_profile=user_profile,
-        limit_total=max(60, limit * 3),
-        filter_genre=genre
+        limit_total=max(60, (offset + limit) * 3),
+        filter_genre=genre,
+        filter_genres=genres,
+        search_query=search_query,
     )
 
     if not candidates:
@@ -806,10 +929,59 @@ def get_feed(
         user_profile=user_profile
     )
 
+    now = datetime.utcnow()
+    trending_scores: Dict[int, float] = {}
+    share_counts = dict(
+        db.query(PostInteraction.post_id, func.count(PostInteraction.id))
+        .filter(
+            PostInteraction.post_id.in_([post.id for post in candidates]),
+            PostInteraction.interaction_type == "SHARE",
+        )
+        .group_by(PostInteraction.post_id)
+        .all()
+    )
+    for post in candidates:
+        age_hours = max(0.0, (now - (post.created_at or now)).total_seconds() / 3600.0)
+        if age_hours <= 24 * 7:
+            engagement = (
+                3.0 * float(post.likes_count or 0)
+                + 5.0 * float(post.comments_count or 0)
+                + 0.5 * float(post.views_count or 0)
+                + 4.0 * float(post.completion_count or 0)
+                + 2.5 * float(share_counts.get(post.id, 0))
+            )
+            trending_scores[post.id] = engagement / ((age_hours + 2.0) ** 1.4)
+        else:
+            trending_scores[post.id] = 0.0
+    max_trending_score = max(trending_scores.values(), default=0.0)
+    max_search_score = max(
+        (search_relevance(post, search_query) for post in candidates),
+        default=0.0,
+    ) if search_query else 0.0
+
+    reranked_candidates = []
+    for post, score, metrics in scored_candidates:
+        trend_score = (
+            trending_scores[post.id] / max_trending_score
+            if max_trending_score > 0 else 0.0
+        )
+        if search_query and max_search_score > 0:
+            relevance_score = search_relevance(post, search_query) / max_search_score
+            final_score = 0.65 * relevance_score + 0.25 * score + 0.10 * trend_score
+        else:
+            final_score = 0.88 * score + 0.12 * trend_score
+        metrics["search_relevance"] = round(
+            search_relevance(post, search_query) / max_search_score,
+            4,
+        ) if search_query and max_search_score > 0 else 0.0
+        metrics["trending_score"] = round(trend_score, 4)
+        metrics["final_score"] = round(final_score, 4)
+        reranked_candidates.append((post, final_score, metrics))
+
     # Stage 3: Re-ranking with MMR and Multi-Armed Bandit
     feed_limit_for_window = max(offset + limit, limit)
     feed_items = HybridRecommenderEngine.stage3_reranking_and_serendipity(
-        scored_candidates=scored_candidates,
+        scored_candidates=reranked_candidates,
         all_candidate_posts=candidates,
         feed_limit=feed_limit_for_window
     )
@@ -878,7 +1050,7 @@ def get_feed(
         "total": len(candidates),
         "page_limit": limit,
         "offset": offset,
-        "has_more": (offset + limit) < len(feed_items)
+        "has_more": (offset + len(paginated_items)) < len(candidates)
     }
 
 
@@ -904,7 +1076,12 @@ def publish_post(
     Auto-extracts first panel from Comic as cover_image_url if missing.
     Extracts DSGO entities/spaces and computes 128-dim concept vector.
     """
-    tags = tags or []
+    tags = generate_story_tags(
+        title=title,
+        story_text=story_text or content_snippet,
+        genre=genre,
+        provided_tags=tags,
+    )
     dsgo_entities = dsgo_entities or []
     dsgo_spaces = dsgo_spaces or []
 
@@ -1154,6 +1331,13 @@ def get_post_details(db: Session, post_id: int, current_user_id: Optional[int] =
         pass
 
     author = post.author
+    liked_by_me = False
+    if current_user_id:
+        liked_by_me = db.query(PostInteraction.id).filter(
+            PostInteraction.user_id == current_user_id,
+            PostInteraction.post_id == post_id,
+            PostInteraction.interaction_type == "LIKE",
+        ).first() is not None
 
     # Retrieve full story text and any linked comic panels
     story_full_text = None
@@ -1196,6 +1380,7 @@ def get_post_details(db: Session, post_id: int, current_user_id: Optional[int] =
         "dsgo_entities": entities,
         "dsgo_spaces": spaces,
         "likes_count": post.likes_count,
+        "liked_by_me": liked_by_me,
         "comments_count": post.comments_count,
         "views_count": post.views_count,
         "dwell_time_avg": round(post.dwell_time_avg, 1),
@@ -1402,4 +1587,3 @@ def get_quantized_model_weights(format: str = "json") -> Dict[str, Any]:
         },
         "created_at": datetime.utcnow().isoformat()
     }
-

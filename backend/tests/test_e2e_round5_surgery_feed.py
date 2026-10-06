@@ -1081,7 +1081,8 @@ class TestE2ERound5SurgeryFeed(unittest.TestCase):
             cover_image_url=None
         )
         self.assertEqual(post.genre, "Chung")
-        self.assertEqual(post.tags, "[]")
+        generated_tags = json.loads(post.tags)
+        self.assertIn("giản", generated_tags)
         self.assertIsNone(post.cover_image_url)
 
     def test_boundary_guest_vs_authenticated_publishing(self):

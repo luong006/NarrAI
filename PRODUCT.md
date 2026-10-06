@@ -1,23 +1,30 @@
-# PRODUCT CONTEXT: NarrAI Workspace
+# NarrAI Product Context
 
-## 1. Product Truth & Purpose
-- **Product Name:** NarrAI
-- **Mission:** A modern creative co-creation workspace enabling writers, novelists, and creators to transform raw story concepts into full-length prose manuscripts and serialize them into authentic Japanese black & white manga comics.
-- **Target Audience:** Novelists, screenwriters, creative writers, manga creators, and literature enthusiasts.
-- **Operating Context:** Web application used on desktop workstations and tablets for deep-focus creative writing.
+## Product purpose
 
-## 2. Core Aesthetic & Brand Voice
-- **Tone:** Literate, elegant, inspiring, focused, non-distracting.
-- **Key Metaphor:** A writer's tranquil study room meets a futuristic AI creative studio.
-- **Color Philosophy:**
-  - Light Mode: Warm cream paper (`#FAF8F5`), rich charcoal text (`#1E293B`), deep indigo accents (`#4338CA`).
-  - Dark Mode: Quiet midnight slate (`#0F172A`), soft warm gray text (`#E2E8F0`), muted indigo buttons.
-  - High Contrast: Strictly adheres to WCAG AA (minimum 4.5:1 for body copy and 3.0:1 for large headers and buttons).
-- **Anti-AI-Slop Mandate:**
-  - NO generic purple/cyan SaaS gradients.
-  - NO nested cards inside cards.
-  - NO default Inter font across the whole UI.
-  - NO thick colored left borders (`side-tab`).
+NarrAI is a creative co-writing workspace. It helps writers develop story concepts into prose manuscripts and adapt them into black-and-white manga. The product also supports readers and creators through its literary community.
 
-## 3. Specialized Domain Exception: Comic / Manga View
-- The **Comic Viewer** is an intentional artistic zone: It uses **traditional high-contrast Japanese Manga ink aesthetics** (thick black ink borders `#111`, monochrome screentones, overlaid dialogue bubbles). This is an artistic representation of print manga, completely segregated from the modern digital app UI.
+## Users and usage
+
+- Primary users: novelists, screenwriters, creative writers, manga creators, and literature readers.
+- Main context: focused writing and reading on desktop computers and tablets.
+
+## Visual direction
+
+The interface should feel literate, calm, and focused, combining the atmosphere of a writer's study with a modern creative studio.
+
+### Color and contrast
+
+- Light theme: warm paper (`#FAF8F5`), charcoal text (`#1E293B`), and indigo accents (`#4338CA`).
+- Dark theme: midnight slate (`#0F172A`), warm gray text (`#E2E8F0`), and muted indigo controls.
+- Maintain WCAG AA contrast targets: at least 4.5:1 for body text and 3:1 for large text and controls.
+
+### Interface constraints
+
+- Avoid generic purple or cyan gradients.
+- Avoid nested cards, defaulting the entire interface to Inter, and thick colored side borders.
+- Keep controls clear and unobtrusive so the writing and reading areas remain the focus.
+
+## Comic and manga reader
+
+The comic reader is a dedicated art surface, distinct from the application interface. Use high-contrast manga linework, black panel borders (`#111`), monochrome screentones, and dialogue bubbles that belong to the artwork. Do not overlay application UI on the comic panels; place reader controls outside the artwork.

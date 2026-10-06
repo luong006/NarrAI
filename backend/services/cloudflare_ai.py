@@ -214,7 +214,8 @@ def get_cached_or_generate_image(
     custom_negative_prompt: Optional[str] = None,
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None,
-    genre: str = ""
+    genre: str = "",
+    force_refresh: bool = False,
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
@@ -224,8 +225,18 @@ def get_cached_or_generate_image(
     """
     cache_path = os.path.join(CACHE_DIR, f"panel_{panel_id}.jpg")
     
-    # 1. Check local persistent disk cache
-    if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 1000:
+    # A retry must not serve the image that just failed at the client, even if
+    # it happens to be a valid image payload in the local cache.
+    if force_refresh:
+        try:
+            os.remove(cache_path)
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            print(f"[Comic Cache] Could not clear cached panel_{panel_id} before retry: {e}")
+
+    # 1. Check local persistent disk cache unless the user explicitly retried.
+    if not force_refresh and os.path.isfile(cache_path) and os.path.getsize(cache_path) > 1000:
         try:
             with open(cache_path, "rb") as f:
                 img_bytes = f.read()
@@ -233,6 +244,9 @@ def get_cached_or_generate_image(
                 media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
                 return img_bytes, media_type
             print(f"[Comic Cache] Cached panel_{panel_id} is not a valid image; regenerating")
+            os.remove(cache_path)
+        except FileNotFoundError:
+            pass
         except Exception as e:
             print(f"[Comic Cache] Failed to read cached panel_{panel_id}: {e}")
 

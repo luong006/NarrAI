@@ -65,6 +65,10 @@ body {
   background-size: 12px 12px;
 }
 
+.manga-artwork.has-error {
+  background-image: none;
+}
+
 .manga-artwork img {
   display: block;
   width: 100%;

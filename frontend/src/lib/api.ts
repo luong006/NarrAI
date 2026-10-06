@@ -223,14 +223,21 @@ export const api = {
 
       const cleanText = (txt: string) => {
         return txt
-          .replace(/\[(?:GENERATION_ERROR|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):[\s\S]*$/i, '')
+          .replace(/\[(?:GENERATION_ERROR|HISTORICAL_VIOLATION|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):[\s\S]*$/i, '')
           .replace(/\[(?:SESSION_ID|STORY_ID):[^\]]*\]/g, '')
           .trim();
       };
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          const decoderTail = decoder.decode();
+          if (decoderTail) {
+            fullAccumulated += decoderTail;
+            onChunk(decoderTail, cleanText(fullAccumulated));
+          }
+          break;
+        }
         const chunk = decoder.decode(value, { stream: true });
         fullAccumulated += chunk;
         const currentClean = cleanText(fullAccumulated);
@@ -240,7 +247,7 @@ export const api = {
       // Extract Session ID & Story ID & Error
       const sessionMatch = fullAccumulated.match(/\[SESSION_ID:([^\]]+)\]/);
       const storyMatch = fullAccumulated.match(/\[STORY_ID:(\d+)\]/);
-      const errorMatch = fullAccumulated.match(/\[(?:GENERATION_ERROR|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):\s*([\s\S]*?)\]/i);
+      const errorMatch = fullAccumulated.match(/\[(?:GENERATION_ERROR|HISTORICAL_VIOLATION|Lỗi sinh truyện|Loi sinh truyen|Lỗi|Loi):\s*([\s\S]*?)\]/i);
 
       onComplete({
         fullText: fullAccumulated,
@@ -378,11 +385,17 @@ export const api = {
       let finalGenre: string | undefined;
       let finalLimit = limit;
       let finalOffset = offset;
+      let feedType: SocialFeedParams["feed_type"] = "recommended";
+      let selectedGenres: string[] = [];
+      let searchQuery: string | undefined;
 
       if (paramsOrGenre && typeof paramsOrGenre === "object") {
         finalGenre = paramsOrGenre.genre;
         if (paramsOrGenre.limit !== undefined) finalLimit = paramsOrGenre.limit;
         if (paramsOrGenre.offset !== undefined) finalOffset = paramsOrGenre.offset;
+        if (paramsOrGenre.feed_type) feedType = paramsOrGenre.feed_type;
+        selectedGenres = paramsOrGenre.genres || [];
+        searchQuery = paramsOrGenre.q?.trim();
       } else if (typeof paramsOrGenre === "string") {
         finalGenre = paramsOrGenre;
       }
@@ -390,11 +403,14 @@ export const api = {
       const params = new URLSearchParams({
         limit: String(finalLimit),
         offset: String(finalOffset),
+        feed_type: feedType,
       });
 
       if (finalGenre && finalGenre !== "All" && finalGenre !== "Tất cả") {
         params.append("genre", finalGenre);
       }
+      selectedGenres.forEach((genre) => params.append("genres", genre));
+      if (searchQuery) params.set("q", searchQuery);
 
       const res = await fetch(`${API_BASE_URL}/social/feed?${params.toString()}`, {
         headers: authHeaders(),
@@ -404,13 +420,15 @@ export const api = {
         return {
           success: false,
           data: { items: [], total: 0, page_limit: finalLimit, offset: finalOffset, has_more: false },
+          message: parseErrorDetail(await res.json().catch(() => null)),
         };
       }
       return res.json();
-    } catch {
+    } catch (err) {
       return {
         success: false,
         data: { items: [], total: 0, page_limit: limit, offset, has_more: false },
+        message: err instanceof Error ? err.message : "Không thể tải bảng tin.",
       };
     }
   },
@@ -450,7 +468,9 @@ export const api = {
         headers: authHeaders(),
         body: JSON.stringify(payload),
       });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) return { success: false, message: parseErrorDetail(data) };
+      return data;
     } catch (err: any) {
       return { success: false, message: err.message };
     }

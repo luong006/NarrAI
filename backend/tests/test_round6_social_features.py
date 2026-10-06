@@ -35,6 +35,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from db.models import Base, User, Story, SocialPost, PostInteraction
+from services.recommender_service import generate_story_tags
 
 # Try importing Milestone 3 models from db.models if implemented
 try:
@@ -645,9 +646,102 @@ class TestRound6SocialAPIRoutes(TestRound6SocialFeaturesBase):
         res = self.client.get("/api/social/feed?feed_type=following")
         self.assertEqual(res.status_code, 200)
         feed_data = res.json().get("data", {})
-        posts = feed_data.get("posts", [])
+        posts = feed_data.get("items", [])
         self.assertEqual(len(posts), 1)
         self.assertEqual(posts[0]["id"], self.post1.id)
+        self.assertEqual(feed_data.get("offset"), 0)
+        self.assertEqual(feed_data.get("page_limit"), 20)
+
+    def test_api_feed_search_and_multiple_genre_tags(self):
+        """Search terms and any selected genre tag narrow the following feed."""
+        self.post1.genre = "Tiểu thuyết"
+        self.post1.tags = json.dumps(["Bạch Đằng", "Lịch sử"], ensure_ascii=False)
+        self.post2.tags = json.dumps(["Trinh thám"], ensure_ascii=False)
+        self.db.commit()
+        self.client.post(f"/api/social/follow/{self.author1.id}")
+        self.client.post(f"/api/social/follow/{self.author2.id}")
+
+        response = self.client.get(
+            "/api/social/feed",
+            params=[
+                ("feed_type", "following"),
+                ("genres", "Lịch sử"),
+                ("genres", "Dã sử"),
+                ("q", "Bạch Đằng"),
+            ],
+        )
+
+        self.assertEqual(response.status_code, 200)
+        items = response.json()["data"]["items"]
+        self.assertEqual([item["id"] for item in items], [self.post1.id])
+
+    def test_story_tags_are_generated_from_author_input_and_story_text(self):
+        tags = generate_story_tags(
+            title="Bạch Đằng mùa nước",
+            story_text="Bạch Đằng mở hội. Trận thủy chiến Bạch Đằng vang danh.",
+            genre="Lịch sử",
+            provided_tags=["tác phẩm"],
+        )
+        self.assertIn("tác phẩm", tags)
+        self.assertIn("Lịch sử", tags)
+        self.assertIn("bạch", tags)
+
+    def test_api_like_toggle_and_persisted_state(self):
+        """A post can be liked once, unliked, and reloaded with the right state."""
+        self.client.post(f"/api/social/follow/{self.author1.id}")
+
+        liked = self.client.post("/api/social/interact", json={
+            "post_id": self.post1.id,
+            "interaction_type": "LIKE",
+        })
+        self.assertEqual(liked.status_code, 200)
+        self.assertTrue(liked.json().get("liked_by_me"))
+        self.assertEqual(liked.json()["metadata"]["post_likes"], 16)
+
+        feed = self.client.get("/api/social/feed?feed_type=following").json()["data"]
+        self.assertTrue(feed["items"][0]["liked_by_me"])
+
+        unliked = self.client.post("/api/social/interact", json={
+            "post_id": self.post1.id,
+            "interaction_type": "LIKE",
+        })
+        self.assertEqual(unliked.status_code, 200)
+        self.assertFalse(unliked.json().get("liked_by_me"))
+        self.assertEqual(unliked.json()["metadata"]["post_likes"], 15)
+
+        details = self.client.get(f"/api/social/post/{self.post1.id}").json()["data"]
+        self.assertFalse(details["liked_by_me"])
+        self.assertEqual(details["likes_count"], 15)
+
+    def test_recommended_feed_includes_share_trend_signal(self):
+        """Recent share activity contributes to the recommendation trend score."""
+        same_age = datetime.utcnow() - timedelta(hours=4)
+        for post in (self.post1, self.post2):
+            post.created_at = same_age
+            post.likes_count = 10
+            post.comments_count = 5
+            post.views_count = 100
+            post.completion_count = 5
+
+        self.db.add_all([
+            PostInteraction(
+                user_id=self.reader.id,
+                post_id=self.post2.id,
+                interaction_type="SHARE",
+                created_at=datetime.utcnow(),
+            )
+            for _ in range(100)
+        ])
+        self.db.commit()
+
+        response = self.client.get("/api/social/feed?limit=20")
+        self.assertEqual(response.status_code, 200)
+        items = response.json()["data"]["items"]
+        scores = {
+            item["id"]: item["recommendation_metadata"]["metrics"]["trending_score"]
+            for item in items
+        }
+        self.assertGreater(scores[self.post2.id], scores[self.post1.id])
 
     def test_api_threaded_comments_and_post_details(self):
         """Test threaded reply creation and retrieval in post details."""

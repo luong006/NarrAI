@@ -6,6 +6,7 @@ class GroqClient:
     # Leave headroom below Groq's 8000 TPM limit for estimation variance.
     MAX_REQUEST_TOKENS = 7600
     MIN_COMPLETION_TOKENS = 256
+    MAX_STREAM_CONTINUATIONS = 2
 
     @staticmethod
     def _estimate_prompt_tokens(messages):
@@ -63,26 +64,75 @@ class GroqClient:
         raise last_error
 
     def chat_stream(self, messages, temperature=0.7, max_tokens=2000):
-        """Send message to Groq LLM with streaming"""
-        safe_max_tokens = self._safe_max_tokens(messages, max_tokens)
-        budgets = self._retry_budgets(safe_max_tokens)
-        for index, budget in enumerate(budgets):
-            emitted = False
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=budget,
-                    stream=True
-                )
-                for chunk in response:
-                    content = chunk.choices[0].delta.content
-                    if content:
-                        emitted = True
-                        yield content
-                return
-            except Exception as error:
-                if emitted or not self._is_request_too_large(error) or index == len(budgets) - 1:
+        """Stream the completion and resume once or twice if the provider cuts it off."""
+        original_messages = list(messages)
+        request_messages = original_messages
+        generated_text = ""
+        continuation_count = 0
+
+        while True:
+            safe_max_tokens = self._safe_max_tokens(request_messages, max_tokens)
+            budgets = self._retry_budgets(safe_max_tokens)
+            should_continue = False
+            finish_reason = None
+
+            for index, budget in enumerate(budgets):
+                emitted_this_request = False
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=request_messages,
+                        temperature=temperature,
+                        max_tokens=budget,
+                        stream=True
+                    )
+                    for chunk in response:
+                        choice = chunk.choices[0]
+                        finish_reason = getattr(choice, "finish_reason", None) or finish_reason
+                        content = getattr(choice.delta, "content", None)
+                        if content:
+                            emitted_this_request = True
+                            generated_text += content
+                            yield content
+                    break
+                except Exception as error:
+                    if (
+                        not emitted_this_request
+                        and self._is_request_too_large(error)
+                        and index < len(budgets) - 1
+                    ):
+                        time.sleep(0.25)
+                        continue
+                    if generated_text and continuation_count < self.MAX_STREAM_CONTINUATIONS:
+                        continuation_count += 1
+                        should_continue = True
+                        break
                     raise
-                time.sleep(0.25)
+
+            if finish_reason == "length":
+                if not generated_text:
+                    raise RuntimeError("The language model reached its output limit before producing story text.")
+                if continuation_count >= self.MAX_STREAM_CONTINUATIONS:
+                    raise RuntimeError("The language model repeatedly reached its output limit; the partial draft was preserved.")
+                continuation_count += 1
+                should_continue = True
+
+            if not should_continue:
+                return
+
+            continuation_context = generated_text[-6000:]
+            request_messages = [
+                *original_messages,
+                {
+                    "role": "assistant",
+                    "content": continuation_context,
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Hãy viết tiếp ngay từ vị trí kết thúc của đoạn văn bản trên. "
+                        "Không lặp lại câu hoặc đoạn đã có; hoàn thành câu đang dang dở nếu cần, "
+                        "sau đó tiếp tục tự nhiên và giữ nguyên nhân vật, bối cảnh, giọng văn."
+                    ),
+                },
+            ]

@@ -44,6 +44,32 @@ STYLE_SUFFIX = (
     "studio quality 2D manga illustration, expressive anime aesthetic, sharp contours"
 )
 
+
+def _format_character_dna_registry(character_dna: dict) -> str:
+    """Render canonical visual traits with the aliases used to resolve characters."""
+    lines = []
+    for name, data in character_dna.items():
+        if isinstance(data, dict):
+            details = [
+                str(data.get(key, "")).strip()
+                for key in ("gender", "role")
+                if str(data.get(key, "")).strip() and str(data.get(key, "")).lower() != "unknown"
+            ]
+            aliases = data.get("aliases", [])
+            if isinstance(aliases, str):
+                aliases = [aliases]
+            elif not isinstance(aliases, (list, tuple, set)):
+                aliases = []
+            aliases = list(dict.fromkeys(str(alias).strip() for alias in aliases if str(alias).strip()))
+            visual_dna = str(data.get("dna", "")).strip()
+            identity = f" ({', '.join(details)})" if details else ""
+            alias_context = f"; aliases: {', '.join(aliases[:8])}" if aliases else ""
+            lines.append(f"- {name}{identity}: {visual_dna}{alias_context}")
+        else:
+            lines.append(f"- {name}: {data}")
+    return "\n".join(lines)
+
+
 LAYOUT_MAP = {
     "wide": "wide", "horizontal": "wide", "landscape": "wide", "panoramic": "wide", "establishing": "wide",
     "tall": "tall", "vertical": "tall", "portrait": "tall", "dramatic": "tall",
@@ -55,6 +81,7 @@ DNA_EXTRACTOR_PROMPT = """You are a lead character designer and visual continuit
 Analyze the Vietnamese story text and extract the EXACT, IMMUTABLE visual physical traits, identifying signature costume, and all aliases/pronouns for each character.
 
 CRITICAL VISUAL CONTINUITY SPECIFICATIONS (MANDATORY EXTREME DETAIL):
+0. CANONICAL STORY DNA: When prior character details are supplied from the Dynamic Scene Graph or Story Bible, treat their appearance, age, hairstyle, and costume as immutable canon. Preserve those details exactly; infer only missing fields and never replace canon with a new design.
 1. Signature Identifying Costume (MANDATORY):
    - Exact garment type & cut: e.g. crisp button-up short-sleeve school uniform shirt, tailored navy blazer, pleated skirt, tailored trousers, knit vest, trench coat, or Vietnamese traditional attire (Áo Ngũ Thân, Áo Nhật Bình, Áo Tấc, Khăn Đóng, Áo Bà Ba, Nón Lá).
    - Specific fabric texture & colors: e.g. pure white cotton shirt, dark navy pleated skirt, charcoal grey tailored trousers, dark navy blazer.
@@ -90,6 +117,7 @@ Return ONLY a valid JSON object:
 # ==================== SPATIAL SETTING DNA EXTRACTOR ====================
 SETTING_EXTRACTOR_PROMPT = """You are an art director and world-building designer for a manga studio.
 Analyze the story text and extract the PRIMARY SPATIAL SETTING & ENVIRONMENT ANCHOR to guarantee strict background consistency across all manga panels.
+If a canonical setting is supplied from the Dynamic Scene Graph or Story Bible, preserve its location and architectural anchor exactly. Do not replace it with a newly inferred location.
 
 For the primary location, specify:
 1. Location type & time of day/era (e.g. vintage 1990s detective office at night, modern high-tech glass lab, ancient stone fortress)
@@ -724,17 +752,60 @@ class ComicDirectorAgent:
             if match:
                 parsed = json.loads(match.group(0))
                 if isinstance(parsed, dict):
-                    for k, v in parsed.items():
-                        if isinstance(v, dict) and "dna" in v:
-                            existing_dna[k] = v
-                        elif isinstance(v, str):
-                            alias_tokens = [k.lower()] + [p.lower() for p in k.split() if len(p) > 1]
-                            existing_dna[k] = {
-                                "dna": v,
+                    for parsed_name, parsed_value in parsed.items():
+                        if isinstance(parsed_value, dict):
+                            parsed_entry = parsed_value
+                        elif isinstance(parsed_value, str):
+                            alias_tokens = [parsed_name.lower()] + [
+                                part.lower() for part in parsed_name.split() if len(part) > 1
+                            ]
+                            parsed_entry = {
+                                "dna": parsed_value,
                                 "aliases": alias_tokens,
                                 "gender": "unknown",
-                                "role": "supporting"
+                                "role": "supporting",
                             }
+                        else:
+                            continue
+
+                        parsed_aliases = parsed_entry.get("aliases", [])
+                        if isinstance(parsed_aliases, str):
+                            parsed_aliases = [parsed_aliases]
+                        parsed_aliases = [str(alias) for alias in parsed_aliases if str(alias).strip()]
+
+                        parsed_name_key = str(parsed_name).strip().casefold()
+                        canonical_name = next(
+                            (
+                                name for name, entry in existing_dna.items()
+                                if parsed_name_key == name.casefold()
+                                or parsed_name_key in {
+                                    str(alias).strip().casefold()
+                                    for alias in (entry.get("aliases", []) if isinstance(entry, dict) else [])
+                                }
+                            ),
+                            None,
+                        )
+                        if canonical_name is None:
+                            existing_dna[parsed_name] = {
+                                **parsed_entry,
+                                "aliases": parsed_aliases,
+                            }
+                            continue
+
+                        # Story-memory DNA is authoritative; the extractor may
+                        # only fill missing traits or add useful aliases.
+                        canonical_entry = existing_dna[canonical_name]
+                        aliases = list(canonical_entry.get("aliases", []))
+                        for alias in parsed_aliases:
+                            if alias.casefold() not in {str(item).casefold() for item in aliases}:
+                                aliases.append(alias)
+                        canonical_entry["aliases"] = aliases
+                        if not str(canonical_entry.get("dna", "")).strip():
+                            canonical_entry["dna"] = parsed_entry.get("dna", "")
+                        if str(canonical_entry.get("gender", "")).lower() in ("", "unknown"):
+                            canonical_entry["gender"] = parsed_entry.get("gender", "unknown")
+                        if not str(canonical_entry.get("role", "")).strip():
+                            canonical_entry["role"] = parsed_entry.get("role", "supporting")
         except Exception as e:
             print(f"[Comic] Character DNA extraction fallback ({e})")
 
@@ -791,10 +862,21 @@ class ComicDirectorAgent:
 
         try:
             sample_text = story_text[:3500]
+            canonical_context = (
+                "CANONICAL STORY SETTING DNA (preserve its known location and anchor):\n"
+                f"{json.dumps(existing_setting, ensure_ascii=False)}\n\n"
+                if existing_setting else ""
+            )
             resp = self.llm.chat(
                 messages=[
                     {"role": "system", "content": SETTING_EXTRACTOR_PROMPT},
-                    {"role": "user", "content": f"Extract Primary Spatial Setting DNA for this story:\n\n{sample_text}"}
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{canonical_context}Extract Primary Spatial Setting DNA for this story:\n\n"
+                            f"{sample_text}"
+                        ),
+                    }
                 ],
                 temperature=0.2,
                 max_tokens=800
@@ -804,7 +886,9 @@ class ComicDirectorAgent:
             if match:
                 parsed = json.loads(match.group(0))
                 if isinstance(parsed, dict):
-                    existing_setting.update(parsed)
+                    for key, value in parsed.items():
+                        if key not in existing_setting or not existing_setting[key]:
+                            existing_setting[key] = value
         except Exception as e:
             print(f"[Comic] Setting DNA extraction fallback ({e})")
             if not existing_setting:
@@ -1157,7 +1241,7 @@ class ComicDirectorAgent:
         if n_mode is not None and isinstance(setting_dna, dict):
             setting_dna["narrative_mode"] = n_mode
 
-        dna_context = "\n".join([f"- {name}: {dna.get('dna', dna) if isinstance(dna, dict) else dna}" for name, dna in character_dna.items()])
+        dna_context = _format_character_dna_registry(character_dna)
         setting_context = (
             f"Location: {setting_dna.get('location_name', 'Main Setting')}\n"
             f"Anchor: {setting_dna.get('setting_anchor', '')}\n"
@@ -1172,6 +1256,7 @@ class ComicDirectorAgent:
         target_max = max(12, min(24, words_count // 30))
 
         user_content = f"""Adapt this Vietnamese story text into sequential manga panels beat-by-beat.
+Treat the supplied character DNA registry and setting anchor as established story canon. Keep identities, appearance, costumes, location, and persistent fixtures consistent; do not invent replacements.
 DO NOT SKIP ANY DIALOGUE OR MAJOR ACTION. Ensure every character line and key reaction is depicted with expressive dialogue text.
 Aim for {target_min} to {target_max} detailed panels covering the entire excerpt.
 TUYỆT ĐỐI CẤM SỬ DỤNG DẤU BA CHẤM (..., …, .....) VÀ CẮT XÉN: Mọi câu thoại và lời dẫn dưới mỗi khung tranh PHẢI LÀ CÂU HOÀN CHỈNH, TRỌN Ý, KẾT THÚC BẰNG DẤU CHẤM (.), CHẤM THAN (!), HOẶC CHẤM HỎI (?).
@@ -1206,7 +1291,7 @@ STORY TEXT:
         """Continues an existing comic with new sequential panels from newly added text."""
         character_dna = self.extract_character_dna(new_text, memory=memory)
         setting_dna = self.extract_setting_dna(new_text, memory=memory)
-        dna_context = "\n".join([f"- {name}: {dna.get('dna', dna) if isinstance(dna, dict) else dna}" for name, dna in character_dna.items()])
+        dna_context = _format_character_dna_registry(character_dna)
         setting_context = (
             f"Location: {setting_dna.get('location_name', 'Main Setting')}\n"
             f"Anchor: {setting_dna.get('setting_anchor', '')}\n"
@@ -1226,6 +1311,7 @@ SETTING VISUAL ANCHOR (IMMUTABLE):
 {setting_context}
 """
         user_content = f"""Continue the comic from the previous progression with sequential panels adapting this new text beat-by-beat.
+Treat the supplied character DNA registry and setting anchor as established story canon. Keep identities, appearance, costumes, location, and persistent fixtures consistent with earlier panels.
 DO NOT SKIP DIALOGUES OR ACTIONS. Keep dialogue text expressive, complete, and rich in meaning.
 TUYỆT ĐỐI CẤM SỬ DỤNG DẤU BA CHẤM (..., …, .....) VÀ CẮT XÉN: Mọi câu thoại và lời dẫn dưới mỗi khung tranh PHẢI LÀ CÂU HOÀN CHỈNH, TRỌN Ý, KẾT THÚC BẰNG DẤU CHẤM (.), CHẤM THAN (!), HOẶC CHẤM HỎI (?).
 

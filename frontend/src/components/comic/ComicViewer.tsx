@@ -16,11 +16,12 @@ interface Props {
   loadingMore: boolean;
 }
 
-function ComicPanelFrame({ panel, t, lang, slot }: {
+function ComicPanelFrame({ panel, t, lang, slot, eager }: {
   panel: ComicPanel;
   t: (typeof translations)[Language];
   lang: Language;
   slot: number;
+  eager: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -30,13 +31,13 @@ function ComicPanelFrame({ panel, t, lang, slot }: {
 
   return (
     <figure className="manga-panel" data-slot={slot}>
-      <div className="manga-artwork">
+      <div className={`manga-artwork${imageFailed ? " has-error" : ""}`}>
         {imageUrl && (
           <img
             key={retryKey}
             src={`${imageUrl}${imageUrl.includes("?") ? "&" : "?"}retry=${retryKey}`}
             alt={panel.image_prompt || (lang === "vi" ? "Khung truyện manga" : "Manga panel")}
-            loading="lazy"
+            loading={eager ? "eager" : "lazy"}
             decoding="async"
             onLoad={() => {
               setLoaded(true);
@@ -54,11 +55,11 @@ function ComicPanelFrame({ panel, t, lang, slot }: {
       {(imageFailed || !loaded || panel.dialogue_text?.trim()) && (
         <figcaption className="manga-caption" aria-live={imageFailed ? "polite" : undefined}>
           {panel.dialogue_text?.trim() && (
-            <p>{panel.dialogue_text.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").trim()}</p>
+            <p>{sanitizeComicCaption(panel.dialogue_text)}</p>
           )}
           {imageFailed ? (
             <div className="manga-image-error">
-              <span>{t.panel_load_error || (lang === "vi" ? "Không thể tạo ảnh cho khung này." : "Could not generate this panel image.")}</span>
+              <span>{t.panel_load_error || (lang === "vi" ? "Chưa tạo được ảnh. Hãy thử lại để yêu cầu ảnh mới." : "Image generation failed. Retry to request a fresh image.")}</span>
               {imageUrl && (
                 <button
                   type="button"
@@ -80,6 +81,26 @@ function ComicPanelFrame({ panel, t, lang, slot }: {
       )}
     </figure>
   );
+}
+
+function sanitizeComicCaption(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/^\s{0,3}>\s?/gm, "")
+    .replace(/^\s*(?:[-+*]|\d+[.)])\s+/gm, "")
+    .replace(/(\*\*|__|~~|`{1,3})([\s\S]*?)\1/g, "$2")
+    .replace(/(^|\s)[*_]([^*_\n]+)[*_](?=$|\s|[.,!?])/g, "$1$2")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function splitIntoPages(panels: ComicPanel[], panelsPerPage = 6): ComicPanel[][] {
@@ -146,6 +167,7 @@ export function ComicViewer({
                   t={t}
                   lang={lang}
                   slot={panelIndex + 1}
+                  eager={pageIndex === 0}
                 />
               ))}
             </section>

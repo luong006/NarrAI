@@ -6,6 +6,7 @@ import { SocialPost, SocialComment } from "@/lib/types";
 import { api } from "@/lib/api";
 import { InteractiveTiltCard } from "@/components/cards/InteractiveTiltCard";
 import { LikeButtonMorphicon } from "@/components/morphicons/LikeButtonMorphicon";
+import { useToast } from "@/lib/toast";
 import { 
   BookOpen, 
   MessageSquare, 
@@ -57,9 +58,14 @@ function sanitizeDisplayProse(text: string | null | undefined): string {
 
 export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Props) {
   const t = translations[lang];
+  const { toast } = useToast();
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedGenre, setSelectedGenre] = useState<string>("Tất cả");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [feedType, setFeedType] = useState<"recommended" | "following">("recommended");
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [isGenreMenuOpen, setIsGenreMenuOpen] = useState(false);
   const [activePost, setActivePost] = useState<SocialPost | null>(null);
   const [isReadingModalOpen, setIsReadingModalOpen] = useState(false);
   const [postDetailsLoading, setPostDetailsLoading] = useState(false);
@@ -77,9 +83,11 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
   // Dwell time tracking in modal
   const dwellStartTimeRef = useRef<number | null>(null);
+  const readerScrollSignalsRef = useRef({ postId: 0, fiftyPercent: false, complete: false });
 
   // Feature 25: Search box on Posts tab
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   // Feature 24: Fullscreen Comic Reader sequential carousel & swipe
   const [isComicReaderOpen, setIsComicReaderOpen] = useState(false);
@@ -87,6 +95,11 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
   const [comicReaderPost, setComicReaderPost] = useState<SocialPost | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
+  const openedSharedPostRef = useRef<string | null>(null);
+  const feedScrollRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+  const feedRequestIdRef = useRef(0);
 
   // Keyboard navigation for Fullscreen Comic Reader (ArrowLeft, ArrowRight, Escape)
   useEffect(() => {
@@ -141,64 +154,125 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
     }
   };
 
-  // Feature 25: Dynamic post filtering matching title or author (author_name / user_id)
-  const filteredPosts = posts.filter((post) => {
-    // Genre filter (client-side for instant response alongside API fetch)
-    if (selectedGenre && selectedGenre !== "Tất cả") {
-      const postGenre = (post.genre || "").toLowerCase();
-      const filterGenre = selectedGenre.toLowerCase();
-      if (!postGenre.includes(filterGenre) && !filterGenre.includes(postGenre)) {
-        return false;
-      }
-    }
-    // Text search
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.trim().toLowerCase();
-    const title = (post.title || "").toLowerCase();
-    const authorName = (post.author?.full_name || (post as any).author_name || "").toLowerCase();
-    const authorUsername = (post.author?.username || "").toLowerCase();
-    const snippet = (post.content_snippet || "").toLowerCase();
-    const tagsRaw = (post as any).tags;
-    const tags = tagsRaw ? (typeof tagsRaw === "string" ? tagsRaw : JSON.stringify(tagsRaw)).toLowerCase() : "";
-    return (
-      title.includes(q) ||
-      authorName.includes(q) ||
-      authorUsername.includes(q) ||
-      snippet.includes(q) ||
-      tags.includes(q)
-    );
-  });
-
-  const genres = [
-    { id: "Tất cả", labelVi: "Tất cả", labelEn: "All" },
-    { id: "Lịch sử", labelVi: "Lịch sử & Dã sử", labelEn: "History" },
-    { id: "Tiên hiệp", labelVi: "Tiên hiệp & Kỳ ảo", labelEn: "Fantasy" },
-    { id: "Khoa học viễn tưởng", labelVi: "Viễn tưởng & Cyberpunk", labelEn: "Sci-Fi" },
-    { id: "Trinh thám", labelVi: "Trinh thám & Giật gân", labelEn: "Mystery" },
-    { id: "Đô thị", labelVi: "Đô thị & Chữa lành", labelEn: "Urban" },
+  const filteredPosts = posts;
+  const genreGroups = [
+    {
+      labelVi: "Bối cảnh & thời đại",
+      labelEn: "Setting & era",
+      options: [
+        { id: "Lịch sử", vi: "Lịch sử", en: "Historical" },
+        { id: "Dã sử", vi: "Dã sử", en: "Historical fiction" },
+        { id: "Học đường", vi: "Học đường", en: "School life" },
+        { id: "Đô thị", vi: "Đô thị", en: "Urban" },
+        { id: "Cyberpunk", vi: "Cyberpunk", en: "Cyberpunk" },
+      ],
+    },
+    {
+      labelVi: "Thể loại",
+      labelEn: "Genres",
+      options: [
+        { id: "Tiên hiệp", vi: "Tiên hiệp", en: "Xianxia" },
+        { id: "Kỳ ảo", vi: "Kỳ ảo", en: "Fantasy" },
+        { id: "Kiếm hiệp", vi: "Kiếm hiệp", en: "Wuxia" },
+        { id: "Khoa học viễn tưởng", vi: "Khoa học viễn tưởng", en: "Science fiction" },
+        { id: "Trinh thám", vi: "Trinh thám", en: "Mystery" },
+        { id: "Kinh dị", vi: "Kinh dị", en: "Horror" },
+        { id: "Tình cảm", vi: "Tình cảm", en: "Romance" },
+        { id: "Phiêu lưu", vi: "Phiêu lưu", en: "Adventure" },
+      ],
+    },
+    {
+      labelVi: "Chủ đề",
+      labelEn: "Themes",
+      options: [
+        { id: "Chữa lành", vi: "Chữa lành", en: "Healing" },
+        { id: "Gia đình", vi: "Gia đình", en: "Family" },
+        { id: "Chiến tranh", vi: "Chiến tranh", en: "War" },
+        { id: "Hài hước", vi: "Hài hước", en: "Comedy" },
+      ],
+    },
   ];
 
-  const fetchFeed = async (genreFilter?: string) => {
-    setLoading(true);
+  const fetchFeed = async (
+    type = feedType,
+    append = false
+  ) => {
+    const requestId = append
+      ? feedRequestIdRef.current
+      : ++feedRequestIdRef.current;
+    if (append) {
+      if (loadingMoreRef.current) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+      setLoading(true);
+    }
     try {
-      const g = genreFilter === "Tất cả" ? undefined : genreFilter;
-      const res = await api.getSocialFeed(g, 24, 0);
+      const offset = append ? posts.length : 0;
+      const res = await api.getSocialFeed({
+        genres: selectedGenres,
+        q: debouncedSearchQuery,
+        limit: 24,
+        offset,
+        feed_type: type,
+      });
+      if (requestId !== feedRequestIdRef.current) return;
       if (res.success && res.data && Array.isArray(res.data.items)) {
-        setPosts(res.data.items);
+        setPosts((prev) => {
+          if (!append) return res.data.items;
+          const seen = new Set(prev.map((post) => post.id));
+          return [...prev, ...res.data.items.filter((post) => !seen.has(post.id))];
+        });
+        setHasMore(res.data.has_more);
       } else {
-        setPosts([]);
+        if (!append) setPosts([]);
+        setHasMore(false);
+        toast.error(res.message || (lang === "vi" ? "Không thể tải bảng tin." : "Unable to load the feed."));
       }
     } catch (err) {
+      if (requestId !== feedRequestIdRef.current) return;
       console.error("Failed to load community feed:", err);
-      setPosts([]);
+      if (!append) setPosts([]);
+      setHasMore(false);
+      toast.error(lang === "vi" ? "Không thể tải bảng tin cộng đồng." : "Unable to load the community feed.");
     } finally {
-      setLoading(false);
+      if (append && requestId === feedRequestIdRef.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
+      else if (!append && requestId === feedRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchFeed(selectedGenre);
-  }, [selectedGenre]);
+    const timer = window.setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 350);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    fetchFeed(feedType);
+  }, [selectedGenres, debouncedSearchQuery, feedType]);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const root = feedScrollRef.current;
+    if (!sentinel || !root || !hasMore || loading || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && !loadingMore) {
+          void fetchFeed(feedType, true);
+        }
+      },
+      { root, rootMargin: "500px 0px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [feedType, hasMore, loading, loadingMore, posts.length]);
 
   useEffect(() => {
     tfjsRecommender.syncVectorsFromBackend().catch((error) => {
@@ -212,6 +286,11 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
     setIsReadingModalOpen(true);
     setPostDetailsLoading(true);
     dwellStartTimeRef.current = Date.now();
+    readerScrollSignalsRef.current = {
+      postId: post.id,
+      fiftyPercent: false,
+      complete: false,
+    };
 
     // Record view click interaction
     api.interactPost({
@@ -231,6 +310,58 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
     }
   };
 
+  const handleReaderScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
+    const progress = scrollHeight > 0 ? (scrollTop + clientHeight) / scrollHeight : 0;
+    const signals = readerScrollSignalsRef.current;
+    if (!activePost || signals.postId !== activePost.id) return;
+
+    const milestones: Array<{ threshold: number; type: "SCROLL_50" | "SCROLL_100"; key: "fiftyPercent" | "complete" }> = [
+      { threshold: 0.5, type: "SCROLL_50", key: "fiftyPercent" },
+      { threshold: 0.98, type: "SCROLL_100", key: "complete" },
+    ];
+    for (const milestone of milestones) {
+      if (progress >= milestone.threshold && !signals[milestone.key]) {
+        signals[milestone.key] = true;
+        void api.interactPost({
+          post_id: activePost.id,
+          interaction_type: milestone.type,
+          scroll_depth: milestone.type === "SCROLL_100" ? 100 : 50,
+        }).then((result) => {
+          if (!result.success) console.error(`Failed to record ${milestone.type} interaction:`, result.message);
+        }).catch((error) => {
+          console.error(`Failed to record ${milestone.type} interaction:`, error);
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    const sharedPostId = new URLSearchParams(window.location.search).get("post");
+    if (!sharedPostId || !/^\d+$/.test(sharedPostId) || loading) return;
+    if (openedSharedPostRef.current === sharedPostId) return;
+    openedSharedPostRef.current = sharedPostId;
+
+    const post = posts.find((item) => item.id === Number(sharedPostId));
+    if (post) {
+      void handleOpenReader(post);
+      return;
+    }
+
+    void api.getPostDetails(Number(sharedPostId)).then((res) => {
+      if (res.success && res.data) {
+        setActivePost(res.data);
+        setIsReadingModalOpen(true);
+        dwellStartTimeRef.current = Date.now();
+      } else {
+        toast.error(lang === "vi" ? "Không tìm thấy bài viết được chia sẻ." : "The shared post could not be found.");
+      }
+    }).catch((error) => {
+      console.error("Failed to open shared post:", error);
+      toast.error(lang === "vi" ? "Không thể mở bài viết được chia sẻ." : "Unable to open the shared post.");
+    });
+  }, [loading, posts]);
+
   const handleCloseReader = () => {
     // Record dwell time if reader was open
     if (dwellStartTimeRef.current && activePost) {
@@ -245,20 +376,30 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
     setIsReadingModalOpen(false);
     setActivePost(null);
     setCommentInput("");
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("post")) {
+      url.searchParams.delete("post");
+      url.searchParams.delete("tab");
+      window.history.replaceState({}, "", url);
+      openedSharedPostRef.current = null;
+    }
   };
 
   const handleLikeToggle = async (postId: number, liked: boolean) => {
     try {
-      await api.interactPost({
+      const res = await api.interactPost({
         post_id: postId,
         interaction_type: "LIKE",
       });
+      if (!res.success) {
+        toast.error(res.message || (lang === "vi" ? "Không thể cập nhật lượt thích." : "Unable to update the like."));
+        return;
+      }
 
-      // Optimistic update
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
-            ? { ...p, likes_count: liked ? p.likes_count + 1 : Math.max(0, p.likes_count - 1), liked_by_me: liked }
+            ? { ...p, likes_count: res.metadata?.post_likes ?? (liked ? p.likes_count + 1 : Math.max(0, p.likes_count - 1)), liked_by_me: liked }
             : p
         )
       );
@@ -266,12 +407,49 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
       if (activePost && activePost.id === postId) {
         setActivePost((prev) =>
           prev
-            ? { ...prev, likes_count: liked ? prev.likes_count + 1 : Math.max(0, prev.likes_count - 1), liked_by_me: liked }
+            ? { ...prev, likes_count: res.metadata?.post_likes ?? (liked ? prev.likes_count + 1 : Math.max(0, prev.likes_count - 1)), liked_by_me: liked }
             : null
         );
       }
     } catch (err) {
       console.error("Error liking post:", err);
+      toast.error(lang === "vi" ? "Không thể cập nhật lượt thích." : "Unable to update the like.");
+    }
+  };
+
+  const handleSharePost = async (post: SocialPost) => {
+    const url = new URL("/", window.location.origin);
+    url.searchParams.set("tab", "posts");
+    url.searchParams.set("post", String(post.id));
+
+    let shared = false;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: post.title, text: post.content_snippet, url: url.toString() });
+        shared = true;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    if (!shared) {
+      try {
+        await navigator.clipboard.writeText(url.toString());
+        shared = true;
+        toast.success(lang === "vi" ? "Đã sao chép liên kết bài viết." : "Post link copied.");
+      } catch (error) {
+        console.error("Failed to copy shared post link:", error);
+        toast.error(lang === "vi" ? "Không thể chia sẻ hoặc sao chép liên kết." : "Unable to share or copy the link.");
+        return;
+      }
+    }
+
+    const result = await api.interactPost({
+      post_id: post.id,
+      interaction_type: "SHARE",
+    });
+    if (!result.success) {
+      toast.error(result.message || (lang === "vi" ? "Đã chia sẻ nhưng không ghi nhận được lượt chia sẻ." : "Shared, but the share could not be recorded."));
     }
   };
 
@@ -322,7 +500,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
       if (res.success) {
         const newComment: SocialComment = {
-          id: Date.now(),
+          id: res.interaction_id || Date.now(),
           user_id: 0,
           username: currentUsername || "creator",
           full_name: currentUsername || "Tác giả",
@@ -349,9 +527,12 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
         setCommentInput("");
         setReplyingToComment(null);
+      } else {
+        toast.error(res.message || (lang === "vi" ? "Không thể gửi bình luận." : "Unable to post the comment."));
       }
     } catch (err) {
       console.error("Error submitting comment:", err);
+      toast.error(lang === "vi" ? "Không thể gửi bình luận." : "Unable to post the comment.");
     } finally {
       setCommentSubmitting(false);
     }
@@ -389,7 +570,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={lang === "vi" ? "Tìm kiếm tác phẩm, tác giả..." : "Search stories, authors..."}
+              placeholder={lang === "vi" ? "Tìm theo tag, thể loại hoặc nội dung..." : "Search tags, genres, or story content..."}
               className="w-full pl-9 pr-8 py-2 text-sm rounded-full border border-slate-200 dark:border-slate-700 bg-[#F0F2F5] dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
             />
             {searchQuery && (
@@ -399,7 +580,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
             )}
           </div>
           <button
-            onClick={() => fetchFeed(selectedGenre)}
+            onClick={() => fetchFeed(feedType)}
             disabled={loading}
             className="p-2 rounded-full bg-[#F0F2F5] dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shrink-0"
             title={lang === "vi" ? "Làm mới" : "Refresh"}
@@ -408,38 +589,102 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
           </button>
         </div>
 
-        {/* Row 2: genre chips */}
-        <div className="flex gap-1.5 overflow-x-auto pt-2 pb-0.5 scrollbar-none max-w-2xl mx-auto">
-          {genres.map((g) => {
-            const isActive = selectedGenre === g.id;
-            return (
-              <button
-                key={g.id}
-                onClick={() => { setSelectedGenre(g.id); fetchFeed(g.id); }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
-                  isActive
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "bg-[#F0F2F5] dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
-              >
-                {lang === "vi" ? g.labelVi : g.labelEn}
-              </button>
-            );
-          })}
-          {(searchQuery || selectedGenre !== "Tất cả") && (
+        <div className="flex gap-2 max-w-2xl mx-auto pt-2">
+          {([
+            { id: "recommended", vi: "Khám phá", en: "For you" },
+            { id: "following", vi: "Đang theo dõi", en: "Following" },
+          ] as const).map((tab) => (
             <button
-              onClick={() => { setSearchQuery(""); setSelectedGenre("Tất cả"); fetchFeed("Tất cả"); }}
-              className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 flex items-center gap-1"
+              key={tab.id}
+              onClick={() => setFeedType(tab.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                feedType === tab.id
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-[#F0F2F5] dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+              }`}
             >
-              <X className="w-3 h-3" />
-              {lang === "vi" ? "Xóa lọc" : "Clear"}
+              {lang === "vi" ? tab.vi : tab.en}
             </button>
+          ))}
+        </div>
+
+        <div className="relative max-w-2xl mx-auto pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsGenreMenuOpen((open) => !open)}
+              aria-expanded={isGenreMenuOpen}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#F0F2F5] dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-2"
+            >
+              {lang === "vi" ? "Thể loại & tag" : "Genres & tags"}
+              {selectedGenres.length > 0 && (
+                <span className="rounded-full bg-indigo-600 text-white px-1.5 min-w-5 text-center">
+                  {selectedGenres.length}
+                </span>
+              )}
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isGenreMenuOpen ? "rotate-90" : ""}`} />
+            </button>
+            {selectedGenres.map((genre) => (
+              <button
+                key={genre}
+                onClick={() => setSelectedGenres((prev) => prev.filter((item) => item !== genre))}
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 flex items-center gap-1"
+              >
+                {genre}<X className="w-3 h-3" />
+              </button>
+            ))}
+            {(searchQuery || selectedGenres.length > 0) && (
+              <button
+                onClick={() => { setSearchQuery(""); setSelectedGenres([]); }}
+                className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              >
+                {lang === "vi" ? "Xóa bộ lọc" : "Clear filters"}
+              </button>
+            )}
+          </div>
+          {isGenreMenuOpen && (
+            <div className="absolute left-0 top-full z-30 mt-2 w-full max-w-xl max-h-[65vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-xl">
+              {genreGroups.map((group) => (
+                <fieldset key={group.labelEn} className="mb-4 last:mb-0">
+                  <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {lang === "vi" ? group.labelVi : group.labelEn}
+                  </legend>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {group.options.map((option) => {
+                      const checked = selectedGenres.includes(option.id);
+                      return (
+                        <label
+                          key={option.id}
+                          className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs cursor-pointer transition-colors ${
+                            checked
+                              ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300"
+                              : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setSelectedGenres((prev) => (
+                              checked
+                                ? prev.filter((item) => item !== option.id)
+                                : [...prev, option.id]
+                            ))}
+                            className="accent-indigo-600"
+                          />
+                          {lang === "vi" ? option.vi : option.en}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ))}
+            </div>
           )}
         </div>
       </div>
 
       {/* Main Feed — scroll area */}
-      <div className="flex-1 overflow-y-auto py-4 px-3">
+      <div ref={feedScrollRef} className="flex-1 overflow-y-auto py-4 px-3">
         <div className="max-w-[680px] mx-auto">
           {loading && posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -452,12 +697,18 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
             <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8">
               <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">
-                {lang === "vi" ? "Chưa có bài đăng nào trong chuyên mục này" : "No stories published in this category yet"}
+                {feedType === "following"
+                  ? (lang === "vi" ? "Bảng tin theo dõi đang trống" : "Your following feed is empty")
+                  : (lang === "vi" ? "Chưa có bài đăng nào trong chuyên mục này" : "No stories published in this category yet")}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-                {lang === "vi"
-                  ? "Hãy là người đầu tiên sáng tác và bấm 'Lưu & Đăng bài' trong trình soạn thảo để chia sẻ tác phẩm với cộng đồng!"
-                  : "Be the first to create and click 'Save & Publish' in the editor to share your story with the community!"}
+                {feedType === "following"
+                  ? (lang === "vi"
+                      ? "Theo dõi các tác giả bạn yêu thích để xem tác phẩm mới của họ tại đây."
+                      : "Follow authors you enjoy to see their new stories here.")
+                  : (lang === "vi"
+                      ? "Hãy là người đầu tiên sáng tác và bấm 'Lưu & Đăng bài' trong trình soạn thảo để chia sẻ tác phẩm với cộng đồng!"
+                      : "Be the first to create and click 'Save & Publish' in the editor to share your story with the community!")}
               </p>
             </div>
           ) : filteredPosts.length === 0 ? (
@@ -555,9 +806,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   {post.tags && post.tags.length > 0 && (
                     <div className="px-4 pb-2 flex flex-wrap gap-1.5">
                       {post.tags.slice(0, 4).map((tag: string, idx: number) => (
-                        <span key={idx} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        <button
+                          key={idx}
+                          onClick={() => setSearchQuery(tag)}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-300"
+                        >
                           #{tag}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -583,7 +838,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                     </div>
                   )}
 
-                  {/* Action bar: like, comment, views, read */}
+                  {/* Action bar: like, comment, share, views, read */}
                   <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <LikeButtonMorphicon
@@ -598,6 +853,14 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>{post.comments_count}</span>
+                      </button>
+                      <button
+                        onClick={() => void handleSharePost(post)}
+                        className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        aria-label={lang === "vi" ? "Chia sẻ bài viết" : "Share post"}
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>{lang === "vi" ? "Chia sẻ" : "Share"}</span>
                       </button>
                       <div className="flex items-center gap-1 text-xs text-slate-400">
                         <Eye className="w-3.5 h-3.5" />
@@ -614,6 +877,16 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   </div>
                 </div>
               ))}
+              {hasMore && (
+                <div ref={loadMoreSentinelRef} className="flex justify-center py-6 text-xs text-slate-400">
+                  {loadingMore && (
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      {lang === "vi" ? "Đang tải thêm tác phẩm..." : "Loading more stories..."}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -662,7 +935,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8">
+            <div onScroll={handleReaderScroll} className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8">
               {/* Fanfiction Copyright Disclaimer Banner */}
               {activePost.is_fanfiction && (
                 <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-xs sm:text-sm leading-relaxed flex items-start gap-3 shadow-sm">
@@ -720,6 +993,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                     count={activePost.likes_count}
                     onToggle={(liked) => handleLikeToggle(activePost.id, liked)}
                   />
+                  <button
+                    onClick={() => void handleSharePost(activePost)}
+                    className="px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>{lang === "vi" ? "Chia sẻ" : "Share"}</span>
+                  </button>
                   <div className="flex items-center gap-1.5">
                     <Eye className="w-4 h-4 text-slate-400" />
                     <span>{activePost.views_count} lượt xem</span>

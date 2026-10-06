@@ -1,6 +1,6 @@
-# project.md — Tổng quan dự án NarrAI
+# Tổng quan dự án NarrAI
 
-> Tài liệu bối cảnh cho cả con người và AI agent. Tổng hợp từ README của dự án. Xem `agent.md` để biết quy tắc làm việc.
+Tài liệu này tóm tắt mục tiêu sản phẩm, kiến trúc và trạng thái các tính năng chính. Quy tắc làm việc dành cho agent được lưu trong `agent.md`.
 
 ## 1. Giới thiệu
 
@@ -8,7 +8,7 @@
 - **Mô tả**: Hệ sinh thái AI giúp tác giả trẻ chấp bút tiểu thuyết, kịch bản và truyện tranh Manga, kết hợp mạng xã hội văn học và cơ chế bảo vệ lịch sử dân tộc Việt Nam cùng bản quyền IP.
 - **Bối cảnh**: Sản phẩm dự thi **iStartup 2026** (Cuộc thi Khởi nghiệp Đổi mới Sáng tạo).
 - **Đội thi**: Những ngôi sao mộng mơ, Trường Quốc tế – ĐHQGHN (VNU-IS).
-- **Phiên bản**: v3.0 (Production). **Trạng thái kiểm thử**: 203/203 test pass.
+- **Trạng thái**: Đang phát triển. Kết quả kiểm thử phụ thuộc vào từng bộ test; xem mục 9.
 
 ## 2. Vấn đề & giá trị
 
@@ -17,7 +17,7 @@
 - **Điểm khác biệt**:
   - Bảo vệ lịch sử dân tộc (31 anh hùng) và gắn nhãn bản quyền cho tác phẩm phái sinh.
   - Edge AI: gợi ý bảng tin chạy ngay trên trình duyệt bằng TensorFlow.js, giảm chi phí backend.
-  - Độ sẵn sàng cao nhờ ma trận dự phòng nhiều model và nhiều API key.
+  - Dự phòng model và API key giúp xử lý một số lỗi hoặc giới hạn từ nhà cung cấp.
 
 ## 3. Đối tượng người dùng
 
@@ -33,10 +33,10 @@
 
 | Agent | File | Nhiệm vụ cốt lõi |
 |---|---|---|
-| 1. Q&A Intake Refiner | `qa_refiner.py` | Phỏng vấn ý tưởng kiểu chat; Dual-Matrix Fallback (Qwen 2.5 27B → Llama-3.3-70B → Llama-3.1-8B qua 3 API key); Concept Mirroring Prompt |
-| 2. Story Generator | `story_generator.py` | Viết tiểu thuyết theo 5 nhịp kịch tính; nhiều thể loại; cổng chặn xuyên tạc lịch sử |
+| 1. Q&A Intake Refiner | `qa_refiner.py` | Phỏng vấn ý tưởng; chuyển model hoặc API key khi cần; làm rõ ý tưởng bằng câu hỏi dựa trên nội dung người viết |
+| 2. Story Generator | `story_generator.py` | Viết truyện theo 5 nhịp kịch tính; nhiều thể loại; kiểm tra nội dung lịch sử; lưu bản nháp khi luồng sinh bị gián đoạn |
 | 3. Copilot | `copilot_agent.py` | Live Editor; sửa chính xác đoạn `selectedText`; HeadingPreservationEngine giữ mốc `## Chương X` |
-| 4. Comic Director | `comic_agent.py` | Chuyển bản thảo thành kịch bản Manga: panel, lời thoại, prompt sinh ảnh |
+| 4. Comic Director | `comic_agent.py` | Chuyển bản thảo thành kịch bản Manga; duy trì thông tin nhân vật và bối cảnh; hỗ trợ tải lại ảnh lỗi |
 
 **Thể loại hỗ trợ**: Lịch sử/Dã sử, Kỳ ảo/Tu chân, Đô thị/Chữa lành, Sci-Fi/Cyberpunk, Trinh thám/Giật gân.
 
@@ -44,17 +44,19 @@
 
 ### 4.2 Bảo vệ lịch sử & IP
 - Bảo hộ 31 Anh hùng Dân tộc (ví dụ: Ngô Quyền, Hai Bà Trưng, Lý Thường Kiệt, Trần Hưng Đạo, Lê Lợi, Nguyễn Huệ – Quang Trung, Hồ Chí Minh, Võ Nguyên Giáp).
-- AI Semantic Classifier chặn xuyên tạc chiến công hoặc đảo niên đại, kể cả khi người dùng lách từ ngữ.
+- Bộ kiểm tra phát hiện một số dạng xuyên tạc chiến công hoặc đảo ngược kết quả trận chiến. Quy tắc nhận diện chuẩn hóa dấu để xử lý cả văn bản tiếng Việt không dấu.
 - Ba chế độ tự nhận diện: **Chính sử**, **Dã sử**, **Hư cấu tự do**.
 - Tự nhận diện thương hiệu bản quyền thương mại và gắn disclaimer cho fanfiction.
 
 ### 4.3 Mạng xã hội văn học
-- Community Feed: khám phá, lọc theo thể loại, tìm kiếm.
+- Community Feed: bảng tin đề xuất và theo dõi, tìm kiếm, lọc nhiều thể loại và tải thêm nội dung.
+- Chia sẻ liên kết tác phẩm, thích và theo dõi tác giả; hỗ trợ đề xuất và xu hướng.
 - Follow/Unfollow tác giả; bình luận phân cấp (threaded).
 - Tủ sách cá nhân (Bookmarks) có phân loại.
 - Leaderboard/Trending theo tuần và tháng.
 - Trình đọc: truyện chữ và Manga fullscreen lật trang.
 - Hệ thống tiền tệ **Xu** (`banking_service.py`), nhắn tin nội bộ (`messenger_router.py`), xuất bản thảo `.txt`, `.md`, `.pdf` (`export_router.py`).
+- Nạp Xu đang ở chế độ demo MVP và chưa yêu cầu xác minh giao dịch.
 
 ### 4.4 Tối ưu hiệu năng
 - TensorFlow.js Hybrid: gợi ý cá nhân hóa phía client, cache IndexedDB ≤ 15MB.
@@ -113,7 +115,8 @@ NarrAI/
 │       ├── services/    # tfjsRecommender.ts, indexedDBCache.ts
 │       └── lib/         # api.ts, i18n.ts, types.ts
 ├── agent.md
-├── project.md
+├── PROJECT.md
+├── PRODUCT.md
 └── README.md
 ```
 
@@ -137,16 +140,20 @@ NarrAI/
 
 **Chạy**: backend `python main.py` (cổng 8000, Swagger tại `/docs`); frontend `npm run dev` (cổng 3000). Chi tiết lệnh xem `agent.md`.
 
-## 9. Kiểm thử & chất lượng
+## 9. Kiểm thử và xác minh
 
-| Nhóm | Kết quả |
+Các kiểm thử hồi quy gần đây đã chạy thành công:
+
+| Phạm vi | Kết quả |
 |---|---|
-| Core E2E | 111/111 |
-| Round 5 Integration | 71/71 |
-| Round 7 AI Resilience & Fallback | 21/21 |
-| **Tổng** | **203/203** |
+| Bộ backend tích hợp (`run_all_tests.py`) | 204 test đạt |
+| Lịch sử và chế độ sáng tác (3 bộ test) | 57 test đạt |
+| Truyện tranh | 69 test đạt |
+| Mạng xã hội (2 bộ test) | 92 test đạt |
+| Tiếp tục luồng sinh truyện | 3 test đạt |
+| Frontend | `npm run build` thành công |
 
-Frontend: `npm run build` thành công, 0 lỗi TypeScript.
+Đây là kết quả kiểm thử local; chúng không xác nhận thay đổi đã được triển khai lên production.
 
 ## 10. Triển khai
 
@@ -165,21 +172,15 @@ Frontend: `npm run build` thành công, 0 lỗi TypeScript.
 | Xu | Đơn vị tiền tệ nội bộ của nền tảng |
 | Edge AI | Mô hình gợi ý chạy ngay trên trình duyệt |
 
-## 12. Đã xác minh & Chuẩn hóa kỹ thuật (Technical Standards)
+## 12. Lưu ý vận hành
 
-Toàn bộ 5 điểm nghi vấn kỹ thuật đã được đối soát trực tiếp với mã nguồn và chuẩn hóa thống nhất:
-
-1. **Phiên bản Python**: Chuẩn hóa toàn hệ thống yêu cầu `Python ≥ 3.10` (khuyên dùng Python 3.11 hoặc 3.12 trên môi trường máy chủ production).
-2. **Mô hình AI**: Sử dụng tên dòng mô hình thân thiện trong tài liệu (Qwen, Llama 3.3 70B, Llama 3.1 8B, GPT-OSS); cơ chế Dual-Matrix Fallback trong `qa_refiner.py` tự động luân chuyển giữa các dòng mô hình này.
-3. **Lệnh khởi chạy Render**: Thống nhất dùng lệnh `cd backend && python main.py` (file `main.py` tự động lấy biến `$PORT` từ Render và kích hoạt `uvicorn`).
-4. **Cấu hình bản dựng Vercel**: Trên Vercel, ứng dụng tự động chạy chế độ Next.js native (`next.config.mjs` tự động bỏ `output: 'export'` khi biến `VERCEL` tồn tại). Để trống mục Output Directory trên Vercel Dashboard (mặc định `.next`).
-5. **Bảo mật JWT**: Tệp mẫu `backend/.env.example` đã được tạo với giá trị placeholder an toàn; bổ sung cảnh báo không bao giờ sử dụng khóa mẫu trong môi trường Production.
+- Python tối thiểu 3.10; khuyến nghị dùng Python 3.11 hoặc 3.12.
+- Không dùng giá trị mẫu trong `.env.example` làm khóa bí mật production.
+- Các thay đổi trên nhánh làm việc cần được triển khai riêng trước khi xác minh trên production.
 
 ## 13. Lộ trình gợi ý
 
-Phần này chưa có trong README, bạn có thể điều chỉnh:
-
-- Hoàn thiện sinh ảnh Manga từ prompt do Comic Director tạo.
+- Tiếp tục cải thiện độ tin cậy tạo và tải ảnh Manga.
 - Mở rộng danh sách nhân vật/sự kiện lịch sử được bảo hộ.
 - Tăng độ phủ test cho frontend.
 - Theo dõi chi phí và rate limit Groq khi người dùng tăng.

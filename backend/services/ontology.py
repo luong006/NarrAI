@@ -25,9 +25,25 @@ Implements:
 import re
 import json
 import uuid
+import unicodedata
 from enum import Enum
 from typing import List, Dict, Optional, Any, Tuple
 from pydantic import BaseModel, Field
+
+
+def _normalize_historical_text(text: str) -> str:
+    decomposed = unicodedata.normalize("NFD", text.casefold())
+    without_diacritics = "".join(
+        character
+        for character in decomposed
+        if unicodedata.category(character) != "Mn"
+    )
+    return without_diacritics.replace("đ", "d")
+
+
+def _matches_normalized_historical_pattern(pattern: str, normalized_text: str) -> bool:
+    normalized_pattern = _normalize_historical_text(pattern)
+    return re.search(normalized_pattern, normalized_text, re.DOTALL) is not None
 
 
 # ==============================================================================
@@ -562,30 +578,30 @@ class AISemanticHistoricalClassifier:
         if not text or not isinstance(text, str):
             return False, 0.0, ""
 
-        t_lower = text.lower()
+        normalized_text = _normalize_historical_text(text)
 
         # Pass 1: Semantic evasion patterns
         # 1. Mongol triumph evasion on Bach Dang
-        if re.search(r"(?i)\b(?:quân\s+)?(?:mông\s+cổ|nguyên\s+mông|nam\s+hán)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|khải\s+hoàn|toàn\s+thắng|đại\s+thắng|chiến\s+thắng|làm\s+chủ|thắng\s+lớn)\b.*?\b(?:sông\s+bạch\s+đằng|bạch\s+đằng)\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:quân\s+)?(?:mông\s+cổ|nguyên\s+mông|nam\s+hán)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|khải\s+hoàn|toàn\s+thắng|đại\s+thắng|chiến\s+thắng|làm\s+chủ|thắng\s+lớn)\b.*?\b(?:sông\s+bạch\s+đằng|bạch\s+đằng)\b", normalized_text):
             return True, 0.95, "Xuyên tạc kết quả trận Bạch Đằng (quân xâm lược thắng)"
-        if re.search(r"(?i)\b(?:sông\s+bạch\s+đằng|bạch\s+đằng)\b.*?\b(?:quân\s+)?(?:mông\s+cổ|nguyên\s+mông|nam\s+hán)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|khải\s+hoàn|toàn\s+thắng|đại\s+thắng|chiến\s+thắng)\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:sông\s+bạch\s+đằng|bạch\s+đằng)\b.*?\b(?:quân\s+)?(?:mông\s+cổ|nguyên\s+mông|nam\s+hán)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|khải\s+hoàn|toàn\s+thắng|đại\s+thắng|chiến\s+thắng)\b", normalized_text):
             return True, 0.95, "Xuyên tạc kết quả trận Bạch Đằng (quân xâm lược thắng)"
 
         # 2. De Castries / French victory inversion at Dien Bien Phu
-        if re.search(r"(?i)\b(?:tướng\s+)?(?:de\s+castries|đờ\s+cát|quân\s+pháp|thực\s+dân\s+pháp)\b.*?\b(?:mừng|uống\s+(?:champagne|sâm\s+panh)|nâng\s+ly(?:\s+(?:sâm\s+panh|champagne))?|sâm\s+panh|champagne|hân\s+hoan|toàn\s+thắng)\b.*?\b(?:(?:đánh\s+tan|tiêu\s+diệt)\s+(?:quân\s+đội\s+)?(?:việt\s+minh|quân\s+ta)|(?:chiến\s+thắng|toàn\s+thắng|đại\s+thắng|thắng\s+trận)\s*(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh))\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:tướng\s+)?(?:de\s+castries|đờ\s+cát|quân\s+pháp|thực\s+dân\s+pháp)\b.*?\b(?:mừng|uống\s+(?:champagne|sâm\s+panh)|nâng\s+ly(?:\s+(?:sâm\s+panh|champagne))?|sâm\s+panh|champagne|hân\s+hoan|toàn\s+thắng)\b.*?\b(?:(?:đánh\s+tan|tiêu\s+diệt)\s+(?:quân\s+đội\s+)?(?:việt\s+minh|quân\s+ta)|(?:chiến\s+thắng|toàn\s+thắng|đại\s+thắng|thắng\s+trận)\s*(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh))\b", normalized_text):
             return True, 0.98, "Xuyên tạc lịch sử chiến dịch Điện Biên Phủ (quân Pháp thắng)"
-        if re.search(r"(?i)\b(?:tướng\s+)?(?:de\s+castries|đờ\s+cát)\b.*?\b(?:chiến\s+thắng\s+(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh)|toàn\s+thắng\s+(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh)|đánh\s+tan\s+việt\s+minh)\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:tướng\s+)?(?:de\s+castries|đờ\s+cát)\b.*?\b(?:chiến\s+thắng\s+(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh)|toàn\s+thắng\s+(?:tại|ở)?\s*(?:điện\s+biên|mường\s+thanh)|đánh\s+tan\s+việt\s+minh)\b", normalized_text):
             return True, 0.98, "Xuyên tạc lịch sử chiến dịch Điện Biên Phủ"
 
         # 3. Metaphorical defamation of hero Tran Quoc Toan
-        if re.search(r"(?i)\b(?:ngọn\s+cờ\s+thêu\s+sáu\s+chữ\s+vàng|cờ\s+thêu\s+sáu\s+chữ\s+vàng|sáu\s+chữ\s+vàng)\b.*?\b(?:chìm\s+nghỉm|vứt\s+bỏ|bị\s+đốt|rách\s+nát)\b.*?\b(?:quỳ\s+gối|bảo\s+toàn\s+tính\s+mạng|cầu\s+xin|xin\s+hàng)\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:ngọn\s+cờ\s+thêu\s+sáu\s+chữ\s+vàng|cờ\s+thêu\s+sáu\s+chữ\s+vàng|sáu\s+chữ\s+vàng)\b.*?\b(?:chìm\s+nghỉm|vứt\s+bỏ|bị\s+đốt|rách\s+nát)\b.*?\b(?:quỳ\s+gối|bảo\s+toàn\s+tính\s+mạng|cầu\s+xin|xin\s+hàng)\b", normalized_text):
             return True, 0.92, "Xúc phạm hình tượng anh hùng thiếu niên Trần Quốc Toản"
 
         # 4. Other historic battle inversions
-        if re.search(r"(?i)\b(?:tôn\s+sĩ\s+nghị|quân\s+thanh|mãn\s+thanh)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|toàn\s+thắng|tiêu\s+diệt\s+quân\s+tây\s+sơn)\b.*?\b(?:ngọc\s+hồi|đống\s+đa|thăng\s+long)\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:tôn\s+sĩ\s+nghị|quân\s+thanh|mãn\s+thanh)\b.*?\b(?:ca\s+khúc\s+khải\s+hoàn|toàn\s+thắng|tiêu\s+diệt\s+quân\s+tây\s+sơn)\b.*?\b(?:ngọc\s+hồi|đống\s+đa|thăng\s+long)\b", normalized_text):
             return True, 0.95, "Xuyên tạc đại thắng Ngọc Hồi - Đống Đa"
 
-        if re.search(r"(?i)\b(?:quách\s+quỳ|quân\s+tống|nhà\s+tống)\b.*?\b(?:chọc\s+thủng|vượt\s+qua|tiêu\s+diệt\s+đại\s+việt|toàn\s+thắng)\b.*?\b(?:như\s+nguyệt)\b", text, re.DOTALL):
+        if _matches_normalized_historical_pattern(r"(?i)\b(?:quách\s+quỳ|quân\s+tống|nhà\s+tống)\b.*?\b(?:chọc\s+thủng|vượt\s+qua|tiêu\s+diệt\s+đại\s+việt|toàn\s+thắng)\b.*?\b(?:như\s+nguyệt)\b", normalized_text):
             return True, 0.95, "Xuyên tạc chiến thắng phòng tuyến Như Nguyệt"
 
         # Pass 2: LLM semantic analysis fallback
@@ -631,11 +647,12 @@ class HistoricalGroundingGatekeeper:
 
         violations = []
         combined_text = f"{user_prompt}\n{text}".strip() if user_prompt else text
+        normalized_text = _normalize_historical_text(combined_text)
 
         # Check character-specific defeat / distortion patterns
         for key, canon in VIETNAMESE_HISTORICAL_CANON.items():
             pattern = canon.get("defeat_regex")
-            if pattern and re.search(pattern, combined_text, re.DOTALL):
+            if pattern and _matches_normalized_historical_pattern(pattern, normalized_text):
                 hero_name = canon["names"][0].title()
                 violations.append(
                     f"HISTORICAL_VIOLATION: Phát hiện xuyên tạc hình tượng lịch sử anh hùng '{hero_name}'. "
@@ -644,7 +661,7 @@ class HistoricalGroundingGatekeeper:
 
         # Check battle outcome distortions
         for pattern, desc in BATTLE_OUTCOME_DISTORTION_PATTERNS:
-            if re.search(pattern, combined_text, re.DOTALL):
+            if _matches_normalized_historical_pattern(pattern, normalized_text):
                 violations.append(f"HISTORICAL_VIOLATION: {desc}")
 
         # Check AI semantic classifier for regex evasion
@@ -1352,4 +1369,3 @@ def detect_commercial_ip(text: str) -> CommercialIPResult:
         "creative_suggestions": suggestions,
         "fanfiction_disclaimer": disclaimer
     })
-

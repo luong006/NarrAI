@@ -1,73 +1,60 @@
-# NarrAI — Nền Tảng Đồng Sáng Tác Văn Học & Mạng Xã Hội Truyện AI Thế Hệ Mới
+# NarrAI
 
-<p align="center">
-  <strong>Hệ sinh thái AI hỗ trợ tác giả chấp bút tiểu thuyết, kịch bản & truyện tranh Manga, tích hợp bảo vệ lịch sử dân tộc và mạng xã hội văn học tương tác cao.</strong>
-</p>
+NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành cho tác giả, độc giả và người sáng tạo truyện tranh. Nền tảng hỗ trợ phát triển ý tưởng, viết và biên tập bản thảo, chuyển thể thành truyện tranh, sau đó chia sẻ tác phẩm với cộng đồng.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Version-v3.0--Production-indigo.svg" alt="Version">
-  <img src="https://img.shields.io/badge/Python-3.10%2B%20(Rec%203.11%2F3.12)-blue.svg" alt="Python">
-  <img src="https://img.shields.io/badge/Next.js-14.2%20(React)-black.svg" alt="Next.js">
-  <img src="https://img.shields.io/badge/FastAPI-0.110+-teal.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Tests-203%2F203%20PASS%20(100%25)-success.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Hackathon-iStartup%202026-gold.svg" alt="iStartup 2026">
-</p>
+## Thông tin dự án
 
----
+- Đội thi: Những ngôi sao mộng mơ
+- Đơn vị: Trường Quốc tế, Đại học Quốc gia Hà Nội (VNU-IS)
+- Cuộc thi: iStartup 2026
 
-## 📖 Giới Thiệu Tổng Quan
+## Tính năng
 
-**NarrAI** là nền tảng đồng sáng tác văn học và mạng xã hội thế hệ mới, giải quyết trọn vẹn rào cản cạn kiệt ý tưởng và viết lách của tác giả trẻ thông qua đội ngũ **Multi-Agent AI chuyên sâu**. NarrAI kết hợp mô hình ngôn ngữ lớn (LLM) với thuật toán đề xuất **TensorFlow.js Hybrid (Edge AI)** chạy trực tiếp trên trình duyệt, đồng thời tiên phong thiết lập hệ thống **bảo vệ lịch sử dân tộc Việt Nam** và bản quyền sở hữu trí tuệ (IP).
-
-### 🏆 Đội thi & Dự án
-- **Đội thi**: Những ngôi sao mộng mơ
-- **Đơn vị**: Trường Quốc tế - Đại học Quốc gia Hà Nội (VNU-IS)
-- **Cuộc thi**: Cuộc thi Khởi nghiệp Đổi mới Sáng tạo **iStartup 2026**
-
----
-
-## ✨ Tính Năng Nổi Bật (Key Features)
-
-### 1. 🤖 Đội Ngũ Multi-Agent Phối Hợp Nhịp Nhàng
+### 1. Quy trình sáng tác có AI hỗ trợ
 - **Agent 1 — Q&A Intake Refiner (`qa_refiner.py`)**: 
   - Khung chat phỏng vấn ý tưởng tự nhiên phong cách Gemini/ChatGPT.
-  - **Dual-Matrix Fallback (Ma trận dự phòng kép)**: Luân chuyển tự động giữa các dòng mô hình (`Qwen` ➔ `Llama 3.3 70B` ➔ `Llama 3.1 8B`) qua 3 Groq API keys, đảm bảo uptime 99.9%.
-  - **Concept Mirroring Prompt**: Triệt tiêu văn mẫu sáo rỗng, bắt buộc bóc tách từ khóa cụ thể của tác giả và hỏi ngược gợi mở 1-2 câu sâu sắc.
+  - Dual-Matrix Fallback: chuyển model hoặc API key khi gặp lỗi hay giới hạn dịch vụ.
+  - Concept Mirroring: phản hồi dựa trên chi tiết trong ý tưởng và đặt câu hỏi làm rõ.
 - **Agent 2 — Story Generator (`story_generator.py`)**:
-  - Chấp bút tiểu thuyết theo **Cấu trúc 5 Nhịp Kịch Tính (5 Dramatic Narrative Beats)**: Hook ➔ Rising Friction ➔ Turning Point ➔ Visceral Climax ➔ Cliffhanger.
+  - Hỗ trợ dàn ý và viết truyện theo năm nhịp: Hook, Rising Friction, Turning Point, Visceral Climax và Cliffhanger.
   - Hỗ trợ đa dạng thể loại: Lịch sử/Dã sử, Kỳ ảo/Tu chân, Đô thị/Chữa lành, Sci-Fi/Cyberpunk, Trinh thám/Giật gân.
 - **Agent 3 — Copilot Flexible Surgery (`copilot_agent.py`)**:
   - Biên tập bản thảo theo thời gian thực (Live Editor).
-  - **Phẫu thuật đoạn văn bôi đen (`selectedText`)**: Chỉ sửa chính xác vùng tác giả yêu cầu, không thay đổi phần còn lại.
-  - **HeadingPreservationEngine**: Bảo toàn tuyệt đối thứ tự và vị trí các mốc chương (`## Chương X`) khi biên tập nhiều chương.
+  - Chỉnh sửa đoạn văn được chọn mà không thay đổi phần còn lại của bản thảo.
+  - Giữ các tiêu đề chương khi biên tập nội dung nhiều chương.
 - **Agent 4 — Comic Director (`comic_agent.py`)**:
-  - Phân tích bản thảo và tự động chuyển thể thành kịch bản truyện tranh Manga gồm các khung hình (Panels), lời thoại và prompt sinh ảnh chuyên nghiệp.
+  - Chuyển bản thảo thành kịch bản truyện tranh gồm khung hình, lời thoại và prompt tạo ảnh.
+  - Duy trì thông tin nhân vật và bối cảnh giữa các khung. Ảnh có thể tải lại khi gặp lỗi; trang đầu được ưu tiên tải trước.
+  - Giao diện đọc giữ phần điều khiển ngoài khung tranh, không phủ thêm thành phần giao diện ứng dụng lên ảnh truyện.
 
-### 2. 🇻🇳 Hệ Thống Bảo Vệ Lịch Sử Dân Tộc & Bản Quyền IP
-- **Bảo hộ 31 Anh hùng Dân tộc**: Ngô Quyền, Hai Bà Trưng, Lý Thường Kiệt, Trần Hưng Đạo, Lê Lợi, Nguyễn Huệ - Quang Trung, Hồ Chí Minh, Võ Nguyên Giáp...
-- **AI Semantic Classifier**: Ngăn chặn hành vi xuyên tạc chiến công hoặc đảo ngược niên đại lịch sử dân tộc ngay cả khi người dùng dùng từ lách luật.
-- **3 Chế độ sáng tác tự động nhận diện (Auto-detect)**:
-  - *Chính sử*: Bảo toàn 100% sự kiện và nhân vật lịch sử.
-  - *Dã sử*: Cho phép sáng tạo nhân vật hư cấu trong bối cảnh lịch sử chân thực.
-  - *Hư cấu tự do*: Giải phóng tối đa trí tưởng tượng cho các thể loại hiện đại/kỳ ảo.
-- **Bảo hộ bản quyền IP**: Tự động nhận diện thương hiệu bản quyền thương mại và gắn nhãn disclaimer cho tác phẩm phái sinh (fanfiction).
+### 2. Kiểm tra nội dung lịch sử và nhận diện IP
+- Bộ quy tắc lịch sử bao gồm các nhân vật và sự kiện Việt Nam qua nhiều giai đoạn.
+- Bộ kiểm tra phát hiện một số dạng xuyên tạc kết quả trận chiến và hình tượng nhân vật lịch sử, kể cả cách viết tiếng Việt không dấu.
+- Ba chế độ sáng tác:
+  - *Chính sử*: Ưu tiên tuân thủ các sự kiện và nhân vật lịch sử.
+  - *Dã sử*: Cho phép nhân vật hư cấu trong bối cảnh lịch sử.
+  - *Hư cấu tự do*: Không áp dụng các ràng buộc lịch sử.
+- Nhận diện một số thương hiệu có bản quyền và hiển thị thông tin tác phẩm phái sinh khi xuất bản.
 
-### 3. 🌐 Mạng Xã Hội Văn Học Tương Tác Cao (Social Feed)
-- **Bảng tin cộng đồng (Community Feed)**: Khám phá, lọc theo thể loại và tìm kiếm tác phẩm.
-- **Theo dõi tác giả (Follow / Unfollow)**: Ưu tiên bảng tin từ các tác giả yêu thích.
-- **Bình luận phân cấp (Threaded Comments)**: Độc giả thảo luận, phản hồi lồng nhau và trích dẫn tác giả.
-- **Tủ sách cá nhân (Bookmarks)**: Lưu trữ và phân loại truyện theo danh mục.
-- **Hệ thống Xếp hạng (Leaderboard/Trending)**: Vinh danh các tác phẩm nổi bật theo tuần và tháng.
-- **Trình đọc chuyên dụng**: Hỗ trợ chuyển đổi giữa Truyện chữ và Trình đọc Manga fullscreen với thao tác lật trang trực quan.
+### 3. Cộng đồng sáng tác
+- Bảng tin đề xuất và bảng tin tác giả đang theo dõi.
+- Tìm kiếm nội dung, lọc theo thể loại, phân trang tải thêm và đề xuất tác phẩm.
+- Theo dõi tác giả, thích và chia sẻ bài viết; liên kết chia sẻ mở được tác phẩm tương ứng.
+- Bình luận theo luồng, tủ sách cá nhân, bảng xếp hạng và xu hướng.
+- Nhắn tin nội bộ, xuất bản thảo `.txt`, `.md` hoặc `.pdf`, và đọc truyện chữ hoặc truyện tranh.
 
-### 4. ⚡ Công Nghệ Tối Ưu & TensorFlow.js Hybrid
-- **Client-Side Edge AI**: Khởi chạy mô hình nhúng cục bộ với TensorFlow.js, lưu cache IndexedDB (≤ 15MB) giúp cá nhân hóa bảng tin mà không tốn chi phí gọi backend.
-- **Hiệu năng cơ sở dữ liệu**: SQLite cấu hình chuẩn **WAL Mode** (`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`), composite indexes tối ưu tốc độ truy vấn đa luồng.
-- **Nén GZip Middleware**: Tối ưu băng thông cho toàn bộ API payload.
+### 4. Khả năng phục hồi khi sinh nội dung
+- Luồng sinh truyện có thể tiếp tục khi nhà cung cấp dừng do giới hạn độ dài.
+- Bản thảo đã nhận được lưu lại khi quá trình sinh bị gián đoạn, để tác giả có thể khôi phục nội dung chưa hoàn chỉnh.
+- Giao diện thông báo rõ khi bản nháp chưa hoàn tất.
+
+### 5. Hạ tầng
+- TensorFlow.js hỗ trợ cá nhân hóa bảng tin phía trình duyệt và lưu dữ liệu đệm trong IndexedDB.
+- Backend sử dụng SQLite WAL và GZip middleware.
 
 ---
 
-## 🏗 Kiến Trúc Hệ Thống (Architecture)
+## Kiến trúc hệ thống
 
 ```mermaid
 flowchart TD
@@ -116,7 +103,7 @@ flowchart TD
 
 ---
 
-## 📂 Cấu Trúc Thư Mục (Directory Structure)
+## Cấu trúc thư mục
 
 ```
 NarrAI/
@@ -140,8 +127,8 @@ NarrAI/
 │   │   ├── cache_service.py        # Cache quản lý phiên làm việc
 │   │   └── recommender_service.py  # Dịch vụ xuất vector nhúng cho TF.js
 │   ├── tests/
-│   │   ├── run_all_tests.py        # Test runner tự động (203 tests)
-│   │   ├── test_round7_qa_resilience.py # 21 tests kiểm thử độ bền AI & Fallback
+│   │   ├── run_all_tests.py        # Bộ kiểm thử tích hợp
+│   │   ├── test_round7_qa_resilience.py # Kiểm thử độ bền AI và fallback
 │   │   ├── test_round6_social_features.py
 │   │   ├── test_round6_historical_protection.py
 │   │   └── ... (Bộ test suites toàn diện)
@@ -178,21 +165,23 @@ NarrAI/
 │   ├── tailwind.config.ts
 │   └── tsconfig.json
 │
+├── PROJECT.md
+├── PRODUCT.md
 └── README.md
 ```
 
 ---
 
-## 🛠 Hướng Dẫn Cài Đặt & Khởi Chạy (Getting Started)
+## Cài đặt và chạy ứng dụng
 
-### Yêu Cầu Tiên Quyết (Prerequisites)
+### Yêu cầu
 - **Python**: 3.10 trở lên (khuyên dùng Python 3.11 hoặc 3.12)
 - **Node.js**: 18.x trở lên & **npm** / **pnpm**
 - **Groq API Keys**: Đăng ký miễn phí tại [Groq Console](https://console.groq.com)
 
 ---
 
-### 1. Cài Đặt Backend
+### Cài đặt backend
 
 ```bash
 # 1. Di chuyển vào thư mục backend
@@ -213,7 +202,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-#### Cấu hình tệp `backend/.env`:
+#### Cấu hình `backend/.env`
 ```env
 # Groq API Keys (có thể dùng chung 1 key hoặc chia tách để tối ưu rate limit)
 GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -231,7 +220,7 @@ NARRAI_MODERATOR_USERNAMES=
 DATABASE_URL=sqlite:///./narrai.db
 ```
 
-#### Khởi chạy máy chủ Backend:
+#### Khởi chạy backend
 ```bash
 python main.py
 ```
@@ -240,7 +229,7 @@ python main.py
 
 ---
 
-### 2. Cài Đặt Frontend
+### Cài đặt frontend
 
 Mở một cửa sổ Terminal mới:
 
@@ -262,34 +251,36 @@ npm run dev
 
 ---
 
-## 🧪 Kiểm Thử Hệ Thống (Automated Testing)
-
-Toàn bộ hệ thống NarrAI được trang bị bộ kiểm thử tự động toàn diện từ unit test đến end-to-end integration:
+## Kiểm thử
 
 ```bash
-# Chạy toàn bộ 203 bài kiểm tra backend
+# Chạy các bộ kiểm thử tích hợp backend
 cd backend
 python tests/run_all_tests.py
 ```
 
-**Kết quả kiểm toán chất lượng:**
-- **Core E2E Tests**: 111/111 PASS
-- **Round 5 Integration Tests**: 71/71 PASS
-- **Round 7 AI Resilience & Fallback Tests**: 21/21 PASS
-- **Tổng cộng**: **203/203 tests PASS (100%)**
-- **Frontend Type Check**: `npm run build` thành công, **0 lỗi TypeScript**.
+Các bộ hồi quy liên quan đến thay đổi gần đây có thể chạy riêng:
+
+```bash
+cd backend
+python -m unittest tests.test_adversarial_m2_historical_invariants tests.test_round6_historical_copyright tests.test_e2e_ontology_modes
+python -m unittest discover -s tests -p "test_comic*.py"
+python -m unittest discover -s tests -p "test_groq_client_stream_resume.py"
+```
+
+Kiểm tra frontend bằng `npm run build` trong thư mục `frontend`. Kết quả kiểm thử local không đồng nghĩa với việc phiên bản production đã được cập nhật.
 
 ---
 
-## 🚀 Hướng Dẫn Triển Khai Thực Tế (Deployment)
+## Triển khai
 
-### Backend (Render)
+### Backend trên Render
 - Tạo mới **Web Service** trên [Render](https://render.com).
 - Build Command: `pip install -r backend/requirements.txt`
 - Start Command: `cd backend && python main.py`
 - Cấu hình các biến môi trường `GROQ_API_KEY`, `JWT_SECRET` trên Render Dashboard.
 
-### Frontend (Vercel)
+### Frontend trên Vercel
 - Nhập dự án từ GitHub lên [Vercel](https://vercel.com).
 - Root Directory: `frontend`
 - Build Command: `npm run build`
@@ -298,7 +289,7 @@ python tests/run_all_tests.py
 
 ---
 
-## 📜 Giấy Phép & Bản Quyền (License & Team)
+## Nhóm dự án và bản quyền
 
 Dự án được phát triển với tinh thần cống hiến cho văn hóa đọc và cộng đồng sáng tác văn học Việt Nam.
 

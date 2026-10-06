@@ -200,8 +200,11 @@ export interface InteractSocialPostPayload {
 
 export interface SocialFeedParams {
   genre?: string;
+  genres?: string[];
+  q?: string;
   limit?: number;
   offset?: number;
+  feed_type?: 'recommended' | 'following';
 }
 
 export interface SocialFeedResponse {
@@ -213,6 +216,7 @@ export interface SocialFeedResponse {
     offset: number;
     has_more: boolean;
   };
+  message?: string;
 }
 
 export interface SocialPostDetailResponse {
@@ -221,5 +225,3 @@ export interface SocialPostDetailResponse {
   message?: string;
   detail?: string;
 }
-
-

@@ -222,6 +222,36 @@ class TestAdversarialVietnameseHistoricalInvariants(unittest.TestCase):
             f"VULNERABILITY: 'quân Mông Cổ đại thắng trên sông Bạch Đằng' bypassed AISemanticHistoricalClassifier!"
         )
 
+    def test_unaccented_historical_distortions_are_blocked(self):
+        """Vietnamese diacritics must not be an easy way to evade the historical guard."""
+        texts = [
+            "Quan Mong Co ca khuc khai hoan tren song Bach Dang.",
+            "Tuong De Castries nang ly sam panh mung chien thang tai Dien Bien Phu.",
+        ]
+
+        for text in texts:
+            with self.subTest(text=text):
+                is_distorted, confidence, _ = self.classifier.classify_semantic_distortion(text)
+                self.assertTrue(is_distorted)
+                self.assertGreaterEqual(confidence, 0.7)
+
+                is_valid, violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+                    text, mode=NarrativeMode.CHINH_SU
+                )
+                self.assertFalse(is_valid)
+                self.assertTrue(violations)
+
+    def test_unaccented_historically_accurate_story_remains_allowed(self):
+        text = (
+            "Nam 1789, Quang Trung chi huy quan Tay Son danh bai quan Man Thanh "
+            "trong tran Ngoc Hoi - Dong Da."
+        )
+        is_valid, violations = HistoricalGroundingGatekeeper.validate_historical_invariants(
+            text, mode=NarrativeMode.CHINH_SU
+        )
+        self.assertTrue(is_valid, f"Accurate story was falsely rejected: {violations}")
+        self.assertEqual(violations, [])
+
 
 if __name__ == "__main__":
     unittest.main()

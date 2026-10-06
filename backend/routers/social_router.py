@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Set, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 
 try:
     from db.models import (
@@ -30,6 +30,7 @@ try:
         publish_post,
         record_interaction,
         get_post_details,
+        search_relevance,
         export_concept_vectors,
         get_quantized_model_weights
     )
@@ -51,6 +52,7 @@ except ImportError:
         publish_post,
         record_interaction,
         get_post_details,
+        search_relevance,
         export_concept_vectors,
         get_quantized_model_weights
     )
@@ -129,6 +131,19 @@ async def require_moderator(
     return current_user
 
 
+def get_liked_post_ids(db: Session, user_id: Optional[int], post_ids: List[int]) -> Set[int]:
+    if not user_id or not post_ids:
+        return set()
+    return {
+        post_id
+        for (post_id,) in db.query(PostInteraction.post_id).filter(
+            PostInteraction.user_id == user_id,
+            PostInteraction.post_id.in_(post_ids),
+            PostInteraction.interaction_type == "LIKE",
+        ).distinct().all()
+    }
+
+
 # ==================== PYDANTIC SCHEMAS ====================
 
 class PublishPostRequest(BaseModel):
@@ -192,6 +207,8 @@ async def get_social_feed(
     limit: int = Query(20, ge=1, le=100, description="Số bài đăng mỗi trang"),
     offset: int = Query(0, ge=0, description="Độ dời vị trí phân trang"),
     genre: Optional[str] = Query(None, description="Bộ lọc theo thể loại"),
+    genres: Optional[List[str]] = Query(None, description="Lọc đồng thời nhiều thể loại/tag"),
+    q: Optional[str] = Query(None, max_length=160, description="Từ khóa tìm trong tiêu đề, nội dung và tag"),
     feed_type: str = Query("recommended", description="Loại feed: recommended hoặc following"),
     current_user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -212,14 +229,44 @@ async def get_social_feed(
             Follow.follower_id == current_user.id
         ).subquery()
 
-        q = db.query(SocialPost).filter(SocialPost.user_id.in_(followed_subquery))
-        if genre:
-            q = q.filter(SocialPost.genre == genre)
-
-        total = q.count()
-        posts = q.order_by(desc(SocialPost.created_at)).offset(offset).limit(limit).all()
+        post_query = db.query(SocialPost).filter(SocialPost.user_id.in_(followed_subquery))
+        genre_filters = list(dict.fromkeys(
+            [value for value in ([genre] + (genres or [])) if value]
+        ))
+        if genre_filters:
+            post_query = post_query.filter(or_(*[
+                condition
+                for value in genre_filters
+                for condition in (
+                    SocialPost.genre.ilike(f"%{value}%"),
+                    SocialPost.tags.ilike(f"%{value}%"),
+                    SocialPost.title.ilike(f"%{value}%"),
+                    SocialPost.content_snippet.ilike(f"%{value}%"),
+                )
+            ]))
+        matching_posts = post_query.all()
+        if q and q.strip():
+            matching_posts = [
+                post for post in matching_posts
+                if search_relevance(post, q) > 0
+            ]
+            matching_posts.sort(
+                key=lambda post: (
+                    search_relevance(post, q),
+                    post.created_at or datetime.min,
+                ),
+                reverse=True,
+            )
+        else:
+            matching_posts.sort(
+                key=lambda post: post.created_at or datetime.min,
+                reverse=True,
+            )
+        total = len(matching_posts)
+        posts = matching_posts[offset:offset + limit]
 
         serialized = []
+        liked_post_ids = get_liked_post_ids(db, current_user.id, [post.id for post in posts])
         for p in posts:
             author = p.author
             tags = []
@@ -235,6 +282,7 @@ async def get_social_feed(
                 "genre": p.genre,
                 "tags": tags,
                 "likes_count": p.likes_count,
+                "liked_by_me": p.id in liked_post_ids,
                 "comments_count": p.comments_count,
                 "views_count": p.views_count,
                 "dwell_time_avg": round(p.dwell_time_avg or 0.0, 1),
@@ -253,8 +301,10 @@ async def get_social_feed(
             "success": True,
             "feed_type": "following",
             "data": {
-                "posts": serialized,
+                "items": serialized,
                 "total": total,
+                "page_limit": limit,
+                "offset": offset,
                 "has_more": (offset + len(serialized)) < total
             }
         }
@@ -266,8 +316,17 @@ async def get_social_feed(
         user_id=user_id,
         limit=limit,
         offset=offset,
-        genre=genre
+        genre=genre,
+        genres=genres,
+        search_query=q,
     )
+    liked_post_ids = get_liked_post_ids(
+        db,
+        user_id,
+        [post["id"] for post in feed_data["items"]],
+    )
+    for post in feed_data["items"]:
+        post["liked_by_me"] = post["id"] in liked_post_ids
     return {
         "success": True,
         "feed_type": "recommended",
@@ -368,6 +427,28 @@ async def interact_with_post(
     Supports hierarchical comment replies via parent_comment_id and auto-generates notifications.
     """
     try:
+        itype = req.interaction_type.upper().strip()
+        if itype == "LIKE":
+            existing_likes = db.query(PostInteraction).filter(
+                PostInteraction.user_id == current_user.id,
+                PostInteraction.post_id == req.post_id,
+                PostInteraction.interaction_type == "LIKE",
+            ).all()
+            if existing_likes:
+                post = db.query(SocialPost).filter(SocialPost.id == req.post_id).first()
+                if not post:
+                    raise ValueError(f"SocialPost {req.post_id} not found.")
+                for existing_like in existing_likes:
+                    db.delete(existing_like)
+                post.likes_count = max(0, post.likes_count - len(existing_likes))
+                db.commit()
+                return {
+                    "success": True,
+                    "message": "Đã bỏ thích tác phẩm.",
+                    "liked_by_me": False,
+                    "metadata": {"post_likes": post.likes_count, "liked_by_me": False},
+                }
+
         interaction, meta = record_interaction(
             db=db,
             user_id=current_user.id,
@@ -378,7 +459,8 @@ async def interact_with_post(
             comment_text=req.comment_text
         )
 
-        itype = req.interaction_type.upper().strip()
+        if itype == "LIKE":
+            meta["liked_by_me"] = True
 
         # Handle threaded comment hierarchy
         if itype == "COMMENT" and req.parent_comment_id:
@@ -437,6 +519,7 @@ async def interact_with_post(
             "message": "Ghi nhận tương tác thành công!",
             "interaction_id": interaction.id,
             "parent_comment_id": getattr(interaction, "parent_comment_id", None),
+            "liked_by_me": meta.get("liked_by_me"),
             "metadata": meta
         }
     except ValueError as ve:
@@ -1129,6 +1212,15 @@ async def get_trending_leaderboard(
     candidates = q.all()
 
     scored_posts = []
+    share_counts = dict(
+        db.query(PostInteraction.post_id, func.count(PostInteraction.id))
+        .filter(
+            PostInteraction.post_id.in_([post.id for post in candidates]),
+            PostInteraction.interaction_type == "SHARE",
+        )
+        .group_by(PostInteraction.post_id)
+        .all()
+    ) if candidates else {}
     for p in candidates:
         created_time = p.created_at or now
         age_hours = max(0.0, (now - created_time).total_seconds() / 3600.0)
@@ -1138,7 +1230,8 @@ async def get_trending_leaderboard(
         views = float(p.views_count or 0)
         completions = float(getattr(p, "completion_count", 0) or 0)
 
-        numerator = 3.0 * likes + 5.0 * comments + 0.5 * views + 4.0 * completions
+        shares = float(share_counts.get(p.id, 0))
+        numerator = 3.0 * likes + 5.0 * comments + 0.5 * views + 4.0 * completions + 2.5 * shares
         denominator = (age_hours + 2.0) ** 1.4
         score = numerator / denominator if denominator > 0 else 0.0
 
@@ -1232,4 +1325,3 @@ def social_model_weights(
     format: str = Query("json")
 ):
     return get_quantized_model_weights(format=format)
-

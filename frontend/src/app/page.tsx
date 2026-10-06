@@ -176,6 +176,14 @@ export default function WorkspacePage() {
   const t = translations[lang] || translations.vi;
   const { toast } = useToast();
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (/^\d+$/.test(params.get("post") || "") && params.get("tab") === "posts") {
+      setView("workspace");
+      setActiveTab("posts");
+    }
+  }, []);
+
   // Modals
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -316,7 +324,11 @@ export default function WorkspacePage() {
         if (result.sessionId) setSessionId(result.sessionId);
         if (result.storyId) setStoryId(result.storyId);
         if (result.error) {
-          toast.error(result.error);
+          toast.error(
+            result.cleanText.trim()
+              ? `${result.error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`
+              : result.error
+          );
         } else {
           setCopilotMessages([
             {
@@ -372,7 +384,6 @@ export default function WorkspacePage() {
         story_id: storyId || null,
         story_text: storyContent,
         genre: "Tiểu thuyết",
-        tags: ["NarrAI", "VănHọcMới"],
         cover_image_url: coverImageUrl,
       });
 
@@ -628,7 +639,12 @@ export default function WorkspacePage() {
           setStreaming(false);
           setLoading(false);
           if (result.error) {
-            toast.error(result.error);
+            if (result.cleanText.trim()) {
+              setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+              toast.error(`${result.error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+            } else {
+              toast.error(result.error);
+            }
           } else {
             setStoryContent((prev) => prev + "\n\n" + result.cleanText);
             setCopilotMessages((prev) => [
@@ -640,7 +656,12 @@ export default function WorkspacePage() {
         (err) => {
           setStreaming(false);
           setLoading(false);
-          toast.error(err.message || t.unknown_error);
+          if (accumulatedChapter.trim()) {
+            setStoryContent((prev) => prev + "\n\n" + accumulatedChapter);
+            toast.error(`${err.message || t.unknown_error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+          } else {
+            toast.error(err.message || t.unknown_error);
+          }
         }
       );
     } else {
@@ -680,15 +701,23 @@ export default function WorkspacePage() {
     setLoading(true);
 
     if (sessionId) {
+      let accumulatedEnding = "";
       await api.streamStory(
         "end-story",
         { session_id: sessionId },
-        (chunk, cleanAccumulated) => {},
+        (chunk, cleanAccumulated) => {
+          accumulatedEnding = cleanAccumulated;
+        },
         (result) => {
           setStreaming(false);
           setLoading(false);
           if (result.error) {
-            toast.error(result.error);
+            if (result.cleanText.trim()) {
+              setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+              toast.error(`${result.error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+            } else {
+              toast.error(result.error);
+            }
           } else {
             setStoryContent((prev) => prev + "\n\n" + result.cleanText);
             setCopilotMessages((prev) => [
@@ -700,7 +729,12 @@ export default function WorkspacePage() {
         (err) => {
           setStreaming(false);
           setLoading(false);
-          toast.error(err.message || t.unknown_error);
+          if (accumulatedEnding.trim()) {
+            setStoryContent((prev) => prev + "\n\n" + accumulatedEnding);
+            toast.error(`${err.message || t.unknown_error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+          } else {
+            toast.error(err.message || t.unknown_error);
+          }
         }
       );
     } else {
