@@ -49,7 +49,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
     return () => clearInterval(interval);
   }, [lockoutSeconds]);
 
-  // Password bank-grade evaluation
+  // Password strength evaluation
   const rules = useMemo(() => {
     return {
       length: password.length >= 8,
@@ -81,22 +81,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
     if (rules.lowercase) passed++;
     if (rules.digit) passed++;
     if (rules.special) passed++;
-    if (rules.noSpace && password.length >= 12) passed++; // bonus for 12+ chars
+    if (rules.noSpace && password.length >= 12) passed++;
 
     const score = Math.min(passed, 5);
     switch (score) {
-      case 1:
-        return { score: 1, percent: 20, label: t.strength_very_weak, color: "bg-rose-500" };
-      case 2:
-        return { score: 2, percent: 40, label: t.strength_weak, color: "bg-orange-500" };
-      case 3:
-        return { score: 3, percent: 60, label: t.strength_fair, color: "bg-amber-500" };
-      case 4:
-        return { score: 4, percent: 80, label: t.strength_strong, color: "bg-emerald-500" };
-      case 5:
-        return { score: 5, percent: 100, label: t.strength_very_strong, color: "bg-indigo-600 dark:bg-indigo-500" };
-      default:
-        return { score: 0, percent: 0, label: "", color: "bg-slate-200 dark:bg-slate-700" };
+      case 1: return { score: 1, percent: 20, label: t.strength_very_weak, color: "bg-rose-500" };
+      case 2: return { score: 2, percent: 40, label: t.strength_weak, color: "bg-orange-500" };
+      case 3: return { score: 3, percent: 60, label: t.strength_fair, color: "bg-amber-500" };
+      case 4: return { score: 4, percent: 80, label: t.strength_strong, color: "bg-emerald-500" };
+      case 5: return { score: 5, percent: 100, label: t.strength_very_strong, color: "bg-indigo-600 dark:bg-indigo-500" };
+      default: return { score: 0, percent: 0, label: "", color: "bg-slate-200 dark:bg-slate-700" };
     }
   }, [password, rules, t]);
 
@@ -126,8 +120,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
       if (!allRulesPassed) {
         setError(
           lang === "vi"
-            ? "Mật khẩu chưa đáp ứng chuẩn bảo mật ngân hàng (cần ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt, không khoảng trắng)."
-            : "Password does not meet bank-grade requirements (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char, no whitespace)."
+            ? "Mật khẩu cần ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt."
+            : "Password must have at least 8 chars, 1 uppercase, 1 lowercase, 1 number and 1 special character."
         );
         return;
       }
@@ -301,9 +295,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-          </div>
-
-          {/* Bank-Grade Strength Meter & Checklist (Register Only) */}
+          {/* Strength Meter & Checklist (Register Only) */}
           {!isLogin && password.length > 0 && (
             <div className="space-y-3 pt-1">
               {/* Strength Meter Bar */}

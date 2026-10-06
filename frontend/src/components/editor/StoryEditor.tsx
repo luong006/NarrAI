@@ -112,6 +112,10 @@ function sanitizeProseSafetyNet(text: string): string {
 
   clean = clean.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   clean = clean.replace(/\n{3,}/g, "\n\n");
+
+  // Strip HTML tags — editor dùng innerText nên <b>, <i>, <em>... hiện raw
+  clean = clean.replace(/<\/?(b|i|em|strong|u|s|strike|span|div|p|br)[^>]*>/gi, "");
+
   return clean.trim();
 }
 

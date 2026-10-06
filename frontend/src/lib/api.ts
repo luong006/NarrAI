@@ -205,7 +205,13 @@ export const api = {
       });
 
       if (!res.ok || !res.body) {
-        throw new Error(`API Error (${res.status})`);
+        // Đọc body để lấy message lỗi rõ ràng thay vì generic error
+        let errMsg = `API Error (${res.status})`;
+        try {
+          const errData = await res.json();
+          errMsg = errData.detail || errData.message || errMsg;
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
       }
 
       const reader = res.body.getReader();
@@ -350,11 +356,11 @@ export const api = {
       if (!res.ok) {
         const fallbackRes = await fetch(`${API_BASE_URL}/coins/balance`, { headers: authHeaders() });
         if (fallbackRes.ok) return fallbackRes.json();
-        return { status: 'error', coins: 100 };
+        return { status: 'error', coins: 0 };
       }
       return res.json();
     } catch {
-      return { status: 'error', coins: 100 };
+      return { status: 'error', coins: 0 };
     }
   },
 

@@ -147,6 +147,9 @@ function unwrapStoryProseFrontend(content: string): string {
   current = current.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   current = current.replace(/\n{3,}/g, "\n\n");
 
+  // Strip HTML inline tags — editor dùng innerText nên <b>, <i>... hiện raw
+  current = current.replace(/<\/?(b|i|em|strong|u|s|strike|span|br)[^>]*>/gi, "");
+
   return current.trim();
 }
 
@@ -279,7 +282,7 @@ export default function WorkspacePage() {
     setStreaming(true);
 
     const length = options.storyLength || "long";
-    // Trigger api.streamStory with Chapter 1 generation and lock story_id & session_id
+    // init-story cho "long" (chapter-based với memory), generate-story cho "short"/"medium"
     const endpoint = length === "long" ? "init-story" : "generate-story";
 
     await api.streamStory(
@@ -294,7 +297,9 @@ export default function WorkspacePage() {
       (result) => {
         setStreaming(false);
         setLoading(false);
-        setStoryContent(result.cleanText);
+        if (result.cleanText && result.cleanText.trim().length > 0) {
+          setStoryContent(result.cleanText);
+        }
         if (result.sessionId) setSessionId(result.sessionId);
         if (result.storyId) setStoryId(result.storyId);
         if (result.error) {
