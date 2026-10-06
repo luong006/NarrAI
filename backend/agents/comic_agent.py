@@ -35,8 +35,8 @@ except ImportError:
 
 # STRICT style prefix and suffix to force Diffusion model attention to Modern Monochrome School Manga
 STYLE_PREFIX = (
-    "masterpiece modern monochrome manga, Japanese high school manga comic art style, "
-    "crisp clean black and white ink lineart, professional manga panel layout, "
+    "masterpiece monochrome Japanese manga illustration, professional manga comic art, "
+    "crisp clean black and white ink lineart, "
 )
 STYLE_SUFFIX = (
     ", clean G-pen lineart, delicate screentone shading, fine dot pattern tones, "
@@ -106,7 +106,7 @@ Return ONLY a valid JSON object:
 """
 
 # ==================== BEAT-BY-BEAT MANGA DIRECTOR ====================
-BEAT_DIRECTOR_PROMPT = """You are a master manga director and storyboard artist (combining the meticulous narrative pacing of Naoki Urasawa, the spatial consistency of Inio Asano, and the expressive paneling of Eiichiro Oda).
+BEAT_DIRECTOR_PROMPT = """You are a professional manga director and storyboard artist specializing in clear sequential storytelling, expressive acting, and readable panel composition.
 
 YOUR MISSION: Faithfully adapt the provided Vietnamese story text into a SEQUENTIAL, BEAT-BY-BEAT MANGA SCRIPT.
 
@@ -114,9 +114,9 @@ ABSOLUTE CRITICAL RULES:
 1. NO SKIPPING / NO SUMMARIZING: DO NOT summarize several paragraphs into one generic panel! Adapt EVERY significant exchange, dialogue line, reaction, and physical action into sequential panels.
    - If Character A says something and Character B responds, that is AT LEAST 2 sequential panels (Speaker A -> Reaction/Reply B).
    - If an action or dramatic gesture occurs (e.g. someone stands up, looks out the window, draws a breath, opens a door), give it its own panel.
-2. CHARACTER CONSISTENCY: Every panel featuring a character MUST embed their exact hair, face, and signature costume from the CHARACTER REGISTRY into the `image_prompt`. Do NOT change character clothing or hairstyles across panels!
-3. SETTING & BACKGROUND CONSISTENCY: Every panel taking place in the primary environment MUST maintain the architecture, lighting, and persistent props from the SETTING REGISTRY so backgrounds DO NOT drift, mutate, or hallucinate between panels.
-4. IMAGE PROMPT (English): Under 65 words, describing camera angle (close-up, medium shot, low angle, over-the-shoulder), character expression/action, AND the specific background elements anchored from the setting.
+2. CHARACTER CONSISTENCY: Every panel featuring a character MUST name each visible character and describe their exact hair, face, and signature costume from the CHARACTER REGISTRY in `image_prompt`. Do NOT change character clothing, age, or hairstyle across panels. Do not add characters who are not in the story beat.
+3. SETTING & BACKGROUND CONSISTENCY: Identify the location of each individual story beat. Reuse the matching architecture, lighting, and persistent props from the SETTING REGISTRY for scenes in that location. For a different location, describe that location from the story instead of forcing the primary setting into the panel.
+4. IMAGE PROMPT (English): Under 65 words. Every prompt MUST describe the visible subject(s), their physical action and expression, camera framing, and concrete background/environment details. Avoid abstract-only prompts, empty establishing scenes where a character is acting, generic "manga scene", and details unsupported by the story.
 5. COMPLETE DIALOGUE & CAPTION TEXT (Vietnamese):
    - TUYỆT ĐỐI CẤM SỬ DỤNG DẤU BA CHẤM (..., …, .....) VÀ CẮT XÉN: Nghiêm cấm tuyệt đối mọi dấu ba chấm hoặc chuỗi chấm lửng ở giữa câu hoặc cuối câu. Không được để câu nói cụt, đứt đoạn, hay lửng lơ.
    - Mọi lời thoại và lời dẫn dưới mỗi khung tranh BẮT BUỘC là câu nói hoàn chỉnh, giàu cảm xúc, ngữ pháp trọn vẹn và kết thúc bằng dấu câu chuẩn mực: dấu chấm (.), dấu chấm than (!), hoặc dấu chấm hỏi (?).
@@ -233,14 +233,24 @@ def resolve_spatial_enclosure(
     """Determine dominant Spatial Scene Enclosure to anchor the manga scene."""
     sdna = setting_dna or {}
     matched_enc = None
-    combined = f"{sdna.get('setting_anchor', '')} {sdna.get('location_name', '')} {str(story_text)[:1500]}".lower()
+    scene_text = str(story_text)[:1500].lower()
+    setting_context = f"{sdna.get('setting_anchor', '')} {sdna.get('location_name', '')}".lower()
 
+    # An explicit location in this panel takes precedence over the story's primary setting.
     for enc_key, enc_data in SPATIAL_ENCLOSURES.items():
-        if any(kw in combined for kw in enc_data["detection_keywords"]):
+        if any(kw in scene_text for kw in enc_data["detection_keywords"]):
             matched_enc = dict(enc_data)
             matched_enc["key"] = enc_key
             break
 
+    if not matched_enc:
+        for enc_key, enc_data in SPATIAL_ENCLOSURES.items():
+            if any(kw in setting_context for kw in enc_data["detection_keywords"]):
+                matched_enc = dict(enc_data)
+                matched_enc["key"] = enc_key
+                break
+
+    combined = f"{setting_context} {scene_text}"
     # If cultural_tier is Tier 3 (Open Domain) or setting_dna provides an explicit setting_anchor outside school
     tier = cultural_tier or sdna.get("cultural_tier")
     if not matched_enc and (tier == 3 or (sdna.get("setting_anchor") and any(w in combined for w in ["office", "forest", "space", "street", "city", "room", "castle"]))):
@@ -930,8 +940,13 @@ class ComicDirectorAgent:
                 if fp.lower() not in existing_aliases:
                     lead["aliases"].append(fp)
 
-        # Sequential panel character memory: track last active character across panels
+        # Sequential panel character memory is only used when a panel depicts a person.
         last_active_chars = []
+        human_indicators = [
+            "girl", "boy", "student", "man", "woman", "person", "character", "face",
+            "sitting", "standing", "looking", "staring", "writing", "holding", "talking",
+            "crying", "walking", "running", "người", "nhân vật", "khuôn mặt", "bước", "đứng", "ngồi", "nhìn"
+        ]
 
         validated = []
         for i, item in enumerate(script_data):
@@ -955,8 +970,19 @@ class ComicDirectorAgent:
                 else:
                     dialogue = "Diễn biến tiếp tục trong không gian đầy cảm xúc."
 
-            # Step 1: Spatial Quarantine Filter - strip conflicting outdoor/ancient keywords
-            clean_prompt = sanitize_spatial_prompt(raw_prompt, enclosure)
+            # Choose the setting for this panel, rather than applying one global background.
+            panel_enclosure = resolve_spatial_enclosure(
+                f"{raw_prompt} {dialogue}",
+                setting_dna=setting_dna,
+                cultural_tier=tier,
+                narrative_mode=mode
+            )
+            panel_setting_anchor = setting_anchor
+            if panel_enclosure.get("key") != enclosure.get("key"):
+                panel_setting_anchor = panel_enclosure.get("anchor_description", setting_anchor)
+
+            # Step 1: Spatial Quarantine Filter - strip tokens that conflict with this panel's location.
+            clean_prompt = sanitize_spatial_prompt(raw_prompt, panel_enclosure)
             if not clean_prompt:
                 clean_prompt = "sitting quietly in classroom"
 
@@ -965,6 +991,10 @@ class ComicDirectorAgent:
 
             # Step 3: Smart Character DNA matching
             search_text = f"{clean_prompt} {dialogue}"
+            has_human = any(
+                re.search(rf"(?<!\w){re.escape(indicator)}(?!\w)", clean_prompt, re.IGNORECASE)
+                for indicator in human_indicators
+            )
             matched_chars = []
             for c in char_entry_list:
                 for alias in c["aliases"]:
@@ -1003,11 +1033,6 @@ class ComicDirectorAgent:
 
             # Gender/role-aware fallback if no explicit match
             if not matched_chars and char_entry_list:
-                human_indicators = [
-                    "girl", "boy", "student", "man", "woman", "person", "character", "face",
-                    "sitting", "standing", "looking", "staring", "writing", "holding", "talking",
-                    "crying", "walking", "running", "người", "nhân vật", "khuôn mặt", "bước", "đứng", "ngồi", "nhìn"
-                ]
                 female_cues = [
                     "girl", "woman", "schoolgirl", "female", "she", "her", "cô gái", "cô bé", "nữ sinh", "nữ", "nàng", "chị", "em gái"
                 ]
@@ -1016,7 +1041,6 @@ class ComicDirectorAgent:
                 ]
 
                 # Fallback only triggers if visual prompt depicts a human figure/action
-                has_human = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", clean_prompt, re.IGNORECASE) for k in human_indicators)
                 if has_human:
                     has_female_cue = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", search_text, re.IGNORECASE) for k in female_cues)
                     has_male_cue = any(re.search(rf"(?<!\w){re.escape(k)}(?!\w)", search_text, re.IGNORECASE) for k in male_cues)
@@ -1039,11 +1063,11 @@ class ComicDirectorAgent:
 
             # Step 4: Sequential Panel Character Memory
             # If no characters matched in current panel, carry forward from previous panel
-            if not matched_chars and last_active_chars:
+            if not matched_chars and last_active_chars and has_human:
                 matched_chars = list(last_active_chars)  # inherit from previous panel
 
             # Update sequential memory with current panel's characters
-            if matched_chars:
+            if matched_chars and has_human:
                 last_active_chars = list(matched_chars)
 
             # Step 4b: Inject Character Visual DNA for ALL matched characters
@@ -1068,8 +1092,8 @@ class ComicDirectorAgent:
                 prompt_components.append(action_desc)
 
             # Component 3: Spatial Enclosure Anchor (tokens ~55-70)
-            if setting_anchor and setting_anchor.lower() not in clean_prompt.lower():
-                prompt_components.append(f"setting: {setting_anchor}")
+            if panel_setting_anchor and panel_setting_anchor.lower() not in clean_prompt.lower():
+                prompt_components.append(f"setting: {panel_setting_anchor}")
 
             # Component 4: Remaining Scene / Camera Shot Nuances (tokens ~70-77+)
             if clean_prompt:
@@ -1134,7 +1158,12 @@ class ComicDirectorAgent:
             setting_dna["narrative_mode"] = n_mode
 
         dna_context = "\n".join([f"- {name}: {dna.get('dna', dna) if isinstance(dna, dict) else dna}" for name, dna in character_dna.items()])
-        setting_context = f"Location: {setting_dna.get('location_name', 'Main Setting')}\nAnchor: {setting_dna.get('setting_dna', '')}\nAtmosphere: {setting_dna.get('atmosphere', '')}"
+        setting_context = (
+            f"Location: {setting_dna.get('location_name', 'Main Setting')}\n"
+            f"Anchor: {setting_dna.get('setting_anchor', '')}\n"
+            f"Persistent fixtures: {', '.join(setting_dna.get('persistent_fixtures', []))}\n"
+            f"Atmosphere: {setting_dna.get('atmosphere', '')}"
+        )
 
         system_instruction = f"{BEAT_DIRECTOR_PROMPT}\n\nCHARACTER VISUAL REGISTRY (IMMUTABLE):\n{dna_context}\n\nSETTING VISUAL ANCHOR (IMMUTABLE):\n{setting_context}\n"
 
@@ -1178,7 +1207,12 @@ STORY TEXT:
         character_dna = self.extract_character_dna(new_text, memory=memory)
         setting_dna = self.extract_setting_dna(new_text, memory=memory)
         dna_context = "\n".join([f"- {name}: {dna.get('dna', dna) if isinstance(dna, dict) else dna}" for name, dna in character_dna.items()])
-        setting_context = f"Location: {setting_dna.get('location_name', 'Main Setting')}\nAnchor: {setting_dna.get('setting_dna', '')}\nAtmosphere: {setting_dna.get('atmosphere', '')}"
+        setting_context = (
+            f"Location: {setting_dna.get('location_name', 'Main Setting')}\n"
+            f"Anchor: {setting_dna.get('setting_anchor', '')}\n"
+            f"Persistent fixtures: {', '.join(setting_dna.get('persistent_fixtures', []))}\n"
+            f"Atmosphere: {setting_dna.get('atmosphere', '')}"
+        )
 
         system_instruction = f"""{BEAT_DIRECTOR_PROMPT}
 
@@ -1265,7 +1299,13 @@ NEW STORY TEXT:
             else:
                 shot_desc = "sitting attentively in classroom, natural posture"
 
-            prompt = f"{lead_dna}, {shot_desc}, setting: {bg_anchor}"
+            scene_enclosure = resolve_spatial_enclosure(beat, setting_dna=setting_dna)
+            scene_anchor = (
+                scene_enclosure.get("anchor_description", bg_anchor)
+                if scene_enclosure.get("key") != resolve_spatial_enclosure("", setting_dna=setting_dna).get("key")
+                else bg_anchor
+            )
+            prompt = f"{lead_dna}, {shot_desc}, setting: {scene_anchor}"
 
             raw_panels.append({
                 "panel_index": idx + 1,

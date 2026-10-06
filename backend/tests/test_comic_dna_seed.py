@@ -328,16 +328,34 @@ class TestComicDNASeed(unittest.TestCase):
     def test_get_cached_or_generate_image_uses_story_id(self):
         """Verify get_cached_or_generate_image respects story_id to compute deterministic seed."""
         story_id = 7
-        expected_seed = get_deterministic_comic_seed(story_id)
+        story_seed = get_deterministic_comic_seed(story_id)
+        panel_id = 12345
+        expected_seed = 100000 + ((story_seed - 100000 + panel_id * 7919) % 900000)
         
         with patch("services.cloudflare_ai.generate_image_cf", return_value=b"\xff\xd8fakejpgdata") as mock_cf, \
+             patch("services.cloudflare_ai._is_valid_image_payload", return_value=True), \
              patch("os.path.isfile", return_value=False), \
              patch("builtins.open", MagicMock()):
             
-            get_cached_or_generate_image(panel_id=12345, prompt="Test prompt", seed=None, story_id=story_id)
+            get_cached_or_generate_image(panel_id=panel_id, prompt="Test prompt", seed=None, story_id=story_id)
             mock_cf.assert_called_once()
             _, kwargs = mock_cf.call_args
             self.assertEqual(kwargs.get("seed"), expected_seed)
+
+    def test_panel_seeds_differ_within_the_same_story(self):
+        story_seed = get_deterministic_comic_seed(7)
+        seeds = {
+            100000 + ((story_seed - 100000 + panel_id * 7919) % 900000)
+            for panel_id in range(1, 8)
+        }
+        self.assertEqual(len(seeds), 7)
+
+    def test_image_generation_failure_is_not_silently_accepted(self):
+        with patch("services.cloudflare_ai.generate_image_cf", side_effect=RuntimeError("model unavailable")), \
+             patch("services.cloudflare_ai.requests.get", return_value=MagicMock(status_code=503, content=b"")), \
+             patch("os.path.isfile", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "all image providers failed"):
+                get_cached_or_generate_image(panel_id=9876, prompt="A character in a room", story_id=7)
 
 
 if __name__ == "__main__":

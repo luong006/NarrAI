@@ -349,7 +349,8 @@ export const api = {
   getComicImageUrl(imageUrl: string): string {
     if (!imageUrl) return '';
     if (imageUrl.startsWith('http')) return imageUrl;
-    return API_BASE_URL.replace('/api', '') + imageUrl;
+    const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '');
+    return new URL(imageUrl, `${apiOrigin}/`).toString();
   },
 
   // Coins & Banking
@@ -502,4 +503,3 @@ export const api = {
     }
   },
 };
-

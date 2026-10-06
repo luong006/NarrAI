@@ -313,9 +313,10 @@ class TestChallengerR2M3Stress(unittest.TestCase):
         self.assertIn("busy highway", neg_school)
         self.assertIn("moving cars", neg_school)
 
-        # Default argument test
+        # The default must not impose school-only exclusions on unrelated genres.
         neg_default = get_master_negative_prompt().lower()
-        self.assertEqual(neg_school, neg_default)
+        self.assertNotIn("historical clothing", neg_default)
+        self.assertNotIn("busy highway", neg_default)
 
         # Non-school genre test
         neg_generic = get_master_negative_prompt("scifi").lower()

@@ -1081,26 +1081,31 @@ def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db),
 @app.get("/api/comic/image/{panel_id}")
 @app.get("/api/comics/panels/{panel_id}/image")
 def get_comic_image(panel_id: int, db: Session = Depends(get_db)):
-    """Proxies comic panel image generation with local disk cache and Cloudflare Workers AI + Pollinations fallback."""
+    """Proxies comic panel image generation with local disk cache and image-provider fallback."""
     panel = db.query(ComicPanel).filter(ComicPanel.id == panel_id).first()
     if not panel:
         return Response(status_code=404)
         
     try:
-        story_id = (panel.comic.story_id if panel.comic else None) or panel.comic_id or 1
+        story_id = int((panel.comic.story_id if panel.comic else None) or panel.comic_id or 1)
         comic_seed = get_deterministic_comic_seed(story_id)
-        img_bytes, media_type = get_cached_or_generate_image(panel.id, panel.image_prompt, seed=comic_seed, story_id=story_id)
+        story = db.query(Story).filter(Story.id == story_id).first()
+        memory = _get_story_memory(story, db)
+        bible = getattr(memory, "story_bible", None)
+        panel_id = int(panel.id)
+        img_bytes, media_type = get_cached_or_generate_image(
+            panel_id,
+            str(panel.image_prompt or "monochrome manga illustration of a character in the story setting"),
+            seed=comic_seed,
+            story_id=story_id,
+            cultural_tier=getattr(bible, "cultural_tier", None),
+            narrative_mode=getattr(bible, "narrative_mode", None),
+            genre=str(getattr(bible, "genre", "") or (story.genre if story else "") or ""),
+        )
         return Response(content=img_bytes, media_type=media_type)
     except Exception as e:
-        print(f"[Comic Image] Generation failed ({e}), serving local monochrome fallback...")
-        try:
-            from services.cloudflare_ai import get_guaranteed_monochrome_fallback
-            panel_index = getattr(panel, 'panel_index', 0) or 0
-            fallback_bytes = get_guaranteed_monochrome_fallback(panel_index)
-            return Response(content=fallback_bytes, media_type="image/jpeg", status_code=200)
-        except Exception as fb_err:
-            print(f"[Comic Image] Even fallback generation failed: {fb_err}")
-            return Response(status_code=500)
+        print(f"[Comic Image] Generation failed for panel {panel_id}: {e}")
+        return Response(status_code=503, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/chat")

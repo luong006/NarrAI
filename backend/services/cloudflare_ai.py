@@ -7,14 +7,12 @@ import io
 from typing import Optional, Tuple
 
 try:
-    from PIL import Image, ImageOps, ImageDraw, ImageFont
+    from PIL import Image, ImageOps
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
     Image = None
     ImageOps = None
-    ImageDraw = None
-    ImageFont = None
 
 # Local persistent disk cache for rendered panels
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "comic_cache"))
@@ -53,7 +51,7 @@ VIETNAMESE_CANONICAL_NEGATIVE_PROMPT = (
 )
 
 def get_master_negative_prompt(
-    genre: str = "school",
+    genre: str = "",
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None
 ) -> str:
@@ -89,8 +87,7 @@ def get_account_id():
 
 def get_deterministic_comic_seed(story_id: int | None = 1) -> int:
     """
-    Calculates a synchronized deterministic seed based on story ID.
-    Locks diffusion latent noise across all manga panels in the story.
+    Calculates a stable base seed for a story; each panel derives its own seed from it.
     Returns an integer in the range [100000, 999999].
     """
     anchor_id = int(story_id) if story_id is not None else 1
@@ -104,7 +101,7 @@ def generate_image_cf(
     custom_negative_prompt: Optional[str] = None,
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None,
-    genre: str = "school"
+    genre: str = ""
 ) -> bytes:
     """
     Calls Cloudflare Workers AI Text-to-Image model with fallback chain.
@@ -143,7 +140,7 @@ def generate_image_cf(
         url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}"
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=25)
-            if response.status_code == 200 and len(response.content) > 500:
+            if response.status_code == 200 and _is_valid_image_payload(response.content):
                 return response.content
             else:
                 last_error = f"{model}: status={response.status_code}, body={response.text[:200]}"
@@ -172,26 +169,40 @@ def format_pollinations_prompt(prompt: str, max_len: int = 500) -> str:
     if len(clean_p) <= max_len:
         target = clean_p
     else:
-        # Extract setting anchor if present to guarantee spatial preservation
-        setting_match = re.search(r'\bsetting:\s*([^,]+(?:,[^,]+){0,2})', clean_p, re.IGNORECASE)
+        # Keep character/action details early, but reserve room for the environment anchor.
+        setting_match = re.search(r'\bsetting:\s*[^,]+(?:,[^,]+){0,2}', clean_p, re.IGNORECASE)
         setting_clause = setting_match.group(0).strip() if setting_match else ""
-
-        # Slice cleanly at last comma or period within max_len
-        cutoff = clean_p[:max_len]
+        prompt_without_setting = clean_p
+        if setting_match:
+            prompt_without_setting = f"{clean_p[:setting_match.start()]}, {clean_p[setting_match.end():]}"
+        prompt_budget = max(120, max_len - len(setting_clause) - 2)
+        cutoff = prompt_without_setting[:prompt_budget]
         last_delim = max(cutoff.rfind(','), cutoff.rfind('.'))
-        if last_delim > max_len // 2:
+        if last_delim > prompt_budget // 2:
             target = cutoff[:last_delim].strip(' ,.-')
         else:
             last_space = cutoff.rfind(' ')
             target = cutoff[:last_space].strip(' ,.-') if last_space > 0 else cutoff
 
-        # Guarantee setting anchor is preserved
-        if setting_clause and setting_clause.lower() not in target.lower():
+        if setting_clause:
             target = f"{target}, {setting_clause}"
 
     # Clean double commas and trailing punctuation
     target = re.sub(r'[,.\s]*,[,.\s]*', ', ', target).strip(' ,.-')
     return f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {target}, screentone, no color"
+
+
+def _is_valid_image_payload(image_bytes: Optional[bytes]) -> bool:
+    if not image_bytes or len(image_bytes) <= 500:
+        return False
+    if HAS_PIL:
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+            image.verify()
+            return True
+        except Exception:
+            return False
+    return image_bytes.startswith((b"\xff\xd8", b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a", b"RIFF"))
 
 
 def get_cached_or_generate_image(
@@ -203,11 +214,11 @@ def get_cached_or_generate_image(
     custom_negative_prompt: Optional[str] = None,
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None,
-    genre: str = "school"
+    genre: str = ""
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
-    Otherwise attempts Cloudflare Workers AI with deterministic seed synchronized by story_id,
+    Otherwise attempts Cloudflare Workers AI with a deterministic panel-specific seed,
     with fallback to Pollinations B&W manga, then writes to disk cache.
     Returns (image_bytes, media_type).
     """
@@ -218,18 +229,22 @@ def get_cached_or_generate_image(
         try:
             with open(cache_path, "rb") as f:
                 img_bytes = f.read()
-            media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
-            return img_bytes, media_type
+            if _is_valid_image_payload(img_bytes):
+                media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
+                return img_bytes, media_type
+            print(f"[Comic Cache] Cached panel_{panel_id} is not a valid image; regenerating")
         except Exception as e:
             print(f"[Comic Cache] Failed to read cached panel_{panel_id}: {e}")
 
-    # 2. Determine synchronized deterministic seed
+    # Keep a stable story-level seed while giving each panel a distinct composition.
     if seed is not None:
-        panel_seed = int(seed)
+        story_seed = int(seed)
     elif story_id is not None:
-        panel_seed = get_deterministic_comic_seed(story_id)
+        story_seed = get_deterministic_comic_seed(story_id)
     else:
-        panel_seed = (4289000 + (panel_id % 1000))
+        story_seed = get_deterministic_comic_seed(panel_id)
+    panel_seed = 100000 + ((story_seed - 100000 + panel_id * 7919) % 900000)
+    img_bytes = None
     try:
         suffix = negative_prompt_suffix or custom_negative_prompt
         img_bytes = generate_image_cf(
@@ -247,13 +262,13 @@ def get_cached_or_generate_image(
             safe_prompt = urllib.parse.quote(bw_prompt)
             fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_seed}"
             resp = requests.get(fallback_url, timeout=20)
-            if resp.status_code == 200 and len(resp.content) > 500:
+            if resp.status_code == 200 and _is_valid_image_payload(resp.content):
                 img_bytes = resp.content
         except Exception as p_err:
             print(f"[Comic Image] Pollinations fallback also failed ({p_err})")
 
-    if not img_bytes:
-        raise Exception(f"Could not render image for panel {panel_id}")
+    if not img_bytes or not _is_valid_image_payload(img_bytes):
+        raise RuntimeError(f"Could not render image for panel {panel_id}: all image providers failed")
 
     # 2.5: Server-side Pillow monochrome enforcement — eliminates color leak from ANY source
     try:
@@ -294,55 +309,3 @@ def process_manga_monochrome(image_bytes: bytes) -> bytes:
     except Exception as e:
         print(f"[Comic Image] process_manga_monochrome error: {e}")
         return image_bytes
-
-
-# Valid minimal 1x1 grayscale JPEG bytes for emergency fallback when PIL is absent
-_FALLBACK_1X1_JPEG = (
-    b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06'
-    b'\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14'
-    b'\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x0b'
-    b'\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01'
-    b'\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01'
-    b'\x01\x00\x00?\x00\xbf\x00\xff\xd9'
-)
-
-
-def get_guaranteed_monochrome_fallback(panel_index: int = 0) -> bytes:
-    """
-    Generates a guaranteed-available monochrome placeholder JPEG
-    for use when all image generation sources fail.
-    Returns JPEG bytes that can be served directly with HTTP 200.
-    """
-    if not HAS_PIL:
-        return _FALLBACK_1X1_JPEG
-
-    try:
-        img = Image.new('L', (800, 800), color=245)  # Light gray background
-
-        draw = ImageDraw.Draw(img)
-        # Draw manga-style panel border
-        draw.rectangle([10, 10, 789, 789], outline=30, width=3)
-
-        # Draw diagonal screentone-like pattern
-        for y in range(20, 780, 40):
-            for x in range(20, 780, 40):
-                draw.ellipse([x, y, x + 3, y + 3], fill=200)
-
-        # Draw center text
-        text = f"Panel {panel_index + 1}"
-        try:
-            font = ImageFont.truetype("arial.ttf", 32)
-        except (IOError, OSError):
-            font = ImageFont.load_default()
-
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-        draw.text(((800 - text_w) // 2, (800 - text_h) // 2), text, fill=100, font=font)
-
-        output = io.BytesIO()
-        img.save(output, format="JPEG", quality=90)
-        return output.getvalue()
-    except Exception as e:
-        print(f"[Comic Image] get_guaranteed_monochrome_fallback error: {e}")
-        return _FALLBACK_1X1_JPEG

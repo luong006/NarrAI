@@ -47,8 +47,8 @@ class TestComicModernSchoolSync(unittest.TestCase):
         prefix_lower = STYLE_PREFIX.lower()
         suffix_lower = STYLE_SUFFIX.lower()
 
-        self.assertIn("modern monochrome manga", prefix_lower)
-        self.assertIn("japanese high school manga comic art style", prefix_lower)
+        self.assertIn("monochrome japanese manga illustration", prefix_lower)
+        self.assertIn("professional manga comic art", prefix_lower)
         self.assertIn("crisp clean black and white ink lineart", prefix_lower)
 
         self.assertIn("clean g-pen lineart", suffix_lower)
@@ -261,6 +261,25 @@ class TestComicModernSchoolSync(unittest.TestCase):
                 f"Panel {idx + 1} (layout={p['layout_type']}) must have setting anchor attached. Got: {prompt}"
             )
 
+    def test_panel_specific_location_overrides_primary_setting(self):
+        setting_dna = {
+            "location_name": "Lớp học 12A",
+            "setting_anchor": "sunny high-school classroom with wooden desks and large glass windows"
+        }
+        panels = self.agent._validate_panels(
+            [{
+                "panel_index": 1,
+                "image_prompt": "close-up of An standing on the school rooftop",
+                "dialogue_text": "An nhìn về phía thành phố trên sân thượng.",
+                "layout_type": "square"
+            }],
+            setting_dna=setting_dna
+        )
+
+        prompt = panels[0]["image_prompt"].lower()
+        self.assertIn("school rooftop", prompt)
+        self.assertNotIn("sunny high-school classroom", prompt)
+
     def test_action_integration_into_panel_prompt(self):
         """Test prose action is cleanly integrated into panel image_prompt."""
         panels = [
@@ -320,6 +339,12 @@ class TestComicModernSchoolSync(unittest.TestCase):
         self.assertIn("busy highway", master_neg)
         self.assertIn("moving cars", master_neg)
 
+    def test_generic_default_does_not_ban_story_settings(self):
+        default_negative_prompt = get_master_negative_prompt().lower()
+        self.assertNotIn("palace", default_negative_prompt)
+        self.assertNotIn("sword", default_negative_prompt)
+        self.assertNotIn("historical clothing", default_negative_prompt)
+
     def test_generate_image_cf_applies_master_negative_prompt_and_suffix(self):
         """Verify generate_image_cf sends master negative prompt with custom suffix."""
         with patch("services.cloudflare_ai.get_cloudflare_token", return_value="fake_token"), \
@@ -331,11 +356,13 @@ class TestComicModernSchoolSync(unittest.TestCase):
             mock_resp.content = b"\xff\xd8" + (b"fake_valid_image_bytes" * 50)
             mock_post.return_value = mock_resp
 
-            generate_image_cf(
-                prompt="test manga prompt",
-                seed=796919,
-                negative_prompt_suffix="extra_custom_exclusion_token"
-            )
+            with patch("services.cloudflare_ai._is_valid_image_payload", return_value=True):
+                generate_image_cf(
+                    prompt="test manga prompt",
+                    seed=796919,
+                    negative_prompt_suffix="extra_custom_exclusion_token",
+                    genre="school"
+                )
 
             mock_post.assert_called_once()
             _, kwargs = mock_post.call_args
