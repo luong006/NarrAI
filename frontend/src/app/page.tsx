@@ -425,14 +425,33 @@ export default function WorkspacePage() {
   };
 
   const handleSubmitCustomInstruction = async (instruction: string) => {
-    if (!selectedText) return;
+    if (!selectedText || !instruction.trim()) return;
     setLoading(true);
     try {
+      // Thử /api/edit-text trước (nhanh, chính xác cho đoạn bôi đen)
       const res = await api.editText(selectedText, instruction);
       if (res.status === "success" && res.revised_text) {
-        setProposedText(res.revised_text);
+        setProposedText(res.revised_text.trim());
       } else {
-        toast.error(res.message || t.unknown_error);
+        // Fallback: dùng Copilot chat nếu edit-text thất bại (lỗi xu, mạng, ...)
+        const fallbackPayload = {
+          user_message: `Hãy chỉnh sửa đoạn văn sau theo yêu cầu: "${instruction}"\n\nĐoạn văn cần sửa:\n${selectedText}`,
+          current_story: storyContent.slice(0, 8000),
+          selected_text: selectedText,
+        };
+        const fallbackRes = await api.sendCopilotEvent(
+          sessionId, storyId, "USER_CHAT", JSON.stringify(fallbackPayload)
+        );
+        if (fallbackRes.status === "success" && fallbackRes.data) {
+          const params = fallbackRes.data.action_params || {};
+          const edited = params.updated_story_content
+            || (fallbackRes.data as any).updated_story_content
+            || params.message || "";
+          if (edited) setProposedText(edited.trim());
+          else toast.error(lang === "vi" ? "AI không trả về nội dung chỉnh sửa." : "AI returned no edited content.");
+        } else {
+          toast.error(res.message || t.unknown_error);
+        }
       }
     } catch (e: any) {
       toast.error(e.message || t.unknown_error);
@@ -733,6 +752,23 @@ export default function WorkspacePage() {
       return;
     }
 
+    // Refresh số dư thực từ server trước khi trừ — tránh stale state
+    let freshBalance = coinBalance;
+    try {
+      const balRes = await api.getCoinsBalance();
+      if (typeof balRes.coins === "number") freshBalance = balRes.coins;
+      else if (typeof balRes.balance === "number") freshBalance = balRes.balance;
+      setCoinBalance(freshBalance);
+    } catch { /* giữ nguyên balance cũ */ }
+
+    if (freshBalance < 16) {
+      toast.error(lang === "vi"
+        ? `Số xu không đủ. Hiện có ${freshBalance} xu, cần 16 xu để chuyển thể Manga.`
+        : `Not enough coins. You have ${freshBalance}, need 16 for Manga.`);
+      setIsCoinModalOpen(true);
+      return;
+    }
+
     setComicLoading(true);
     setActiveTab("comic");
 
@@ -742,22 +778,16 @@ export default function WorkspacePage() {
         setComicId(res.comic_id || null);
         setComicPanels(res.panels);
         setComicHasMore(!!res.has_more);
-        // Refresh coin balance after 16 xu deduction
+        // Refresh balance sau khi trừ 16 xu
         api.getCoinsBalance().then((b) => {
-          if (b.balance !== undefined) setCoinBalance(b.balance);
-          else if (b.coins !== undefined) setCoinBalance(b.coins);
+          if (typeof b.coins === "number") setCoinBalance(b.coins);
+          else if (typeof b.balance === "number") setCoinBalance(b.balance);
         });
       } else {
         const errMsg = res.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Failed to adapt to comic");
         toast.error(errMsg);
         if ((res as any).code === 401) {
           setIsAuthOpen(true);
-        } else if ((res as any).code === 402 || errMsg.toLowerCase().includes("xu không đủ") || errMsg.toLowerCase().includes("insufficient")) {
-          // Không mở modal nạp tiền — chỉ thông báo số xu hiện tại không đủ
-          toast.error(lang === "vi"
-            ? `Số xu không đủ (hiện có ${coinBalance} xu, cần 16 xu). Vui lòng nạp thêm xu.`
-            : `Not enough coins (you have ${coinBalance}, need 16). Please top up.`);
-          setIsCoinModalOpen(true);
         }
         setActiveTab("editor");
       }
