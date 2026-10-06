@@ -9,6 +9,7 @@ Endpoints:
 
 import json
 import math
+import os
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
@@ -108,6 +109,22 @@ async def require_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Yêu cầu đăng nhập để thực hiện hành động này.",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    return current_user
+
+
+async def require_moderator(
+    current_user: User = Depends(require_current_user)
+) -> User:
+    moderator_usernames = {
+        username.strip().casefold()
+        for username in os.environ.get("NARRAI_MODERATOR_USERNAMES", "").split(",")
+        if username.strip()
+    }
+    if current_user.username.casefold() not in moderator_usernames:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền kiểm duyệt nội dung.",
         )
     return current_user
 
@@ -868,7 +885,7 @@ async def list_content_reports(
     status_filter: Optional[str] = Query(None, alias="status", description="Lọc theo trạng thái: PENDING, RESOLVED, REJECTED"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(require_current_user),
+    current_user: User = Depends(require_moderator),
     db: Session = Depends(get_db)
 ):
     """
@@ -905,7 +922,7 @@ async def list_content_reports(
 async def resolve_content_report(
     report_id: int,
     req: Optional[ResolveReportRequest] = None,
-    current_user: User = Depends(require_current_user),
+    current_user: User = Depends(require_moderator),
     db: Session = Depends(get_db)
 ):
     """
@@ -919,6 +936,11 @@ async def resolve_content_report(
         )
 
     new_status = (req.status if req and req.status else "RESOLVED").upper()
+    if new_status not in {"RESOLVED", "REJECTED"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Trạng thái báo cáo phải là RESOLVED hoặc REJECTED.",
+        )
     report.status = new_status
     db.commit()
 
@@ -1210,5 +1232,4 @@ def social_model_weights(
     format: str = Query("json")
 ):
     return get_quantized_model_weights(format=format)
-
 

@@ -224,6 +224,9 @@ GROQ_API_KEY_COMIC=gsk_your_groq_api_key_here
 # JWT Secret Key (Thay bằng chuỗi ngẫu nhiên an toàn trong Production)
 JWT_SECRET=your_super_secret_jwt_key_change_in_production
 
+# Tài khoản được phép xem và xử lý báo cáo kiểm duyệt (phân tách bằng dấu phẩy)
+NARRAI_MODERATOR_USERNAMES=
+
 # Database (mặc định SQLite WAL mode)
 DATABASE_URL=sqlite:///./narrai.db
 ```

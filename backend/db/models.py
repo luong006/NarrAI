@@ -5,6 +5,8 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
+import os
+from dotenv import load_dotenv
 
 Base = declarative_base()
 
@@ -401,7 +403,12 @@ class AuthorProfile(Base):
 
 # ==================== DATABASE INITIALIZATION & MIGRATIONS ====================
 
-engine = create_engine('sqlite:///narrai.db', connect_args={'check_same_thread': False})
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./narrai.db")
+if not DATABASE_URL.startswith("sqlite"):
+    raise RuntimeError("NarrAI currently requires SQLite; configure DATABASE_URL with a sqlite URL.")
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -486,8 +493,8 @@ try:
         if "author_profiles" in tables:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_author_profiles_user_id ON author_profiles(user_id);"))
         conn.commit()
-except Exception:
-    pass  # Column/index already exists or table freshly created
+except Exception as exc:
+    raise RuntimeError("NarrAI database schema initialization or migration failed.") from exc
 
 __all__ = [
     "Base",

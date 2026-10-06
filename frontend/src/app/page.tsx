@@ -845,6 +845,10 @@ export default function WorkspacePage() {
           lang={lang}
           onLanguageChange={handleLanguageChange}
           onOpenAuth={() => setIsAuthOpen(true)}
+          onExploreCommunity={() => {
+            setActiveTab("posts");
+            setView("workspace");
+          }}
         />
         <AuthModal
           isOpen={isAuthOpen}
@@ -1060,4 +1064,3 @@ export default function WorkspacePage() {
     </div>
   );
 }
-

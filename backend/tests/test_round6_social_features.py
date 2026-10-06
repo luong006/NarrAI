@@ -21,6 +21,7 @@ import os
 import sys
 import json
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, Float, Boolean,
@@ -570,14 +571,16 @@ try:
     from routers.social_router import (
         router as social_router,
         get_current_user,
-        require_current_user
+        require_current_user,
+        require_moderator,
     )
     from db.models import get_db
 except ImportError:
     from backend.routers.social_router import (
         router as social_router,
         get_current_user,
-        require_current_user
+        require_current_user,
+        require_moderator,
     )
     from backend.db.models import get_db
 
@@ -743,17 +746,27 @@ class TestRound6SocialAPIRoutes(TestRound6SocialFeaturesBase):
         rep_id = res_rep.json().get("report_id")
         self.assertIsNotNone(rep_id)
 
-        # List reports
-        res_list = self.client.get("/api/social/reports?status=PENDING")
-        self.assertEqual(res_list.status_code, 200)
-        self.assertGreaterEqual(res_list.json().get("total"), 1)
+        # Only configured moderators can list and resolve reports.
+        with patch.dict(os.environ, {"NARRAI_MODERATOR_USERNAMES": "doc_gia_vip"}):
+            res_list = self.client.get("/api/social/reports?status=PENDING")
+            self.assertEqual(res_list.status_code, 200)
+            self.assertGreaterEqual(res_list.json().get("total"), 1)
 
-        # Resolve report
-        res_res = self.client.post(f"/api/social/report/{rep_id}/resolve", json={
-            "status": "RESOLVED"
-        })
-        self.assertEqual(res_res.status_code, 200)
-        self.assertEqual(res_res.json().get("status"), "RESOLVED")
+            res_res = self.client.post(f"/api/social/report/{rep_id}/resolve", json={
+                "status": "RESOLVED"
+            })
+            self.assertEqual(res_res.status_code, 200)
+            self.assertEqual(res_res.json().get("status"), "RESOLVED")
+
+            invalid_status = self.client.post(
+                f"/api/social/report/{rep_id}/resolve",
+                json={"status": "PENDING"},
+            )
+            self.assertEqual(invalid_status.status_code, 422)
+
+        with patch.dict(os.environ, {"NARRAI_MODERATOR_USERNAMES": ""}):
+            denied = self.client.get("/api/social/reports")
+            self.assertEqual(denied.status_code, 403)
 
     def test_api_author_profile_get_and_put(self):
         """Test author profile retrieval and update."""

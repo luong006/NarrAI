@@ -130,6 +130,7 @@ NarrAI/
 | `GROQ_API_KEY_COPILOT` | Key cho Copilot |
 | `GROQ_API_KEY_COMIC` | Key cho Comic Director |
 | `JWT_SECRET` | Khóa ký JWT (đặt giá trị mạnh, không commit) |
+| `NARRAI_MODERATOR_USERNAMES` | Danh sách username kiểm duyệt, phân tách bằng dấu phẩy |
 | `DATABASE_URL` | Mặc định `sqlite:///./narrai.db` |
 
 **Frontend** (`frontend/.env.local`): `NEXT_PUBLIC_API_URL=http://localhost:8000/api`

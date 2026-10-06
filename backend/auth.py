@@ -17,6 +17,17 @@ SECRET_KEY = (
     or os.environ.get("SECRET_KEY")
     or "narrai-jwt-default-secret-key-change-in-production"
 )
+production_secret = os.environ.get("JWT_SECRET") or os.environ.get("SECRET_KEY")
+if (
+    (os.environ.get("ENVIRONMENT", "").lower() == "production"
+     or os.environ.get("RENDER", "").lower() == "true")
+    and (
+        not production_secret
+        or production_secret == "your_super_secret_jwt_key_change_in_production"
+        or production_secret == "narrai-jwt-default-secret-key-change-in-production"
+    )
+):
+    raise RuntimeError("JWT_SECRET must be set to a non-placeholder value before starting NarrAI in production.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
 

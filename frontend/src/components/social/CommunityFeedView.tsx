@@ -198,10 +198,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
   useEffect(() => {
     fetchFeed(selectedGenre);
-    if (typeof window !== "undefined") {
-      tfjsRecommender.syncVectorsFromBackend().catch(() => {});
-    }
   }, [selectedGenre]);
+
+  useEffect(() => {
+    tfjsRecommender.syncVectorsFromBackend().catch((error) => {
+      console.error("[TFJSRecommender] Vector sync failed:", error);
+    });
+  }, []);
 
 
   const handleOpenReader = async (post: SocialPost) => {

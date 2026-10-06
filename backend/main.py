@@ -102,6 +102,33 @@ except ImportError:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def refund_generation_charge(
+    db: Session,
+    user_id: int,
+    reference_id: Optional[str],
+    amount: int,
+    operation: str,
+) -> None:
+    if not reference_id:
+        return
+    try:
+        db.rollback()
+        refund_coins(
+            db=db,
+            user_id=user_id,
+            amount=amount,
+            reason=ACTION_REFUND_FAILED,
+            reference_id=reference_id,
+            description=f"Hoàn {amount} xu do lỗi trước khi bắt đầu {operation}.",
+        )
+    except Exception:
+        import logging
+        logging.getLogger("narrai.main").exception(
+            "Could not refund generation charge for user %s, reference %s",
+            user_id,
+            reference_id,
+        )
+
 def get_db():
     db = SessionLocal()
     try:
@@ -518,6 +545,8 @@ def generate_story(
     current_user: Optional[User] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    deduct_ref = None
+    cost = 0
     try:
         # Auto-detect narrative mode and pre-validate historical invariants
         detected_mode = NarrativeMode.HU_CAU_TU_DO
@@ -540,8 +569,6 @@ def generate_story(
             else ACTION_STORY_LONG if cost == COST_LONG_STORY
             else ACTION_STORY_MEDIUM
         )
-        deduct_ref = None
-
         if current_user:
             deduct_ok, deduct_ref, bal_after = deduct_coins(
                 db=db,
@@ -676,8 +703,12 @@ def generate_story(
 
         return StreamingResponse(stream_and_save(), media_type="text/plain")
     except HTTPException:
+        if current_user and deduct_ref:
+            refund_generation_charge(db, current_user.id, deduct_ref, cost, "sinh truyện")
         raise
     except Exception as e:
+        if current_user and deduct_ref:
+            refund_generation_charge(db, current_user.id, deduct_ref, cost, "sinh truyện")
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/trending-topics")
@@ -1326,23 +1357,23 @@ def copilot_event(request: CopilotEventRequest, current_user: User = Depends(get
         return {"status": "error", "message": str(e)}
     
 @app.post("/api/init-story")
-def init_story(request: InitStoryRequest, current_user: Optional[User] = Depends(get_current_user)):
+def init_story(
+    request: InitStoryRequest,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     deduct_ref = None
     try:
         # Server-authoritative coin deduction (8 xu for Chapter 1)
         if current_user:
-            db_deduct = SessionLocal()
-            try:
-                deduct_ok, deduct_ref, bal_after = deduct_coins(
-                    db=db_deduct,
-                    user_id=current_user.id,
-                    amount=COST_SHORT_STORY,
-                    action_type=ACTION_STORY_SHORT,
-                    description=f"Khởi tạo truyện chương 1 - {COST_SHORT_STORY} xu",
-                    raise_on_insufficient=True
-                )
-            finally:
-                db_deduct.close()
+            deduct_ok, deduct_ref, bal_after = deduct_coins(
+                db=db,
+                user_id=current_user.id,
+                amount=COST_SHORT_STORY,
+                action_type=ACTION_STORY_SHORT,
+                description=f"Khởi tạo truyện chương 1 - {COST_SHORT_STORY} xu",
+                raise_on_insufficient=True
+            )
 
         extractor = get_memory_extractor()
         gen = get_story_generator()
@@ -1459,8 +1490,16 @@ def init_story(request: InitStoryRequest, current_user: Optional[User] = Depends
 
         return StreamingResponse(stream_chapter_1(), media_type="text/plain")
     except HTTPException:
+        if current_user and deduct_ref:
+            refund_generation_charge(
+                db, current_user.id, deduct_ref, COST_SHORT_STORY, "khởi tạo truyện"
+            )
         raise
     except Exception as e:
+        if current_user and deduct_ref:
+            refund_generation_charge(
+                db, current_user.id, deduct_ref, COST_SHORT_STORY, "khởi tạo truyện"
+            )
         import traceback
         traceback.print_exc()
         return {"status": "error", "message": str(e)}

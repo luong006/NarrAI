@@ -272,6 +272,41 @@ class TestBackendIntegrationGen2(unittest.TestCase):
         audit_ok, audit_msg = verify_ledger_integrity(self.db, user_id=user.id)
         self.assertTrue(audit_ok, f"Ledger broken after rollback: {audit_msg}")
 
+    def test_init_story_refunds_when_setup_fails_before_streaming(self):
+        """A preparation error after charging must refund before any stream starts."""
+        from auth import create_access_token, get_password_hash
+
+        user = User(
+            username="failing_story_setup",
+            password_hash=get_password_hash("Pass123!"),
+            coins=20,
+        )
+        self.db.add(user)
+        self.db.commit()
+        token = create_access_token({"sub": user.username})
+        extractor = MagicMock()
+        extractor.extract_bible.side_effect = RuntimeError("Bible service unavailable")
+
+        with patch("main.get_memory_extractor", return_value=extractor):
+            response = self.client.post(
+                "/api/init-story",
+                json={"refined_prompt": "A test story"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "error")
+        self.db.refresh(user)
+        self.assertEqual(user.coins, 20)
+        transactions = (
+            self.db.query(CoinTransaction)
+            .filter_by(user_id=user.id)
+            .order_by(CoinTransaction.id.asc())
+            .all()
+        )
+        self.assertEqual([tx.amount for tx in transactions], [-COST_SHORT_STORY, COST_SHORT_STORY])
+        self.assertEqual(transactions[1].action_type, ACTION_REFUND_FAILED)
+
     def test_comic_generate_deducts_16_coins_and_rolls_back_on_failure(self):
         """Comic generation deducts 16 coins and triggers compensating rollback if director fails."""
         from auth import create_access_token, get_password_hash

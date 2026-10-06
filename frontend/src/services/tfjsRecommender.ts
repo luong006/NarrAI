@@ -13,9 +13,11 @@
  */
 
 import { indexedDBCache, ConceptVectorRecord } from "./indexedDBCache";
+import { API_BASE_URL } from "@/lib/api";
 
 export const VECTOR_DIM = 128;
 export const DEFAULT_MMR_LAMBDA = 0.7;
+const API_ORIGIN_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 
 export interface MMRRankedItem {
   post_id: number;
@@ -357,7 +359,7 @@ export class TFJSRecommenderService {
    * using delta timestamp synchronization and saves them into IndexedDB.
    */
   async syncVectorsFromBackend(
-    baseUrl: string = "",
+    baseUrl: string = API_ORIGIN_URL,
     limit: number = 200
   ): Promise<{ syncedCount: number; totalCached: number }> {
     try {
@@ -393,7 +395,7 @@ export class TFJSRecommenderService {
   /**
    * Fetches and caches quantized model weights from `GET /api/recommender/model-weights`.
    */
-  async syncModelWeights(baseUrl: string = ""): Promise<boolean> {
+  async syncModelWeights(baseUrl: string = API_ORIGIN_URL): Promise<boolean> {
     try {
       const cached = await indexedDBCache.getWeights();
       if (cached) {
