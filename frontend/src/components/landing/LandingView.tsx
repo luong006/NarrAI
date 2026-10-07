@@ -185,6 +185,58 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
             </article>
           </div>
 
+          <section
+            aria-labelledby="heritage-heading"
+            className="mt-12 border-y border-[#cfc4b8] py-8 dark:border-[#51463d] sm:mt-16 sm:py-10"
+          >
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+              <div className="max-w-xl">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#805342] dark:text-[#d5a88e]">
+                  {t.heritage_eyebrow}
+                </p>
+                <h2
+                  id="heritage-heading"
+                  className="mt-3 font-serif text-2xl font-bold leading-tight tracking-tight text-[#30221e] dark:text-[#f3e9db] sm:text-3xl"
+                >
+                  {t.heritage_title}
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-[#6d625b] dark:text-[#c3b8aa]">
+                  {t.heritage_desc}
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenAuth}
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#714033] transition-colors hover:text-[#382622] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a654c] dark:text-[#d5a88e] dark:hover:text-[#f0c8ad]"
+                >
+                  {t.heritage_cta}
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="divide-y divide-[#cfc4b8] dark:divide-[#51463d]">
+                {[
+                  { number: "01", title: t.heritage_history_title, description: t.heritage_history_desc },
+                  { number: "02", title: t.heritage_culture_title, description: t.heritage_culture_desc },
+                  { number: "03", title: t.heritage_community_title, description: t.heritage_community_desc },
+                ].map((item) => (
+                  <article key={item.number} className="grid grid-cols-[2.5rem_1fr] gap-3 py-4 first:pt-0 last:pb-0">
+                    <span className="pt-0.5 text-xs font-bold tracking-[0.12em] text-[#9a654c] dark:text-[#d5a88e]">
+                      {item.number}
+                    </span>
+                    <div>
+                      <h3 className="font-serif text-base font-bold text-[#30221e] dark:text-[#f3e9db]">
+                        {item.title}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-[#6d625b] dark:text-[#c3b8aa]">
+                        {item.description}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <div className="mt-8 flex flex-col items-start justify-between gap-4 border-y border-[#cfc4b8] py-5 dark:border-[#51463d] sm:flex-row sm:items-center">
             <div className="flex items-start gap-3">
               <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-[#61705a] dark:text-[#a9bd9d]" />

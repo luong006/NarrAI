@@ -57,6 +57,16 @@ export const translations = {
     feat2_desc: "Tạo bản thảo theo từng bước và yêu cầu AI chỉnh sửa chính xác phần nội dung bạn chọn.",
     feat3_title: "Chuyển thể truyện tranh",
     feat3_desc: "Biến các cảnh trong bản thảo thành kịch bản khung tranh, lời thoại và hình minh họa.",
+    heritage_eyebrow: "Văn hóa và lịch sử Việt Nam",
+    heritage_title: "Kể chuyện từ niềm tự hào về cội nguồn",
+    heritage_desc: "Từ những trang sử và di sản văn hóa đến nhịp sống Việt hôm nay, NarrAI mở ra không gian để người viết gìn giữ ký ức, khám phá bản sắc và kể những câu chuyện Việt theo góc nhìn của riêng mình.",
+    heritage_history_title: "Tôn trọng dòng chảy lịch sử",
+    heritage_history_desc: "Chế độ Chính sử ưu tiên các sự kiện lịch sử; Dã sử dành không gian cho nhân vật và tình tiết hư cấu trong bối cảnh xưa.",
+    heritage_culture_title: "Gìn giữ nét văn hóa",
+    heritage_culture_desc: "Đưa phong tục, không gian, tiếng nói và đời sống Việt vào câu chuyện một cách gần gũi, có tìm hiểu.",
+    heritage_community_title: "Chia sẻ câu chuyện Việt",
+    heritage_community_desc: "Kết nối người viết và độc giả cùng quan tâm đến lịch sử, văn hóa và bản sắc Việt Nam.",
+    heritage_cta: "Bắt đầu câu chuyện của bạn",
     footer_copyright: "NarrAI © 2026. Không gian sáng tác dành cho những câu chuyện đáng kể.",
 
     // Navigation
@@ -317,6 +327,16 @@ export const translations = {
     feat2_desc: "Build a manuscript step by step and ask AI to refine the exact passage you select.",
     feat3_title: "Adapt into comics",
     feat3_desc: "Turn scenes from your manuscript into comic panels, dialogue, and image prompts.",
+    heritage_eyebrow: "Vietnamese culture and history",
+    heritage_title: "Tell stories rooted in a shared heritage",
+    heritage_desc: "From historical records and cultural heritage to everyday life in Vietnam today, NarrAI gives writers room to preserve memories, explore identity, and tell Vietnamese stories in their own voices.",
+    heritage_history_title: "Respect the historical record",
+    heritage_history_desc: "The historical mode prioritizes documented events; historical fiction leaves room for imagined characters and plots within the period.",
+    heritage_culture_title: "Bring culture into the story",
+    heritage_culture_desc: "Explore Vietnamese customs, places, language, and everyday life through thoughtful storytelling.",
+    heritage_community_title: "Share Vietnamese stories",
+    heritage_community_desc: "Connect writers and readers who care about Vietnam’s history, culture, and identity.",
+    heritage_cta: "Start your story",
     footer_copyright: "NarrAI © 2026. A creative space for stories worth telling.",
 
     // Navigation

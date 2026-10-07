@@ -4,6 +4,8 @@
 
 NarrAI is a creative co-writing workspace. It helps writers develop story concepts into prose manuscripts and adapt them into black-and-white manga. The product also supports readers and creators through its literary community.
 
+The landing page also presents Vietnamese history, culture, and heritage as story inspiration, while distinguishing historically grounded writing from historical fiction.
+
 ## Users and usage
 
 - Primary users: novelists, screenwriters, creative writers, manga creators, and literature readers.
@@ -31,6 +33,7 @@ The interface should feel literate, calm, and focused, combining the atmosphere 
 - Avoid nested cards, defaulting the entire interface to Inter, and thick colored side borders.
 - Keep controls clear and unobtrusive so the writing and reading areas remain the focus.
 - The landing page uses a quiet editorial layout, with open spacing, fine dividers, and a manuscript-inspired illustration instead of dashboard-like cards.
+- Present Vietnamese culture and history with an inclusive tone, and avoid implying that creative tools guarantee complete historical accuracy.
 - Keep landing-page motion minimal and nonessential; respect reduced-motion preferences.
 
 ## Comic and manga reader
