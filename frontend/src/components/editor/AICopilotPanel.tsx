@@ -92,14 +92,14 @@ export function AICopilotPanel({
     <aside className={`${mobileOpen
       ? "fixed inset-x-3 top-3 bottom-20 z-40 flex w-auto flex-col rounded-xl shadow-xl lg:static lg:h-full lg:w-96 lg:rounded-none lg:shadow-none"
       : "hidden lg:flex lg:h-full lg:w-96"
-    } border-l border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] shrink-0 px-4 py-4 transition-colors`}>
+    } flex-col border-l border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] shrink-0 px-4 py-4 transition-colors`}>
       {/* Copilot Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800 flex items-center justify-center text-brand-700 dark:text-brand-300">
             <Bot className="w-4 h-4" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
               {t.ai_copilot}
             </h3>
@@ -108,6 +108,19 @@ export function AICopilotPanel({
               {t.live_editor_title}
             </span>
           </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {canUndo && onUndo && (
+            <button
+              onClick={onUndo}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 transition-colors border border-amber-300 dark:border-amber-800 shadow-xs"
+              title={t.undo_tooltip}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>{t.undo_btn}</span>
+            </button>
+          )}
           {onCloseMobile && (
             <button
               type="button"
@@ -119,17 +132,6 @@ export function AICopilotPanel({
             </button>
           )}
         </div>
-
-        {canUndo && onUndo && (
-          <button
-            onClick={onUndo}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 transition-colors border border-amber-300 dark:border-amber-800 shadow-xs"
-            title={t.undo_tooltip}
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>{t.undo_btn}</span>
-          </button>
-        )}
       </div>
 
       {/* Compact AI Model Tier selector */}
@@ -150,7 +152,7 @@ export function AICopilotPanel({
       </div>
 
       {/* Main Copilot Content: Scrollable */}
-      <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-3 space-y-3 pr-1">
         {/* If text is selected in the editor: Quick edit block */}
         {selectedText ? (
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
@@ -242,7 +244,7 @@ export function AICopilotPanel({
           {copilotMessages.map((msg, i) => (
             <div
               key={i}
-              className={`p-2.5 rounded-xl text-xs leading-relaxed ${
+              className={`min-w-0 break-words p-2.5 rounded-xl text-xs leading-relaxed ${
                 msg.role === "user"
                   ? "bg-brand-700 text-white ml-6 rounded-tr-none shadow-xs"
                   : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 mr-4 rounded-tl-none border border-slate-200 dark:border-slate-700 shadow-xs whitespace-pre-line"

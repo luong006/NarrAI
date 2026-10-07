@@ -1000,7 +1000,7 @@ export default function WorkspacePage() {
         )}
 
         {activeTab === "editor" && (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <div className="flex-1 flex min-h-0 min-w-0 flex-col overflow-hidden">
             {manuscriptNotice && (
               <div className="bg-emerald-600 dark:bg-emerald-700 text-white px-4 py-2 flex items-center justify-between shadow text-xs font-medium shrink-0 animate-fadeIn">
                 <div className="flex items-center gap-2">
@@ -1017,7 +1017,7 @@ export default function WorkspacePage() {
                 )}
               </div>
             )}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden">
               <StoryEditor
                 content={storyContent}
                 onContentChange={setStoryContent}

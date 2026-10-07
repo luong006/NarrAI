@@ -3,7 +3,6 @@
 import { translations, Language } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { CoinBadgeMorphicon } from "@/components/morphicons/CoinBadgeMorphicon";
 import { ArrowRight, Bot, Image as ImageIcon, LogIn, PenLine, ShieldCheck, Users } from "lucide-react";
 
 interface Props {
@@ -39,15 +38,6 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
           </button>
 
           <div className="landing-header-controls flex items-center gap-1.5 sm:gap-3">
-            <div className="hidden sm:block">
-              <CoinBadgeMorphicon
-                balance={100}
-                onClick={onOpenAuth}
-                lang={lang}
-                size="sm"
-                isInteractive
-              />
-            </div>
             <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} />
             <ThemeToggle lang={lang} />
             <button
