@@ -12,20 +12,18 @@ NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành
 
 ### 1. Quy trình sáng tác có AI hỗ trợ
 - **Agent 1 — Q&A Intake Refiner (`qa_refiner.py`)**: 
-  - Khung chat phỏng vấn ý tưởng tự nhiên phong cách Gemini/ChatGPT.
+  - Khung chat phỏng vấn ý tưởng tự nhiên.
   - Dual-Matrix Fallback: chuyển model hoặc API key khi gặp lỗi hay giới hạn dịch vụ.
   - Concept Mirroring: phản hồi dựa trên chi tiết trong ý tưởng và đặt câu hỏi làm rõ.
 - **Agent 2 — Story Generator (`story_generator.py`)**:
   - Hỗ trợ dàn ý và viết truyện theo năm nhịp: Hook, Rising Friction, Turning Point, Visceral Climax và Cliffhanger.
-  - Hỗ trợ đa dạng thể loại: Lịch sử/Dã sử, Kỳ ảo/Tu chân, Đô thị/Chữa lành, Sci-Fi/Cyberpunk, Trinh thám/Giật gân.
+  - Hỗ trợ đa dạng thể loại: Lịch sử/Dã sử, Kỳ ảo/Tu chân, Đô thị/Chữa lành, Sci-Fi/Cyberpunk, Trinh thám/Giật gân....
 - **Agent 3 — Copilot Flexible Surgery (`copilot_agent.py`)**:
   - Biên tập bản thảo theo thời gian thực (Live Editor).
   - Chỉnh sửa đoạn văn được chọn mà không thay đổi phần còn lại của bản thảo.
-  - Giữ các tiêu đề chương khi biên tập nội dung nhiều chương.
 - **Agent 4 — Comic Director (`comic_agent.py`)**:
-  - Chuyển bản thảo thành kịch bản truyện tranh gồm khung hình, lời thoại và prompt tạo ảnh.
-  - Duy trì thông tin nhân vật và bối cảnh giữa các khung. Ảnh có thể tải lại khi gặp lỗi; trang đầu được ưu tiên tải trước.
-  - Giao diện đọc giữ phần điều khiển ngoài khung tranh, không phủ thêm thành phần giao diện ứng dụng lên ảnh truyện.
+  - Chuyển bản thảo thành kịch bản truyện tranh.
+  - Duy trì thông tin nhân vật và bối cảnh giữa các khung. Ảnh có thể tải lại khi gặp lỗi.
 
 ### 2. Kiểm tra nội dung lịch sử và nhận diện IP
 - Bộ quy tắc lịch sử bao gồm các nhân vật và sự kiện Việt Nam qua nhiều giai đoạn.
@@ -295,5 +293,5 @@ Kiểm tra frontend bằng `npm run build` trong thư mục `frontend`. Kết qu
 Dự án được phát triển với tinh thần cống hiến cho văn hóa đọc và cộng đồng sáng tác văn học Việt Nam.
 
 - **Đội thi**: Những ngôi sao mộng mơ
-- **Đại diện**: Khoa Kinh tế & Quản lý / Công nghệ thông tin - Trường Quốc tế (VNU-IS)
+- **Đại diện**: Trường Quốc tế (VNU-IS)
 - **Bản quyền**: © 2026 NarrAI Team. Bảo lưu mọi quyền trong khuôn khổ Cuộc thi iStartup 2026.
