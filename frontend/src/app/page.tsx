@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BookOpen, Coins, FileText, LogOut, MessageSquare, MoreHorizontal, Palette, PlusCircle, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { Language, translations } from "@/lib/i18n";
@@ -9,6 +10,8 @@ import { StoryDetail, ComicPanel, ChatMessage, StoryLength, CreativityLevel, Pac
 
 import { LandingView } from "@/components/landing/LandingView";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { AuthModal } from "@/components/modals/AuthModal";
 import { HistoryModal } from "@/components/modals/HistoryModal";
 import { CoinTopupModal } from "@/components/modals/CoinTopupModal";
@@ -189,6 +192,8 @@ export default function WorkspacePage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCoinModalOpen, setIsCoinModalOpen] = useState(false);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileCopilotOpen, setIsMobileCopilotOpen] = useState(false);
   const [isNeuralModalOpen, setIsNeuralModalOpen] = useState(false);
   const [coinBalance, setCoinBalance] = useState<number>(100);
 
@@ -259,6 +264,21 @@ export default function WorkspacePage() {
     storage.removeToken();
     setUser(null);
     setView("landing");
+  };
+
+  const handleNewStory = () => {
+    setActiveTab("setup");
+    setInitialPrompt("");
+    setChatHistory([]);
+    setRefinedPrompt("");
+    setStoryContent("");
+    setStoryId(null);
+    setSessionId(null);
+    setComicPanels([]);
+    setComicId(null);
+    setCopilotMessages([]);
+    setIsMobileCopilotOpen(false);
+    setIsMobileMenuOpen(false);
     setActiveTab("setup");
     setInitialPrompt("");
     setChatHistory([]);
@@ -353,7 +373,24 @@ export default function WorkspacePage() {
       return;
     }
 
-    if (!user) {
+    let activeUser = user;
+    const token = storage.getToken();
+    if (!activeUser && token) {
+      const session = await api.getMe();
+      if (session.status === "success" && session.username) {
+        activeUser = { username: session.username, fullName: session.full_name || session.username };
+        setUser(activeUser);
+      } else {
+        if (session.statusCode === 401) {
+          storage.removeToken();
+        } else {
+          toast.error(session.message || t.unknown_error);
+          return;
+        }
+      }
+    }
+
+    if (!activeUser || !storage.getToken()) {
       toast.warning(lang === "vi" ? "Vui lòng đăng nhập để đăng bài lên cộng đồng." : "Please log in to publish your story.");
       setIsAuthOpen(true);
       return;
@@ -390,6 +427,13 @@ export default function WorkspacePage() {
       if (res.success) {
         toast.success(t.publish_success || (lang === "vi" ? "Đã xuất bản tác phẩm lên Bảng tin cộng đồng thành công!" : "Story published to community feed successfully!"));
         setActiveTab("posts");
+      } else if (res.statusCode === 401) {
+        storage.removeToken();
+        setUser(null);
+        toast.warning(lang === "vi"
+          ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đăng bài."
+          : "Your session has expired. Please log in again to publish.");
+        setIsAuthOpen(true);
       } else {
         toast.error(res.message || t.unknown_error);
       }
@@ -902,8 +946,8 @@ export default function WorkspacePage() {
           onClose={() => setIsCoinModalOpen(false)}
           currentBalance={coinBalance}
           username={user?.username || "creator"}
-          onTopupSuccess={(added) => {
-            setCoinBalance((prev) => prev + added);
+          onTopupSuccess={(added, newBalance) => {
+            setCoinBalance(newBalance);
             toast.success(lang === "vi" ? `Nạp thành công +${added} Xu!` : `Successfully added +${added} Coins!`);
           }}
           lang={lang}
@@ -920,25 +964,14 @@ export default function WorkspacePage() {
 
   // If on workspace view
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50/90 dark:bg-slate-950/90 text-slate-900 dark:text-white relative z-10">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#f2eee7] dark:bg-[#211d19] text-[#342722] dark:text-[#eee6d9] relative z-10 lg:flex-row">
       {/* Left Sidebar */}
       <Sidebar
         username={user?.username || ""}
         fullName={user?.fullName || ""}
         lang={lang}
         onLanguageChange={handleLanguageChange}
-        onNewStory={() => {
-          setActiveTab("setup");
-          setInitialPrompt("");
-          setChatHistory([]);
-          setRefinedPrompt("");
-          setStoryContent("");
-          setStoryId(null);
-          setSessionId(null);
-          setComicPanels([]);
-          setComicId(null);
-          setCopilotMessages([]);
-        }}
+        onNewStory={handleNewStory}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onLogout={handleLogout}
         coinBalance={coinBalance}
@@ -951,7 +984,7 @@ export default function WorkspacePage() {
       />
 
       {/* Main Workspace Area */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex min-h-0 overflow-hidden">
         {activeTab === "setup" && (
           <UnifiedIntakeChat
             lang={lang}
@@ -989,6 +1022,7 @@ export default function WorkspacePage() {
                 content={storyContent}
                 onContentChange={setStoryContent}
                 lang={lang}
+            onToggleCopilot={() => setIsMobileCopilotOpen((open) => !open)}
             onAdaptToComic={handleAdaptToComic}
                 onDownload={handleDownload}
                 onPublish={handlePublishStory}
@@ -1014,6 +1048,8 @@ export default function WorkspacePage() {
                 streaming={streaming}
                 onUndo={handleUndoEdit}
                 canUndo={undoStack.length > 0}
+                mobileOpen={isMobileCopilotOpen}
+                onCloseMobile={() => setIsMobileCopilotOpen(false)}
               />
             </div>
           </div>
@@ -1039,6 +1075,65 @@ export default function WorkspacePage() {
           />
         )}
       </main>
+
+      <nav
+        aria-label={lang === "vi" ? "Điều hướng không gian sáng tác" : "Workspace navigation"}
+        className="grid h-16 shrink-0 grid-cols-5 border-t border-[#ded5c9] bg-[#faf7f0] px-1 pb-[env(safe-area-inset-bottom)] dark:border-[#50453c] dark:bg-[#28231f] lg:hidden"
+      >
+        <button type="button" onClick={handleNewStory} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${activeTab === "setup" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <PlusCircle className="h-4 w-4" />
+          {lang === "vi" ? "Tạo mới" : "Create"}
+        </button>
+        <button type="button" onClick={() => { setActiveTab("editor"); setIsMobileCopilotOpen(false); }} disabled={!storyContent} className={`flex flex-col items-center justify-center gap-1 text-[10px] disabled:opacity-40 ${activeTab === "editor" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <FileText className="h-4 w-4" />
+          {lang === "vi" ? "Bản thảo" : "Draft"}
+        </button>
+        <button type="button" onClick={() => { setActiveTab("comic"); setIsMobileCopilotOpen(false); }} disabled={comicPanels.length === 0} className={`flex flex-col items-center justify-center gap-1 text-[10px] disabled:opacity-40 ${activeTab === "comic" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <Palette className="h-4 w-4" />
+          Manga
+        </button>
+        <button type="button" onClick={() => { setActiveTab("posts"); setIsMobileCopilotOpen(false); }} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${activeTab === "posts" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <Users className="h-4 w-4" />
+          {lang === "vi" ? "Cộng đồng" : "Community"}
+        </button>
+        <button type="button" onClick={() => setIsMobileMenuOpen((open) => !open)} aria-expanded={isMobileMenuOpen} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${isMobileMenuOpen ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <MoreHorizontal className="h-4 w-4" />
+          {lang === "vi" ? "Thêm" : "More"}
+        </button>
+      </nav>
+
+      {isMobileMenuOpen && (
+        <>
+        <button type="button" aria-label={lang === "vi" ? "Đóng menu" : "Close menu"} onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 z-30 bg-black/10 lg:hidden" />
+        <div className="fixed bottom-[4.5rem] right-3 z-40 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-[#e2d8cb] bg-[#fbf8f1] p-3 shadow-xl dark:border-[#50453c] dark:bg-[#302a25] lg:hidden">
+          <div className="mb-2 flex items-center justify-between border-b border-[#ded5c9] pb-2 dark:border-[#50453c]">
+            <span className="text-xs font-semibold text-[#342722] dark:text-[#eee6d9]">{user?.fullName || user?.username}</span>
+            <button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-[#eee4d7] dark:text-slate-300 dark:hover:bg-[#45352c]">
+              <LogOut className="h-3.5 w-3.5" />
+              {lang === "vi" ? "Đăng xuất" : "Log out"}
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => { setIsCoinModalOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-[#704331] dark:bg-[#332c26] dark:text-[#dfb79b]">
+              <Coins className="h-4 w-4" />
+              {coinBalance} {lang === "vi" ? "Xu" : "Coins"}
+            </button>
+            <button type="button" onClick={() => { setIsHistoryOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-slate-700 dark:bg-[#332c26] dark:text-slate-200">
+              <BookOpen className="h-4 w-4" />
+              {lang === "vi" ? "Lịch sử" : "History"}
+            </button>
+            <button type="button" onClick={() => { setIsMessengerOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-slate-700 dark:bg-[#332c26] dark:text-slate-200">
+              <MessageSquare className="h-4 w-4" />
+              {lang === "vi" ? "Tin nhắn" : "Messages"}
+            </button>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <LanguageSwitcher currentLang={lang} onLanguageChange={handleLanguageChange} />
+            <ThemeToggle lang={lang} />
+          </div>
+        </div>
+        </>
+      )}
 
       {/* Modals */}
       <AuthModal
@@ -1066,8 +1161,8 @@ export default function WorkspacePage() {
         onClose={() => setIsCoinModalOpen(false)}
         currentBalance={coinBalance}
         username={user?.username || "creator"}
-        onTopupSuccess={(added) => {
-          setCoinBalance((prev) => prev + added);
+        onTopupSuccess={(added, newBalance) => {
+          setCoinBalance(newBalance);
           toast.success(lang === "vi" ? `Nạp thành công +${added} Xu!` : `Successfully added +${added} Coins!`);
         }}
         lang={lang}

@@ -58,7 +58,7 @@ const INITIAL_CONTACTS: ChatContact[] = [
     id: 'c1',
     username: 'hoang_nam',
     fullName: 'Hoàng Nam (Manga Artist)',
-    avatarColor: 'bg-indigo-500',
+    avatarColor: 'bg-[#805342]',
     status: 'online',
     lastMessage: 'Nét vẽ khung tranh số 4 rất ấn tượng bạn nhé!',
     lastTime: '10:32',
@@ -195,19 +195,19 @@ export function MessengerModal({
           role="dialog"
           aria-modal="true"
           aria-label={lang === 'vi' ? 'Hộp thoại Open Messenger' : 'Open Messenger Dialog'}
-          className="relative w-full max-w-4xl h-[86vh] max-h-[720px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
+          className="relative w-full max-w-4xl h-[86vh] max-h-[720px] bg-[#fbf8f1] dark:bg-[#302a25] border border-[#e2d8cb] dark:border-[#50453c] rounded-xl shadow-xl overflow-hidden flex flex-col md:flex-row"
         >
           {/* Left Panel: Contact List & Directory Search */}
-          <div className="w-full md:w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 bg-slate-50/80 dark:bg-slate-950/50">
+          <div className="w-full md:w-80 border-r border-[#ded5c9] dark:border-[#50453c] flex flex-col shrink-0 bg-[#f4f0e8] dark:bg-[#28231f]">
             {/* Header */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <MessageSquare className="w-5 h-5 text-[#805342] dark:text-[#dfb79b]" />
                 <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
                   Open Messenger
                 </h2>
               </div>
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#eee4d7] text-[#704331] dark:bg-[#45352c] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044]">
                 {lang === 'vi' ? 'Toàn mạng' : 'Open'}
               </span>
             </div>
@@ -242,7 +242,7 @@ export function MessengerModal({
                       onClick={() => setSelectedContact(contact)}
                       className={`w-full p-3 flex items-start gap-3 text-left transition-colors ${
                         isSelected
-                          ? 'bg-white dark:bg-slate-900 border-l-4 border-indigo-600 dark:border-indigo-400 shadow-xs'
+                          ? 'bg-[#fbf8f1] dark:bg-[#302a25] border-l-4 border-[#805342] shadow-xs'
                           : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
                       }`}
                     >
@@ -272,7 +272,7 @@ export function MessengerModal({
                       </div>
 
                       {contact.unreadCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shrink-0">
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-700 text-white shrink-0">
                           {contact.unreadCount}
                         </span>
                       )}
@@ -284,9 +284,9 @@ export function MessengerModal({
           </div>
 
           {/* Right Panel: Active Chat Thread */}
-          <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900 min-w-0">
+          <div className="flex-1 flex flex-col h-full bg-[#fbf8f1] dark:bg-[#302a25] min-w-0">
             {/* Thread Header */}
-            <div className="h-14 px-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+            <div className="h-14 px-5 border-b border-[#ded5c9] dark:border-[#50453c] flex items-center justify-between shrink-0 bg-[#fbf8f1] dark:bg-[#302a25]">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className={`w-8 h-8 rounded-full ${selectedContact.avatarColor} text-white font-bold flex items-center justify-center text-xs shrink-0`}
@@ -337,15 +337,15 @@ export function MessengerModal({
                   <div
                     className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-xs ${
                       msg.isMe
-                        ? 'bg-indigo-600 text-white rounded-tr-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700/80 rounded-tl-xs'
+                        ? 'bg-[#714033] text-[#fffaf0] rounded-tr-xs'
+                        : 'bg-[#f1ece3] dark:bg-[#3a312b] text-slate-900 dark:text-slate-100 border border-[#e2d8cb] dark:border-[#50453c] rounded-tl-xs'
                     }`}
                   >
                     <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400 px-1">
                     <span>{msg.timestamp}</span>
-                    {msg.isMe && <CheckCheck className="w-3 h-3 text-indigo-500" />}
+                    {msg.isMe && <CheckCheck className="w-3 h-3 text-[#9f684a]" />}
                   </div>
                 </div>
               ))}
@@ -355,7 +355,7 @@ export function MessengerModal({
             {/* Message Input Box */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2"
+              className="p-3 border-t border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] flex items-center gap-2"
             >
               <input
                 type="text"
@@ -371,7 +371,7 @@ export function MessengerModal({
               <button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-[#714033] hover:bg-[#573229] text-[#fffaf0] font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{lang === 'vi' ? 'Gửi' : 'Send'}</span>

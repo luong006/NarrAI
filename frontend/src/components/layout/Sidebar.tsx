@@ -45,24 +45,26 @@ export function Sidebar({
   const displayName = fullName || username;
 
   return (
-    <aside className="w-64 h-screen border-r border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col justify-between p-4 select-none shrink-0 transition-colors z-10">
+    <aside className="hidden lg:flex w-64 h-screen border-r border-[#ddd4c8] dark:border-[#50453c] bg-[#f8f5ee] dark:bg-[#28231f] flex-col justify-between p-4 select-none shrink-0 transition-colors z-10">
       <div>
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-2 py-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-brand-700 flex items-center justify-center text-white font-bold text-base shadow">
+          <div className="w-8 h-8 rounded-lg bg-[#714033] flex items-center justify-center text-[#fffaf0] font-serif font-bold text-base">
             N
           </div>
           <div>
-            <h1 className="font-bold text-base tracking-tight text-slate-900 dark:text-white">NarrAI</h1>
-            <p className="text-[11px] text-slate-500 font-mono">Workspace v2.0</p>
+            <h1 className="font-serif font-bold text-base tracking-tight text-[#342722] dark:text-[#eee6d9]">NarrAI</h1>
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[#82766c] dark:text-[#b8aa9b]">
+              {lang === "vi" ? "Không gian sáng tác" : "Writing workspace"}
+            </p>
           </div>
         </div>
 
         {/* User Card */}
-        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 mb-4">
+        <div className="p-3 rounded-lg bg-[#f1ece3] dark:bg-[#332c26] border border-[#e2d8cb] dark:border-[#50453c] mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-950 flex items-center justify-center text-brand-700 dark:text-brand-300 shrink-0">
+              <div className="w-7 h-7 rounded-full bg-[#e8d8c9] dark:bg-[#4a382e] flex items-center justify-center text-[#704331] dark:text-[#dfb79b] shrink-0">
                 <User className="w-4 h-4" />
               </div>
               <div className="flex flex-col min-w-0">
@@ -89,7 +91,7 @@ export function Sidebar({
           </div>
 
           {/* Coin Badge Micro-Interaction (Layer 2) */}
-          <div className="mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
+          <div className="mt-3 pt-2.5 border-t border-[#ded3c6] dark:border-[#50453c] flex items-center justify-between">
             <CoinBadgeMorphicon
               balance={coinBalance}
               onClick={onOpenCoinTopup}
@@ -124,11 +126,11 @@ export function Sidebar({
               onClick={() => onTabChange?.("editor")}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 activeTab === "editor"
-                  ? "bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold"
+                  ? "bg-[#e9dfd0] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] font-bold"
                   : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <FileText className="w-4 h-4 text-[#805342] dark:text-[#d5a88e]" />
               <span>{t.tab_editor}</span>
             </button>
           )}
@@ -153,11 +155,11 @@ export function Sidebar({
             onClick={() => onTabChange?.("posts")}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
               activeTab === "posts"
-                ? "bg-violet-50 dark:bg-violet-950/70 text-violet-700 dark:text-violet-300 font-bold"
+                ? "bg-[#e9dfd0] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] font-bold"
                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             }`}
           >
-            <Users className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <Users className="w-4 h-4 text-[#805342] dark:text-[#d5a88e]" />
             <span>{lang === "vi" ? "Mạng xã hội" : "Community & Social"}</span>
           </button>
 
@@ -177,7 +179,7 @@ export function Sidebar({
             title={lang === "vi" ? "Mở hộp thư Open Messenger" : "Open Messenger"}
           >
             <div className="flex items-center gap-2.5">
-              <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <MessageSquare className="w-4 h-4 text-[#805342] dark:text-[#d5a88e]" />
               <span>{lang === "vi" ? "Open Messenger" : "Messenger"}</span>
             </div>
             {unreadCount > 0 ? (
@@ -195,7 +197,7 @@ export function Sidebar({
       </div>
 
       {/* Footer controls */}
-      <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between px-1">
+      <div className="pt-4 border-t border-[#ddd4c8] dark:border-[#50453c] flex items-center justify-between px-1">
         <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} />
         <ThemeToggle lang={lang} />
       </div>

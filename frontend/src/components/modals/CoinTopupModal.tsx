@@ -2,29 +2,20 @@
 
 import React, { useState } from 'react';
 import { ClientPortal } from '@/components/portals/ClientPortal';
+import { api } from '@/lib/api';
 import {
   X,
   Coins,
   ShieldCheck,
-  QrCode,
   Sparkles,
   CheckCircle2,
   Copy,
-  ArrowRight,
   Lock,
   RefreshCw,
-  ExternalLink,
 } from 'lucide-react';
 
 /**
- * CoinTopupModal (Layer 3 Glassmorphism Modal)
- *
- * Architecture:
- * - Bank-Grade 100 Coin Economic Model (100.000 VNĐ = 100 Xu)
- * - Anti-Race Condition & Double Spending isolation assurance
- * - Cryptographic Ledger SHA-256 chained transaction proof
- * - Wrapped inside ClientPortal with `isolation: isolate` and z-index 60
- * - Multi-package selection with dynamic VietQR generator simulation
+ * CoinTopupModal credits demo coins through the authenticated backend endpoint.
  */
 
 export interface CoinTopupModalProps {
@@ -32,7 +23,7 @@ export interface CoinTopupModalProps {
   onClose: () => void;
   currentBalance?: number;
   username?: string;
-  onTopupSuccess?: (addedCoins: number) => void;
+  onTopupSuccess?: (addedCoins: number, newBalance: number) => void;
   lang?: 'vi' | 'en';
 }
 
@@ -63,6 +54,7 @@ export function CoinTopupModal({
   const [copied, setCopied] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [successNotice, setSuccessNotice] = useState<boolean>(false);
+  const [topupError, setTopupError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -76,17 +68,25 @@ export function CoinTopupModal({
     }
   };
 
-  const handleSimulatePayment = () => {
+  const handleTopup = async () => {
+    if (processing) return;
     setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+    setTopupError(null);
+    try {
+      const result = await api.topupCoins(selectedPkg.coins + selectedPkg.bonus);
       setSuccessNotice(true);
-      onTopupSuccess?.(selectedPkg.coins + selectedPkg.bonus);
+      onTopupSuccess?.(result.amount, result.new_balance);
       setTimeout(() => {
         setSuccessNotice(false);
         onClose();
       }, 1600);
-    }, 1200);
+    } catch (error) {
+      setTopupError(error instanceof Error
+        ? error.message
+        : (lang === 'vi' ? 'Không thể nạp xu.' : 'Unable to top up coins.'));
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -110,8 +110,8 @@ export function CoinTopupModal({
                 </h2>
                 <p className="text-xs text-amber-100 opacity-90">
                   {lang === 'vi'
-                    ? 'Tỉ giá quy đổi: 100k VNĐ = 100 Xu'
-                    : 'Standard conversion: 100k VNĐ = 100 Coins'}
+                    ? 'Chế độ demo MVP: xu được cộng trực tiếp, chưa xử lý thanh toán ngân hàng.'
+                    : 'MVP demo mode: coins are credited directly; no bank payment is processed.'}
                 </p>
               </div>
             </div>
@@ -150,7 +150,11 @@ export function CoinTopupModal({
                     <button
                       key={pkg.id}
                       type="button"
-                      onClick={() => setSelectedPkg(pkg)}
+                      onClick={() => {
+                        setSelectedPkg(pkg);
+                        setTopupError(null);
+                      }}
+                      disabled={processing || successNotice}
                       className={`relative p-3 rounded-xl border text-left transition-all ${
                         isSelected
                           ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 shadow-sm ring-2 ring-amber-500/40'
@@ -199,11 +203,11 @@ export function CoinTopupModal({
               </div>
             </div>
 
-            {/* Payment Details with Simulated QR */}
+            {/* Demo top-up reference */}
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3 bg-white dark:bg-slate-900">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                  {lang === 'vi' ? 'Cú pháp chuyển khoản:' : 'Transfer syntax:'}
+                  {lang === 'vi' ? 'Mã tham chiếu demo:' : 'Demo reference:'}
                 </span>
                 <button
                   type="button"
@@ -228,16 +232,22 @@ export function CoinTopupModal({
                 {transferCode}
               </div>
 
-              {/* Cryptographic Ledger Assurance Badge */}
+              {/* Demo-mode disclosure */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>
                   {lang === 'vi'
-                    ? 'Bảo vệ bởi Sổ cái Bất biến SHA-256 & Tự động hoàn xu 100% nếu AI lỗi (REFUND_FAILED_GENERATION).'
-                    : 'Protected by SHA-256 Immutable Ledger & 100% Compensating Refund on failure.'}
+                    ? 'Không cần chuyển khoản trong bản demo. Chọn gói sẽ cộng xu vào số dư tài khoản.'
+                    : 'No bank transfer is required in this demo. Selecting a package credits your account.'}
                 </span>
               </div>
             </div>
+
+            {topupError && (
+              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                {topupError}
+              </div>
+            )}
 
             {/* Success Notification */}
             {successNotice && (
@@ -262,22 +272,20 @@ export function CoinTopupModal({
               </button>
               <button
                 type="button"
-                onClick={handleSimulatePayment}
+                onClick={handleTopup}
                 disabled={processing || successNotice}
                 className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-md shadow-amber-500/20 flex items-center gap-2 transition-all disabled:opacity-60"
               >
                 {processing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>{lang === 'vi' ? 'Đang xác thực...' : 'Verifying...'}</span>
+                    <span>{lang === 'vi' ? 'Đang cập nhật số dư...' : 'Updating balance...'}</span>
                   </>
                 ) : (
                   <>
-                    <QrCode className="w-4 h-4" />
+                    <Coins className="w-4 h-4" />
                     <span>
-                      {lang === 'vi'
-                        ? `Xác nhận nạp ${selectedPkg.vnd.toLocaleString()} đ`
-                        : `Confirm ${selectedPkg.vnd.toLocaleString()} đ`}
+                      {lang === 'vi' ? 'Nạp xu demo' : 'Add demo coins'}
                     </span>
                   </>
                 )}

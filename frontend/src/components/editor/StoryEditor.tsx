@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { translations, Language } from "@/lib/i18n";
-import { Sparkles, Download, Palette, Wand2, Maximize2, Minimize2, Check, X, FileText, Share2, Shield, BookOpen } from "lucide-react";
+import { Sparkles, Download, Palette, Wand2, Maximize2, Minimize2, Check, X, FileText, Share2, Shield, BookOpen, Bot } from "lucide-react";
 
 interface Props {
   content: string;
   onContentChange: (newContent: string) => void;
   lang: Language;
+  onToggleCopilot?: () => void;
   onAdaptToComic: () => void;
   onDownload: () => void;
   onPublish?: () => void;
@@ -136,6 +137,7 @@ export function StoryEditor({
   content,
   onContentChange,
   lang,
+  onToggleCopilot,
   onAdaptToComic,
   onDownload,
   onPublish,
@@ -226,44 +228,54 @@ export function StoryEditor({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100 dark:bg-slate-950 transition-colors">
+    <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-[#f2eee7] dark:bg-[#211d19] transition-colors">
       {/* Editor Top Bar */}
-      <div className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="h-14 border-b border-[#ded5c9] dark:border-[#50453c] bg-[#faf7f0] dark:bg-[#28231f] px-2 sm:px-6 flex items-center justify-between gap-2 shrink-0">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <FileText className="w-5 h-5 text-brand-700 dark:text-brand-400" />
-          <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+          <h2 className="max-w-[82px] sm:max-w-none font-bold text-xs sm:text-base text-slate-900 dark:text-white truncate">
             {t.editor_title}
           </h2>
-          <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+          <span className="hidden sm:inline-flex text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-[#f1ece3] dark:bg-[#332c26] text-slate-600 dark:text-slate-400">
             {words} {t.words}
           </span>
           {/* Narrative Mode Auto-detected Badge */}
           <div
-            className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-semibold transition-all shadow-xs ${
+            className={`hidden md:inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-semibold transition-all shadow-xs ${
               resolvedMode === "CHINH_SU"
                 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
                 : resolvedMode === "DA_SU"
                 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30"
-                : "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30"
+                : "bg-[#eee4d7] text-[#704331] dark:bg-[#45352c] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044]"
             }`}
             title={`Chế độ sáng tác: ${resolvedLabel}`}
           >
             {resolvedMode === "CHINH_SU" && <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
             {resolvedMode === "DA_SU" && <BookOpen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
-            {resolvedMode === "HU_CAU_TU_DO" && <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+            {resolvedMode === "HU_CAU_TU_DO" && <Sparkles className="w-3.5 h-3.5 text-[#805342] dark:text-[#dfb79b] shrink-0" />}
             <span>{resolvedLabel}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {onToggleCopilot && (
+            <button
+              type="button"
+              onClick={onToggleCopilot}
+              className="lg:hidden px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#704331] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044] hover:bg-[#eee4d7] dark:hover:bg-[#45352c] flex items-center gap-1.5"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>{lang === "vi" ? "Trợ lý" : "Assistant"}</span>
+            </button>
+          )}
           {onPublish && (
             <button
               onClick={onPublish}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 shadow-sm flex items-center gap-1.5 transition-all"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[#fffaf0] bg-[#714033] hover:bg-[#573229] shadow-sm flex items-center gap-1.5 transition-colors"
               title={lang === "vi" ? "Lưu bản thảo và xuất bản lên Bảng tin cộng đồng" : "Save and publish to community feed"}
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>{t.btn_publish}</span>
+              <span className="hidden md:inline">{t.btn_publish}</span>
             </button>
           )}
 
@@ -272,7 +284,7 @@ export function StoryEditor({
             className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 shadow-sm flex items-center gap-1.5 transition-all"
           >
             <Palette className="w-3.5 h-3.5" />
-            <span>{t.comic_btn}</span>
+            <span className="hidden md:inline">{t.comic_btn}</span>
           </button>
 
           <button
@@ -287,7 +299,7 @@ export function StoryEditor({
 
       {/* Manuscript Reading Paper Canvas */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center">
-        <div className="relative w-full max-w-3xl min-h-[85vh] bg-[#FAF8F5] dark:bg-[#111827] rounded-xl shadow-md border border-[#E8E4DC] dark:border-slate-800 p-8 sm:p-14 transition-colors">
+        <div className="relative w-full max-w-3xl min-h-[85vh] bg-[#fbf8f1] dark:bg-[#302a25] rounded-lg shadow-sm border border-[#e2d8cb] dark:border-[#50453c] p-8 sm:p-14 transition-colors">
           {isSkeletonVisible ? (
             <div
               className="space-y-6 animate-pulse select-none"
@@ -381,7 +393,7 @@ export function StoryEditor({
             }}
             className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
           >
-            <Wand2 className="w-3 h-3 text-indigo-400" />
+            <Wand2 className="w-3 h-3 text-[#dfb79b]" />
             <span>{t.tool_rewrite}</span>
           </button>
           <button
@@ -413,7 +425,7 @@ export function StoryEditor({
                 onOpenCustomAI(selectedText);
                 setFloatingPos(null);
               }}
-              className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors text-indigo-300"
+              className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors text-[#dfb79b]"
             >
               <Sparkles className="w-3 h-3 text-brand-400" />
               <span>{t.tool_ai}</span>

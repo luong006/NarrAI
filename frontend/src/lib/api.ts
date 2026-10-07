@@ -128,7 +128,7 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/me`, { headers: authHeaders() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        return { status: 'error', message: parseErrorDetail(data) };
+        return { status: 'error', message: parseErrorDetail(data), statusCode: res.status };
       }
       return {
         status: 'success',
@@ -375,6 +375,25 @@ export const api = {
     }
   },
 
+  async topupCoins(amount: number): Promise<{ amount: number; new_balance: number }> {
+    const res = await fetch(`${API_BASE_URL}/coins/topup`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        amount,
+        description: 'MVP demo coin top-up',
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(parseErrorDetail(data));
+    }
+    if (typeof data.amount !== 'number' || typeof data.new_balance !== 'number') {
+      throw new Error('Máy chủ trả về kết quả nạp xu không hợp lệ.');
+    }
+    return { amount: data.amount, new_balance: data.new_balance };
+  },
+
   // Social & Literary Feed (Requirement #4)
   async getSocialFeed(
     paramsOrGenre?: SocialFeedParams | string,
@@ -435,7 +454,7 @@ export const api = {
 
   async publishSocialPost(
     payload: PublishSocialPostPayload
-  ): Promise<{ success: boolean; message?: string; post_id?: number; data?: any }> {
+  ): Promise<{ success: boolean; message?: string; post_id?: number; data?: any; statusCode?: number }> {
     try {
       const res = await fetch(`${API_BASE_URL}/social/publish`, {
         method: "POST",
@@ -444,7 +463,7 @@ export const api = {
       });
       const data = await res.json();
       if (!res.ok) {
-        return { success: false, message: parseErrorDetail(data) };
+        return { success: false, message: parseErrorDetail(data), statusCode: res.status };
       }
       return data;
     } catch (err: any) {
@@ -455,7 +474,7 @@ export const api = {
   // Backwards-compatible alias for publishPost
   async publishPost(
     payload: PublishSocialPostPayload
-  ): Promise<{ success: boolean; message?: string; post_id?: number; data?: any }> {
+  ): Promise<{ success: boolean; message?: string; post_id?: number; data?: any; statusCode?: number }> {
     return this.publishSocialPost(payload);
   },
 

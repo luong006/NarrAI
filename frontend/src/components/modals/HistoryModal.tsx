@@ -68,8 +68,8 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
   return (
     <ClientPortal zIndex={60}>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="relative w-full max-w-2xl max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+        <div className="relative w-full max-w-2xl max-h-[85vh] bg-[#fbf8f1] dark:bg-[#302a25] rounded-xl p-6 shadow-xl border border-[#e2d8cb] dark:border-[#50453c] flex flex-col">
+        <div className="flex items-center justify-between pb-4 border-b border-[#ded5c9] dark:border-[#50453c] mb-4">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400" />
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -109,7 +109,7 @@ export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
               <div
                 key={story.id}
                 onClick={() => handleStoryClick(story.id)}
-                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-indigo-50/50 dark:bg-slate-800/60 dark:hover:bg-slate-800 cursor-pointer transition-all hover:border-brand-300 dark:hover:border-brand-700"
+                className="p-4 rounded-lg border border-[#e2d8cb] dark:border-[#50453c] bg-[#f7f2ec] hover:bg-[#eee4d7] dark:bg-[#332c26] dark:hover:bg-[#45352c] cursor-pointer transition-colors hover:border-brand-300 dark:hover:border-brand-700"
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-1">

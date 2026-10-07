@@ -56,7 +56,7 @@ Tài liệu này tóm tắt mục tiêu sản phẩm, kiến trúc và trạng t
 - Leaderboard/Trending theo tuần và tháng.
 - Trình đọc: truyện chữ và Manga fullscreen lật trang.
 - Hệ thống tiền tệ **Xu** (`banking_service.py`), nhắn tin nội bộ (`messenger_router.py`), xuất bản thảo `.txt`, `.md`, `.pdf` (`export_router.py`).
-- Nạp Xu đang ở chế độ demo MVP và chưa yêu cầu xác minh giao dịch.
+- Nạp Xu demo MVP gọi API backend để cập nhật số dư tài khoản; chưa xử lý thanh toán hoặc xác minh giao dịch ngân hàng.
 
 ### 4.4 Tối ưu hiệu năng
 - TensorFlow.js Hybrid: gợi ý cá nhân hóa phía client, cache IndexedDB ≤ 15MB.

@@ -82,7 +82,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
       case 2: return { score: 2, percent: 40, label: t.strength_weak, color: "bg-orange-500" };
       case 3: return { score: 3, percent: 60, label: t.strength_fair, color: "bg-amber-500" };
       case 4: return { score: 4, percent: 80, label: t.strength_strong, color: "bg-emerald-500" };
-      case 5: return { score: 5, percent: 100, label: t.strength_very_strong, color: "bg-indigo-600 dark:bg-indigo-500" };
+      case 5: return { score: 5, percent: 100, label: t.strength_very_strong, color: "bg-brand-700 dark:bg-brand-500" };
       default: return { score: 0, percent: 0, label: "", color: "bg-slate-200 dark:bg-slate-700" };
     }
   }, [password, rules, t]);
@@ -163,7 +163,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
   return (
     <ClientPortal zIndex={60}>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-        <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 my-8">
+        <div className="relative w-full max-w-md bg-[#fbf8f1] dark:bg-[#302a25] rounded-xl p-6 shadow-xl border border-[#e2d8cb] dark:border-[#50453c] my-8">
 
           <button
             onClick={onClose}
@@ -227,7 +227,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder={t.full_name_placeholder}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
               </div>
@@ -246,7 +246,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder={t.username}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
             </div>
@@ -264,7 +264,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t.password}
-                  className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans"
+                  className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans"
                 />
                 <button
                   type="button"
@@ -292,7 +292,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                     />
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1.5 text-xs">
+                <div className="p-3 rounded-lg bg-[#f1ece3] dark:bg-[#332c26] border border-[#e2d8cb] dark:border-[#50453c] space-y-1.5 text-xs">
                   <CheckItem passed={rules.length} label={t.rule_length} />
                   <CheckItem passed={rules.uppercase} label={t.rule_uppercase} />
                   <CheckItem passed={rules.lowercase} label={t.rule_lowercase} />
@@ -317,7 +317,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={t.confirm_password_placeholder}
-                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans"
+                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans"
                   />
                   <button
                     type="button"

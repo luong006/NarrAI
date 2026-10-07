@@ -21,6 +21,8 @@ interface Props {
   streaming: boolean;
   onUndo?: () => void;
   canUndo?: boolean;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function AICopilotPanel({
@@ -38,6 +40,8 @@ export function AICopilotPanel({
   streaming,
   onUndo,
   canUndo,
+  mobileOpen = false,
+  onCloseMobile,
 }: Props) {
   const [modelTier, setModelTier] = useState<ModelTier>("versatile");
   const [customInstruction, setCustomInstruction] = useState("");
@@ -65,27 +69,30 @@ export function AICopilotPanel({
     {
       icon: Wand2,
       text: lang === "vi" ? "Tạo phần mở đầu khác đi" : "Write a completely different opening for this story",
-      label: `🪄 ${t.quick_cmd_intro}`,
+      label: t.quick_cmd_intro,
     },
     {
       icon: Zap,
       text: lang === "vi" ? "Sửa lại đoạn kết kịch tính và bất ngờ hơn" : "Make the ending much more dramatic and suspenseful",
-      label: `⚡ ${t.quick_cmd_outro}`,
+      label: t.quick_cmd_outro,
     },
     {
       icon: Palette,
       text: lang === "vi" ? "Viết lại giọng văn u tối và hồi hộp hơn" : "Rewrite in a darker, more gripping thriller tone",
-      label: `🎭 ${t.quick_cmd_tone}`,
+      label: t.quick_cmd_tone,
     },
     {
       icon: Users,
       text: lang === "vi" ? "Bổ sung thêm diễn biến tâm lý và thoại cho nhân vật" : "Add deeper internal thoughts and character dialogues",
-      label: `👥 ${t.quick_cmd_depth}`,
+      label: t.quick_cmd_depth,
     },
   ];
 
   return (
-    <aside className="w-80 sm:w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col h-full shrink-0 px-4 py-4 transition-colors">
+    <aside className={`${mobileOpen
+      ? "fixed inset-x-3 top-3 bottom-20 z-40 flex w-auto flex-col rounded-xl shadow-xl lg:static lg:h-full lg:w-96 lg:rounded-none lg:shadow-none"
+      : "hidden lg:flex lg:h-full lg:w-96"
+    } border-l border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] shrink-0 px-4 py-4 transition-colors`}>
       {/* Copilot Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
         <div className="flex items-center gap-2">
@@ -101,6 +108,16 @@ export function AICopilotPanel({
               {t.live_editor_title}
             </span>
           </div>
+          {onCloseMobile && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              aria-label={lang === "vi" ? "Đóng trợ lý" : "Close assistant"}
+              className="lg:hidden rounded-md p-1.5 text-slate-500 hover:bg-[#eee4d7] dark:text-slate-300 dark:hover:bg-[#45352c]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {canUndo && onUndo && (
@@ -209,7 +226,7 @@ export function AICopilotPanel({
 
         {/* Status indicator */}
         {(loading || streaming) && (
-          <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-brand-200 dark:border-brand-900 flex items-center gap-2 text-xs text-brand-700 dark:text-brand-300">
+          <div className="p-2.5 rounded-lg bg-brand-50 dark:bg-brand-900/40 border border-brand-200 dark:border-brand-800 flex items-center gap-2 text-xs text-brand-700 dark:text-brand-200">
             <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
             <span>
               {streaming ? t.live_drafting : t.ai_thinking}

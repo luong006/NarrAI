@@ -42,6 +42,7 @@ NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành
 - Theo dõi tác giả, thích và chia sẻ bài viết; liên kết chia sẻ mở được tác phẩm tương ứng.
 - Bình luận theo luồng, tủ sách cá nhân, bảng xếp hạng và xu hướng.
 - Nhắn tin nội bộ, xuất bản thảo `.txt`, `.md` hoặc `.pdf`, và đọc truyện chữ hoặc truyện tranh.
+- Số dư Xu được lưu trên máy chủ; tính năng nạp Xu hiện ở chế độ demo MVP, cộng Xu trực tiếp và chưa xử lý thanh toán ngân hàng.
 
 ### 4. Khả năng phục hồi khi sinh nội dung
 - Luồng sinh truyện có thể tiếp tục khi nhà cung cấp dừng do giới hạn độ dài.

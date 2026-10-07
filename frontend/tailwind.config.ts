@@ -10,22 +10,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // High WCAG AA contrast color palette
+        // Warm, editorial palette with high contrast for interactive controls.
         brand: {
-          50: '#EEF2FF',
-          100: '#E0E7FF',
-          200: '#C7D2FE',
-          300: '#A5B4FC',
-          400: '#818CF8',
-          500: '#6366F1',
-          600: '#4F46E5',
-          700: '#4338CA', // 5.8:1 contrast on white
-          800: '#3730A3', // 8.2:1 contrast on white
-          900: '#312E81',
+          50: '#F7F2EC',
+          100: '#EEE4D7',
+          200: '#DDC9B5',
+          300: '#C9AA8F',
+          400: '#B78969',
+          500: '#9F684A',
+          600: '#89553D',
+          700: '#704331',
+          800: '#573528',
+          900: '#3F281F',
         },
         paper: {
           light: '#FAF8F5',
-          dark: '#141A23',
+          dark: '#211D19',
         },
         accent: {
           orange: '#C2410C', // 4.9:1 contrast

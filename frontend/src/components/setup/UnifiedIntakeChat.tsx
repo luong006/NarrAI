@@ -46,7 +46,7 @@ function FormattedMarkdown({ content, isUser }: { content: string; isUser: boole
           <code
             key={idx}
             className={`px-1.5 py-0.5 rounded text-xs font-mono ${
-              isUser ? "bg-white/20 text-white" : "bg-slate-200/70 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400"
+              isUser ? "bg-white/20 text-white" : "bg-[#e9dfd0] dark:bg-[#45352c] text-[#805342] dark:text-[#dfb79b]"
             }`}
           >
             {part.slice(1, -1)}
@@ -77,7 +77,7 @@ function FormattedMarkdown({ content, isUser }: { content: string; isUser: boole
               className={`border-l-2 pl-3 py-1 my-1.5 italic ${
                 isUser
                   ? "border-white/50 text-white/90"
-                  : "border-indigo-500/70 dark:border-indigo-400/70 text-slate-600 dark:text-slate-300 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-r-md"
+                  : "border-[#b78969]/70 dark:border-[#8e6650]/70 text-slate-600 dark:text-slate-300 bg-[#f7f2ec] dark:bg-[#332c26] rounded-r-md"
               }`}
             >
               {lines.map((l, lIdx) => (
@@ -341,7 +341,7 @@ export function UnifiedIntakeChat({
   const starterIdeas = useMemo(() => [
     {
       id: "history",
-      title: t.starter_history_title || (lang === "vi" ? "📜 Lịch sử Việt Nam (Chính sử & Dã sử)" : "📜 Vietnamese History (Authentic & Fiction)"),
+      title: t.starter_history_title || (lang === "vi" ? "Lịch sử Việt Nam · Chính sử & Dã sử" : "Vietnamese history · Fact & fiction"),
       badge: t.starter_history_badge || (lang === "vi" ? "Chính sử chuẩn mực • Dã sử phóng tác" : "Strict history • Fictional perspective"),
       prompt: t.starter_history_prompt || (lang === "vi"
         ? "Một nghĩa sĩ áo vải thời Hậu Lê mang gươm báu bảo vệ bến sông lịch sử, đứng trước ngã rẽ giữa đại cục quốc gia và nghĩa tình riêng biệt."
@@ -350,7 +350,7 @@ export function UnifiedIntakeChat({
     },
     {
       id: "scifi",
-      title: t.starter_scifi_title || (lang === "vi" ? "🚀 Cyberpunk Sài Gòn 2099" : "🚀 Cyberpunk Saigon 2099"),
+      title: t.starter_scifi_title || (lang === "vi" ? "Cyberpunk Sài Gòn 2099" : "Cyberpunk Saigon 2099"),
       badge: t.starter_scifi_badge || (lang === "vi" ? "Hư cấu cá nhân tự do" : "Unconstrained creative sci-fi"),
       prompt: t.starter_scifi_prompt || (lang === "vi"
         ? "Một thám tử tư trong khu ổ chuột ngầm Sài Gòn năm 2099, chuyên điều tra các vụ đánh cắp ký ức và nhân dạng số bất hợp pháp."
@@ -359,7 +359,7 @@ export function UnifiedIntakeChat({
     },
     {
       id: "xianxia",
-      title: t.starter_xianxia_title || (lang === "vi" ? "⚔️ Tu Chân & Kỳ Ảo Đông Phương" : "⚔️ Eastern Cultivation Fantasy"),
+      title: t.starter_xianxia_title || (lang === "vi" ? "Tu Chân & Kỳ Ảo Đông Phương" : "Eastern cultivation fantasy"),
       badge: t.starter_xianxia_badge || (lang === "vi" ? "Sáng tạo thế giới độc bản • Bảo hộ IP" : "Original worldbuilding • Protected IP"),
       prompt: t.starter_xianxia_prompt || (lang === "vi"
         ? "Thiếu niên vô danh sở hữu thần hồn dị biến, từng bước phá giải cổ trận nghìn năm chôn vùi dưới cấm địa phong ấn đan điền."
@@ -368,7 +368,7 @@ export function UnifiedIntakeChat({
     },
     {
       id: "life",
-      title: t.starter_life_title || (lang === "vi" ? "🌿 Đời Sống & Chữa Lành Tâm Hồn" : "🌿 Urban Slice of Life & Healing"),
+      title: t.starter_life_title || (lang === "vi" ? "Đời sống & Chữa lành" : "Urban life & healing"),
       badge: t.starter_life_badge || (lang === "vi" ? "Tâm lý sâu sắc • Show, don't tell" : "Introspective depth • Show, don't tell"),
       prompt: t.starter_life_prompt || (lang === "vi"
         ? "Hai tâm hồn cô đơn tình cờ gặp gỡ tại một quán cà phê sách mở thâu đêm ở phố cổ Hà Nội vào một đêm mưa lạnh, tìm thấy sự an ủi diệu kỳ."
@@ -575,19 +575,18 @@ export function UnifiedIntakeChat({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-50/40 dark:bg-slate-950/40 backdrop-blur-[2px] text-slate-900 dark:text-slate-100 relative">
-      {/* Minimal Translucent Glass Header */}
-      <header className="h-14 border-b border-slate-200/60 dark:border-slate-800/60 px-4 sm:px-6 flex items-center justify-between shrink-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md z-10">
+    <div className="flex flex-col h-full w-full bg-[#f4f0e8] dark:bg-[#211d19] text-[#342722] dark:text-[#eee6d9] relative">
+      <header className="h-14 border-b border-[#ded5c9] dark:border-[#50453c] px-4 sm:px-6 flex items-center justify-between shrink-0 bg-[#faf7f0] dark:bg-[#28231f] z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-brand-500/20">
-            <Sparkles className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-lg bg-[#714033] flex items-center justify-center text-[#fffaf0]">
+            <Feather className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+              <h2 className="max-w-[94px] truncate whitespace-nowrap text-xs font-bold tracking-tight text-slate-900 dark:text-white sm:max-w-none sm:text-sm">
                 {t.intake_header_title || "NarrAI Co-creator"}
               </h2>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              <span className="hidden text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#eee4d7] text-[#704331] dark:bg-[#45352c] dark:text-[#dfb79b] sm:inline-flex">
                 {t.intake_header_badge || "Q&A Intake"}
               </span>
             </div>
@@ -617,10 +616,10 @@ export function UnifiedIntakeChat({
           <button
             onClick={triggerFinalize}
             disabled={(messages.length === 0 && !input.trim()) || isFinalizing || isGenerating}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
+            className={`px-2.5 py-2 rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-1.5 sm:px-4 sm:text-xs sm:gap-2 disabled:opacity-30 disabled:cursor-not-allowed ${
               isReady
-                ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400/50 animate-pulse"
-                : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white shadow-sm"
+                ? "bg-[#55704d] hover:bg-[#45603e] text-white shadow-sm"
+                : "bg-[#714033] hover:bg-[#573229] text-[#fffaf0] shadow-sm"
             }`}
             title={
               isReady
@@ -636,13 +635,15 @@ export function UnifiedIntakeChat({
             ) : isReady ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-amber-300" />
-                <span>{t.intake_start_writing_now || (lang === "vi" ? "Bắt đầu viết truyện ngay" : "Start writing story now")}</span>
+                <span className="hidden sm:inline">{t.intake_start_writing_now || (lang === "vi" ? "Bắt đầu viết truyện ngay" : "Start writing story now")}</span>
+                <span className="sm:hidden">{lang === "vi" ? "Viết ngay" : "Write"}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </>
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{t.intake_finalize_plot || (lang === "vi" ? "Chốt cốt truyện" : "Finalize plot")}</span>
+                <span className="hidden sm:inline">{t.intake_finalize_plot || (lang === "vi" ? "Chốt cốt truyện" : "Finalize plot")}</span>
+                <span className="sm:hidden">{lang === "vi" ? "Chốt" : "Finalize"}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
@@ -657,7 +658,7 @@ export function UnifiedIntakeChat({
           {/* Empty State: Warm Hero & 4 Starter Prompt Pills */}
           {messages.length === 0 && (
             <div className="my-auto py-6 sm:py-10 text-center flex flex-col items-center animate-fadeIn">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-brand-500/20 mb-4 sm:mb-5">
+              <div className="w-14 h-14 rounded-xl bg-[#e9dfd0] dark:bg-[#45352c] text-[#714033] dark:text-[#dfb79b] flex items-center justify-center mb-4 sm:mb-5">
                 <Feather className="w-7 h-7" />
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">
@@ -675,11 +676,11 @@ export function UnifiedIntakeChat({
                   <button
                     key={item.id}
                     onClick={() => handleSend(item.prompt)}
-                    className="p-5 sm:p-5.5 rounded-2xl min-h-[140px] border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-500 backdrop-blur-sm transition-all text-left group shadow-xs hover:shadow-md active:scale-[0.99] flex flex-col justify-between"
+                    className="p-5 sm:p-5.5 rounded-xl min-h-[140px] border border-[#e2d8cb] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] hover:border-[#b78969] dark:hover:border-[#8e6650] transition-colors text-left group shadow-sm hover:shadow-md flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        <span className="text-xs sm:text-sm font-semibold text-[#342722] dark:text-[#eee6d9] group-hover:text-[#805342] dark:group-hover:text-[#dfb79b] transition-colors">
                           {item.title}
                         </span>
                       </div>
@@ -690,7 +691,7 @@ export function UnifiedIntakeChat({
                         {item.prompt}
                       </p>
                     </div>
-                    <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-[#805342] dark:text-[#dfb79b] opacity-0 group-hover:opacity-100 transition-opacity">
                       <span>{lang === "vi" ? "Bắt đầu khám phá" : "Explore concept"}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </div>
@@ -715,7 +716,7 @@ export function UnifiedIntakeChat({
                       className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs border ${
                         isUser
                           ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 border-slate-700/50 dark:border-slate-300/50"
-                          : "bg-gradient-to-tr from-brand-600 to-indigo-600 text-white border-brand-500/30"
+                          : "bg-[#714033] text-[#fffaf0] border-[#805342]"
                       }`}
                     >
                       {isUser ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
@@ -726,7 +727,7 @@ export function UnifiedIntakeChat({
                       className={`max-w-[88%] sm:max-w-[80%] px-4.5 py-3.5 rounded-2xl ${
                         isUser
                           ? "bg-brand-600 dark:bg-brand-700 text-white shadow-md"
-                          : "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-100 shadow-xs"
+                          : "bg-[#fbf8f1] dark:bg-[#302a25] border border-[#e2d8cb] dark:border-[#50453c] text-slate-800 dark:text-slate-100 shadow-sm"
                       }`}
                     >
                       <FormattedMarkdown content={msg.content} isUser={isUser} />
@@ -774,13 +775,13 @@ export function UnifiedIntakeChat({
               {/* Typing State */}
               {loading && (
                 <div className="flex items-start gap-3.5 animate-fadeIn">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs border border-brand-500/30">
+                  <div className="w-9 h-9 rounded-lg bg-[#714033] text-[#fffaf0] flex items-center justify-center shrink-0">
                     <Sparkles className="w-4 h-4 animate-pulse" />
                   </div>
-                  <div className="px-4.5 py-3.5 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-2 shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" />
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.2s]" />
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.4s]" />
+                  <div className="px-4.5 py-3.5 rounded-xl bg-[#fbf8f1] dark:bg-[#302a25] border border-[#e2d8cb] dark:border-[#50453c] flex items-center gap-2 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-[#9f684a] animate-bounce" />
+                    <span className="w-2 h-2 rounded-full bg-[#9f684a] animate-bounce [animation-delay:0.2s]" />
+                    <span className="w-2 h-2 rounded-full bg-[#9f684a] animate-bounce [animation-delay:0.4s]" />
                     <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
                       {lang === "vi" ? "NarrAI đang suy nghĩ..." : "NarrAI is formulating..."}
                     </span>
@@ -796,7 +797,7 @@ export function UnifiedIntakeChat({
       </div>
 
       {/* Bottom Input Dock (R2: in-flow flex shrink-0 container, perfectly centered with main chat container) */}
-      <div className="shrink-0 p-3 sm:p-4 bg-gradient-to-t from-slate-50/95 via-slate-50/90 to-transparent dark:from-slate-950/95 dark:via-slate-950/90 dark:to-transparent border-t border-slate-200/50 dark:border-slate-800/50 z-20">
+      <div className="shrink-0 p-3 sm:p-4 bg-[#f4f0e8] dark:bg-[#211d19] border-t border-[#ded5c9] dark:border-[#50453c] z-20">
         <div className="max-w-4xl mx-auto w-full px-4">
 
           {/* Quick Guidance & Readiness Notification Banner if ready */}
@@ -820,7 +821,7 @@ export function UnifiedIntakeChat({
           )}
 
           {/* Glassmorphic Capsule */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 rounded-2xl shadow-2xl p-2.5 sm:p-3 flex flex-col gap-2.5 transition-all">
+          <div className="bg-[#fbf8f1] dark:bg-[#302a25] border border-[#e2d8cb] dark:border-[#50453c] rounded-xl shadow-md p-2.5 sm:p-3 flex flex-col gap-2.5">
 
             {/* Controls Bar: Model Tier Selector & Story Length Pill */}
             <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-200/60 dark:border-slate-800/60 pb-2 px-1">
@@ -860,7 +861,7 @@ export function UnifiedIntakeChat({
                       onClick={() => setStoryLength(len)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                         isSelected
-                          ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold"
+                          ? "bg-[#fbf8f1] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] shadow-sm font-bold"
                           : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                       }`}
                     >
@@ -891,7 +892,7 @@ export function UnifiedIntakeChat({
               <button
                 onClick={() => handleSend()}
                 disabled={!input.trim() || loading || isFinalizing}
-                className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white flex items-center justify-center shrink-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md active:scale-95"
+                className="w-10 h-10 rounded-lg bg-[#714033] hover:bg-[#573229] text-[#fffaf0] flex items-center justify-center shrink-0 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
                 title={t.intake_send || (lang === "vi" ? "Gửi ý tưởng" : "Send idea")}
               >
                 <Send className="w-4 h-4" />
@@ -900,10 +901,10 @@ export function UnifiedIntakeChat({
           </div>
 
           {/* Bottom Guardrail Footer */}
-          <div className="flex items-center justify-between mt-2 px-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between mt-2 px-2 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 {t.intake_guardrail_notice || (lang === "vi"
                   ? "Tự do hư cấu cá nhân • Tôn trọng lịch sử Dân tộc • Bảo mật tác quyền"
                   : "Creative freedom • Historical authenticity • IP copyright protected")}
@@ -914,7 +915,7 @@ export function UnifiedIntakeChat({
               <button
                 onClick={triggerFinalize}
                 disabled={isFinalizing}
-                className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 shrink-0 ml-2"
+                className="font-bold text-[#805342] dark:text-[#dfb79b] hover:underline flex items-center gap-1 shrink-0 ml-2"
               >
                 <span>{t.intake_start_writing_now || (lang === "vi" ? "Bắt đầu viết" : "Start writing")}</span>
                 <ArrowRight className="w-3 h-3" />
