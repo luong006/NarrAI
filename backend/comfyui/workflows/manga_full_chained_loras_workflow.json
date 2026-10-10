@@ -1,0 +1,145 @@
+{
+  "4": {
+    "inputs": {
+      "ckpt_name": "animagineXLV31_v31.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "1. Checkpoint Base (SDXL Animagine)"
+    }
+  },
+  "10": {
+    "inputs": {
+      "lora_name": "Retro_Sci-fi_90_s_anime_style_Anima_v2_anima_3296384_epoch_15.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["4", 0],
+      "clip": ["4", 1]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "2. LoRA 1 - Retro Sci-fi 90s Anime"
+    }
+  },
+  "11": {
+    "inputs": {
+      "lora_name": "lamInkVN Vietnam Ink wash painting style MTL_f1.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["10", 0],
+      "clip": ["10", 1]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "3. LoRA 2 - Thủy Mặc Việt Nam (lamInkVN)"
+    }
+  },
+  "12": {
+    "inputs": {
+      "lora_name": "AIDVN_VietnameseHeritageHouse_v05.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["11", 0],
+      "clip": ["11", 1]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "4. LoRA 3 - Nhà Cổ Di Sản Việt Nam (AIDVN)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "lora_name": "CTAI-Vietnamese house early 1980.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["12", 0],
+      "clip": ["12", 1]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "5. LoRA 4 - Nhà Phố Bao Cấp 1980 (CTAI)"
+    }
+  },
+  "14": {
+    "inputs": {
+      "lora_name": "SonMaiVN_by_Lam_f2.safetensors",
+      "strength_model": 1.0,
+      "strength_clip": 1.0,
+      "model": ["13", 0],
+      "clip": ["13", 1]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "6. LoRA 5 - Tranh Sơn Mài Việt Nam (SonMaiVN)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "7. Khung Latent Kích Thước Tranh"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "masterpiece monochrome Japanese manga illustration, AIDVN Vietnamese heritage house, lamInkVN style, traditional Vietnamese ancient house architecture, curved tiled roof, ornate carved wooden pillars, dramatic chiaroscuro lighting, crisp G-pen lineart, fine dot screentone shading, high contrast black ink on bright white paper, no color, pure monochrome",
+      "clip": ["14", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "8. Positive Prompt (Nhận CLIP từ LoRA cuối cùng)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "color, colorful, vibrant, saturated, photorealistic, photograph, 3d render, CGI, western comic, bad anatomy, deformed hands, extra limbs, mutated fingers, blurry, low resolution, text, watermark, speech bubbles",
+      "clip": ["14", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "9. Negative Prompt (Nhận CLIP từ LoRA cuối cùng)"
+    }
+  },
+  "3": {
+    "inputs": {
+      "seed": 123456,
+      "steps": 25,
+      "cfg": 8.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["14", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["5", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "10. KSampler (Nhận MODEL từ LoRA cuối cùng)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "11. VAE Decode (Giải mã Latent thành Pixel ảnh)"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "NarrAI_Manga",
+      "images": ["8", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "12. Output Image (Xuất ảnh truyện tranh)"
+    }
+  }
+}
