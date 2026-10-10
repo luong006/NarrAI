@@ -15,7 +15,20 @@ __pycache__/
 # Database
 *.sqlite3
 *.db
+*.db-shm
+*.db-wal
 narrai.db
+narrai.db-shm
+narrai.db-wal
+
+# AI & ComfyUI Weights / Generated Caches
+*.safetensors
+*.ckpt
+*.pth
+*.bin
+backend/static/comic_cache/
+backend/generated_images/
+frontend/public/comic_cache/
 
 # Project zips
 *.zip
@@ -25,3 +38,4 @@ node_modules/
 .next/
 out/
 dist/
+

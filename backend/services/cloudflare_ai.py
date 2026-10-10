@@ -212,6 +212,7 @@ def get_cached_or_generate_image(
     story_id: Optional[int] = None,
     negative_prompt_suffix: Optional[str] = None,
     custom_negative_prompt: Optional[str] = None,
+    layout_type: str = "square",
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None,
     genre: str = "",
@@ -219,7 +220,8 @@ def get_cached_or_generate_image(
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
-    Otherwise attempts Cloudflare Workers AI with a deterministic panel-specific seed,
+    Otherwise attempts ComfyUI (if running locally/enabled),
+    with fallback to Cloudflare Workers AI with a deterministic panel-specific seed,
     with fallback to Pollinations B&W manga, then writes to disk cache.
     Returns (image_bytes, media_type).
     """
@@ -258,28 +260,54 @@ def get_cached_or_generate_image(
     else:
         story_seed = get_deterministic_comic_seed(panel_id)
     panel_seed = 100000 + ((story_seed - 100000 + panel_id * 7919) % 900000)
+    suffix = negative_prompt_suffix or custom_negative_prompt
     img_bytes = None
+
+    # 2. Preferred: Attempt generation via local/remote ComfyUI if enabled and online
     try:
-        suffix = negative_prompt_suffix or custom_negative_prompt
-        img_bytes = generate_image_cf(
-            prompt,
-            seed=panel_seed,
-            negative_prompt_suffix=suffix,
-            cultural_tier=cultural_tier,
-            narrative_mode=narrative_mode,
-            genre=genre
-        )
-    except Exception as e:
-        print(f"[Comic Image] Cloudflare AI unavailable ({e}). Falling back to Pollinations...")
+        from services.comfyui_service import is_comfyui_enabled, is_comfyui_available, generate_image_comfyui
+        if is_comfyui_enabled() and is_comfyui_available():
+            try:
+                print(f"[Comic Image] Attempting image generation for panel {panel_id} via ComfyUI...")
+                img_bytes = generate_image_comfyui(
+                    prompt=prompt,
+                    seed=panel_seed,
+                    negative_prompt_suffix=suffix,
+                    layout_type=layout_type,
+                    cultural_tier=cultural_tier,
+                    narrative_mode=narrative_mode,
+                    genre=genre
+                )
+                if img_bytes and _is_valid_image_payload(img_bytes):
+                    print(f"[Comic Image] Panel {panel_id} generated successfully via ComfyUI!")
+            except Exception as comfy_err:
+                print(f"[Comic Image] ComfyUI generation failed ({comfy_err}). Falling back to Cloudflare AI...")
+                img_bytes = None
+    except ImportError:
+        pass
+
+    # 3. Fallback to Cloudflare Workers AI
+    if not img_bytes or not _is_valid_image_payload(img_bytes):
         try:
-            bw_prompt = format_pollinations_prompt(prompt)
-            safe_prompt = urllib.parse.quote(bw_prompt)
-            fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_seed}"
-            resp = requests.get(fallback_url, timeout=20)
-            if resp.status_code == 200 and _is_valid_image_payload(resp.content):
-                img_bytes = resp.content
-        except Exception as p_err:
-            print(f"[Comic Image] Pollinations fallback also failed ({p_err})")
+            img_bytes = generate_image_cf(
+                prompt,
+                seed=panel_seed,
+                negative_prompt_suffix=suffix,
+                cultural_tier=cultural_tier,
+                narrative_mode=narrative_mode,
+                genre=genre
+            )
+        except Exception as e:
+            print(f"[Comic Image] Cloudflare AI unavailable ({e}). Falling back to Pollinations...")
+            try:
+                bw_prompt = format_pollinations_prompt(prompt)
+                safe_prompt = urllib.parse.quote(bw_prompt)
+                fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_seed}"
+                resp = requests.get(fallback_url, timeout=20)
+                if resp.status_code == 200 and _is_valid_image_payload(resp.content):
+                    img_bytes = resp.content
+            except Exception as p_err:
+                print(f"[Comic Image] Pollinations fallback also failed ({p_err})")
 
     if not img_bytes or not _is_valid_image_payload(img_bytes):
         raise RuntimeError(f"Could not render image for panel {panel_id}: all image providers failed")
