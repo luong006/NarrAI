@@ -1,5 +1,8 @@
 # Environments
 .env
+.env.local
+.env.*.local
+!.env.example
 .venv
 env/
 venv/
@@ -26,9 +29,14 @@ narrai.db-wal
 *.ckpt
 *.pth
 *.bin
-backend/static/comic_cache/
+backend/static/comic_cache/*
+!backend/static/comic_cache/.gitkeep
+final/backend/static/comic_cache/*
+!final/backend/static/comic_cache/.gitkeep
 backend/generated_images/
+final/backend/generated_images/
 frontend/public/comic_cache/
+final/frontend/public/comic_cache/
 
 # Project zips
 *.zip
@@ -38,4 +46,3 @@ node_modules/
 .next/
 out/
 dist/
-

@@ -1,0 +1,1195 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { BookOpen, Coins, FileText, LogOut, MessageSquare, MoreHorizontal, Palette, PlusCircle, Users } from "lucide-react";
+import { api } from "@/lib/api";
+import { storage } from "@/lib/storage";
+import { Language, translations } from "@/lib/i18n";
+import { useToast } from "@/lib/toast";
+import { StoryDetail, ComicPanel, ChatMessage, StoryLength, CreativityLevel, PacingLevel } from "@/lib/types";
+
+import { LandingView } from "@/components/landing/LandingView";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { AuthModal } from "@/components/modals/AuthModal";
+import { HistoryModal } from "@/components/modals/HistoryModal";
+import { CoinTopupModal } from "@/components/modals/CoinTopupModal";
+import { MessengerModal } from "@/components/modals/MessengerModal";
+
+import { UnifiedIntakeChat, IntakeTransitionOptions } from "@/components/setup/UnifiedIntakeChat";
+import { CommunityFeedView } from "@/components/social/CommunityFeedView";
+
+import { StoryEditor } from "@/components/editor/StoryEditor";
+import { AICopilotPanel } from "@/components/editor/AICopilotPanel";
+import { ComicViewer } from "@/components/comic/ComicViewer";
+import { NeuralVisualPreview } from "@/components/canvas/NeuralVisualPreview";
+
+
+/**
+ * Recursively unwraps stringified JSON envelopes, extracts clean story prose,
+ * strips markdown fences, and unconditionally converts escaped characters (\n, \", etc.).
+ */
+function unwrapStoryProseFrontend(content: string): string {
+  if (!content) return "";
+  let current = String(content).trim();
+
+  const candidateKeys = [
+    "updated_story_content",
+    "story_content",
+    "story",
+    "content",
+    "new_story_content",
+    "revised_text",
+    "text",
+  ];
+
+  for (let pass = 0; pass < 10; pass++) {
+    const prev = current;
+
+    // 1. Strip markdown code fences (```json ... ``` or ```markdown ... ``` or ``` ... ```)
+    current = current.replace(/^```(?:json|markdown)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+    // If enclosed in a code block embedded within text
+    const fenceMatch = current.match(/```(?:json|markdown)?\s*\n?([\s\S]*?)\n?```/i);
+    if (fenceMatch && fenceMatch[1]) {
+      const inner = fenceMatch[1].trim();
+      if (candidateKeys.some((k) => inner.includes(`"${k}"`)) || inner.includes('"action_params"')) {
+        current = inner;
+      }
+    }
+
+    // 2. Check if current looks like JSON
+    const isJsonLike =
+      (current.startsWith("{") && current.endsWith("}")) ||
+      (current.startsWith('"{') && current.endsWith('}"')) ||
+      candidateKeys.some((k) => current.includes(`"${k}"`)) ||
+      current.includes('"action_params"');
+
+    if (isJsonLike) {
+      let extracted: string | null = null;
+      try {
+        const parsed = JSON.parse(current);
+        if (typeof parsed === "string") {
+          extracted = parsed;
+        } else if (typeof parsed === "object" && parsed !== null) {
+          // Check candidate keys at root
+          for (const k of candidateKeys) {
+            const val = (parsed as Record<string, unknown>)[k];
+            if (val && (typeof val === "string" || typeof val === "object")) {
+              extracted = typeof val === "string" ? val : JSON.stringify(val);
+              break;
+            }
+          }
+          // If not at root, check inside action_params
+          if (!extracted && parsed.action_params && typeof parsed.action_params === "object") {
+            const sub = parsed.action_params as Record<string, unknown>;
+            for (const k of candidateKeys) {
+              const val = sub[k];
+              if (val && (typeof val === "string" || typeof val === "object")) {
+                extracted = typeof val === "string" ? val : JSON.stringify(val);
+                break;
+              }
+            }
+          }
+          // Fallback: check any key with string value > 30 characters
+          if (!extracted) {
+            for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+              if (
+                typeof v === "string" &&
+                v.length > 30 &&
+                !["thought", "action", "message", "summary_of_changes"].includes(k)
+              ) {
+                extracted = v;
+                break;
+              }
+            }
+          }
+        }
+      } catch {
+        // Robust regex fallback: handle dialogue quotes and truncated stream without premature cutoff
+        const match = current.match(
+          /"updated_story_content"\s*:\s*"([\s\S]*?)(?:",\s*"(?:summary_of_changes|message|action|instruction)"\s*:|"\s*\}[\}\]]?\s*|"?\s*$)/
+        );
+        if (match && match[1]) {
+          extracted = match[1];
+        } else {
+          for (const k of candidateKeys) {
+            const m = current.match(
+              new RegExp(`"${k}"\\s*:\\s*"([\\s\\S]*?)(?:",\\s*"[a-zA-Z0-9_]+"\\s*:|\\"\\s*\\}[\\}\\]]?\\s*|"?\\s*$)`)
+            );
+            if (m && m[1]) {
+              extracted = m[1];
+              break;
+            }
+          }
+        }
+      }
+
+      if (extracted !== null) {
+        current = extracted.trim();
+      }
+    }
+
+    // 3. Unconditionally unescape escaped sequences
+    if (current.includes("\\n") || current.includes("\\r") || current.includes('\\"') || current.includes("\\\\")) {
+      current = current
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\");
+    }
+
+    if (current === prev) {
+      break;
+    }
+  }
+
+  // Normalize newlines
+  current = current.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  current = current.replace(/\n{3,}/g, "\n\n");
+
+  // Strip all HTML tags completely — editor dùng innerText nên <b>, <i>... hiện raw
+  current = current.replace(/<[^>]+>/g, "");
+
+  // Unescape common HTML entities
+  current = current
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+
+  // Strip raw English dramatic beat meta-tags (Hook, Rising Friction, Turning Point, Visceral Climax, Lingering Cliffhanger)
+  current = current.replace(/^\s*\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger|Beat\s*\d+|Nhịp\s*\d+)\*\*\s*\n?/gim, "");
+  current = current.replace(/\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger)\*\*\s*/gi, "");
+
+  return current.trim();
+}
+
+export default function WorkspacePage() {
+  // Global State
+  const [user, setUser] = useState<{ username: string; fullName?: string } | null>(null);
+  const [lang, setLang] = useState<Language>("vi");
+  const [view, setView] = useState<"landing" | "workspace">("landing");
+  const [activeTab, setActiveTab] = useState<"setup" | "editor" | "comic" | "posts">("setup");
+
+  const t = translations[lang] || translations.vi;
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (/^\d+$/.test(params.get("post") || "") && params.get("tab") === "posts") {
+      setView("workspace");
+      setActiveTab("posts");
+    }
+  }, []);
+
+  // Modals
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isCoinModalOpen, setIsCoinModalOpen] = useState(false);
+  const [isMessengerOpen, setIsMessengerOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileCopilotOpen, setIsMobileCopilotOpen] = useState(false);
+  const [isNeuralModalOpen, setIsNeuralModalOpen] = useState(false);
+  const [coinBalance, setCoinBalance] = useState<number>(100);
+
+
+  // Setup Flow State
+  const [initialPrompt, setInitialPrompt] = useState("");
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [refinedPrompt, setRefinedPrompt] = useState("");
+
+  // Editor State
+  const [storyId, setStoryId] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [storyContent, setStoryContent] = useState("");
+  const [selectedText, setSelectedText] = useState("");
+  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+  const [proposedText, setProposedText] = useState<string | null>(null);
+  const [copilotMessages, setCopilotMessages] = useState<ChatMessage[]>([]);
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [manuscriptNotice, setManuscriptNotice] = useState<string | null>(null);
+
+  // Comic State
+  const [comicId, setComicId] = useState<number | null>(null);
+  const [comicPanels, setComicPanels] = useState<ComicPanel[]>([]);
+  const [comicHasMore, setComicHasMore] = useState(false);
+
+  // Loading States
+  const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [comicLoading, setComicLoading] = useState(false);
+
+  // Initialize Auth & Language
+  useEffect(() => {
+    const savedLang = storage.getLanguage();
+    setLang(savedLang);
+
+    const initAuth = async () => {
+      const token = storage.getToken();
+      if (!token) return;
+
+      try {
+        const res = await api.getMe();
+        if (res.status === "success" && res.username) {
+          setUser({ username: res.username, fullName: res.full_name || res.username });
+          setView("workspace");
+
+          // Load authenticated coin balance
+          api.getCoinsBalance().then((bal) => {
+            if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+            else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+          }).catch(() => {});
+        } else {
+          storage.removeToken();
+        }
+      } catch (err) {
+        console.error("Auth check error:", err);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  const handleLanguageChange = (newLang: Language) => {
+    setLang(newLang);
+    storage.setLanguage(newLang);
+  };
+
+  const handleLogout = () => {
+    storage.removeToken();
+    setUser(null);
+    setView("landing");
+  };
+
+  const handleNewStory = () => {
+    setActiveTab("setup");
+    setInitialPrompt("");
+    setChatHistory([]);
+    setRefinedPrompt("");
+    setStoryContent("");
+    setStoryId(null);
+    setSessionId(null);
+    setComicPanels([]);
+    setComicId(null);
+    setCopilotMessages([]);
+    setIsMobileCopilotOpen(false);
+    setIsMobileMenuOpen(false);
+    setActiveTab("setup");
+    setInitialPrompt("");
+    setChatHistory([]);
+    setRefinedPrompt("");
+    setStoryContent("");
+    setStoryId(null);
+    setSessionId(null);
+    setComicPanels([]);
+    setComicId(null);
+    setCopilotMessages([]);
+  };
+
+  // Seamless Unified Intake Transition to Story Drafting
+  const handleIntakeStartWriting = async (options: IntakeTransitionOptions) => {
+    setLoading(true);
+
+    let finalPrompt = options.refinedPrompt || "";
+    // If not yet refined, call api.refinePrompt(chatHistory) (1-2s compression into Refined Narrative Bible)
+    if (!finalPrompt && options.chatHistory && options.chatHistory.length > 0) {
+      try {
+        const refineRes = await api.refinePrompt(options.chatHistory);
+        if (refineRes.status === "success" && refineRes.refined_prompt) {
+          finalPrompt = refineRes.refined_prompt;
+        }
+      } catch (err) {
+        console.error("Refine prompt error:", err);
+      }
+    }
+
+    if (!finalPrompt) {
+      const userTexts = options.chatHistory ? options.chatHistory.filter((m) => m.role === "user").map((m) => m.content) : [];
+      finalPrompt = userTexts.join("\n\n") || (lang === "vi" ? "Một câu chuyện lôi cuốn, kịch tính." : "A captivating, thrilling story.");
+    }
+
+    setRefinedPrompt(finalPrompt);
+
+    // Instantly set activeTab = "editor", clear manuscript canvas, set streaming = true
+    setActiveTab("editor");
+    setStoryContent("");
+    setStoryId(null);
+    setSessionId(null);
+    setStreaming(true);
+
+    const length = options.storyLength || "long";
+    // init-story cho "long" (chapter-based với memory), generate-story cho "short"/"medium"
+    const endpoint = length === "long" ? "init-story" : "generate-story";
+
+    await api.streamStory(
+      endpoint,
+      {
+        refined_prompt: finalPrompt,
+        story_length: length,
+      },
+      (chunk, cleanAccumulated) => {
+        setStoryContent(cleanAccumulated);
+      },
+      (result) => {
+        setStreaming(false);
+        setLoading(false);
+        if (result.cleanText && result.cleanText.trim().length > 0) {
+          setStoryContent(result.cleanText);
+        }
+        if (result.sessionId) setSessionId(result.sessionId);
+        if (result.storyId) setStoryId(result.storyId);
+        if (result.error) {
+          toast.error(
+            result.cleanText.trim()
+              ? `${result.error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`
+              : result.error
+          );
+        } else {
+          setCopilotMessages([
+            {
+              role: "assistant",
+              content: length === "long" ? t.chapter_completed : t.draft_completed
+            }
+          ]);
+        }
+      },
+      (err) => {
+        setStreaming(false);
+        setLoading(false);
+        toast.error(err.message || t.unknown_error);
+      }
+    );
+  };
+
+  // Publish Story to Community Feed
+  const handlePublishStory = async () => {
+    if (!storyContent || storyContent.trim().length < 20) {
+      toast.warning(lang === "vi" ? "Bản thảo cần có nội dung trước khi xuất bản!" : "Story needs content before publishing!");
+      return;
+    }
+
+    let activeUser = user;
+    const token = storage.getToken();
+    if (!activeUser && token) {
+      const session = await api.getMe();
+      if (session.status === "success" && session.username) {
+        activeUser = { username: session.username, fullName: session.full_name || session.username };
+        setUser(activeUser);
+      } else {
+        if (session.statusCode === 401) {
+          storage.removeToken();
+        } else {
+          toast.error(session.message || t.unknown_error);
+          return;
+        }
+      }
+    }
+
+    if (!activeUser || !storage.getToken()) {
+      toast.warning(lang === "vi" ? "Vui lòng đăng nhập để đăng bài lên cộng đồng." : "Please log in to publish your story.");
+      setIsAuthOpen(true);
+      return;
+    }
+
+    // Extract title from first line or markdown header
+    let title = "Tác phẩm NarrAI";
+    const titleMatch = storyContent.match(/^\s*(?:\*\*|#{1,3}\s*)([^\*\n#]+)(?:\*\*|\n|$)/);
+    if (titleMatch && titleMatch[1]) {
+      title = titleMatch[1].trim();
+    }
+
+    // Extract clean content snippet (first 300 chars without markdown symbols)
+    const cleanSnippet = storyContent
+      .replace(/[#\*_`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .substring(0, 320);
+
+    const coverImageUrl = comicPanels.length > 0 && comicPanels[0].image_url
+      ? api.getComicImageUrl(comicPanels[0].image_url)
+      : null;
+
+    try {
+      const res = await api.publishPost({
+        title,
+        content_snippet: cleanSnippet + (storyContent.length > 320 ? "..." : ""),
+        story_id: storyId || null,
+        story_text: storyContent,
+        genre: "Tiểu thuyết",
+        cover_image_url: coverImageUrl,
+      });
+
+      if (res.success) {
+        toast.success(t.publish_success || (lang === "vi" ? "Đã xuất bản tác phẩm lên Bảng tin cộng đồng thành công!" : "Story published to community feed successfully!"));
+        setActiveTab("posts");
+      } else if (res.statusCode === 401) {
+        storage.removeToken();
+        setUser(null);
+        toast.warning(lang === "vi"
+          ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đăng bài."
+          : "Your session has expired. Please log in again to publish.");
+        setIsAuthOpen(true);
+      } else {
+        toast.error(res.message || t.unknown_error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || t.unknown_error);
+    }
+  };
+
+  // Open Story from Community Feed in Editor
+  const handleReadStoryInEditor = (content: string, title?: string) => {
+    setStoryContent(content);
+    setActiveTab("editor");
+    if (title) {
+      setCopilotMessages([
+        {
+          role: "assistant",
+          content: `${t.loaded_story_prefix}"${title}"${t.loaded_story_suffix}`
+        }
+      ]);
+    }
+  };
+
+  // Quick Action on Selected Text (Rewrite, Expand, Shorten)
+  const handleQuickAction = async (action: "rewrite" | "expand" | "shorten", targetText?: string) => {
+    const textToEdit = targetText || selectedText;
+    if (!textToEdit || !textToEdit.trim()) return;
+    const instructions = {
+      rewrite: lang === "vi" ? "Hãy viết lại đoạn này cho hay và văn vẻ hơn." : "Rewrite this beautifully.",
+      expand: lang === "vi" ? "Hãy mở rộng đoạn này, miêu tả chi tiết bối cảnh và cảm xúc." : "Expand this with more descriptive details.",
+      shorten: lang === "vi" ? "Hãy tóm lược đoạn này cho súc tích, nhịp độ nhanh hơn." : "Shorten this for faster pacing.",
+    };
+    setLoading(true);
+    try {
+      const res = await api.editText(textToEdit, instructions[action]);
+      if (res.status === "success" && res.revised_text) {
+        const revised = res.revised_text.trim();
+        // Push previous state to undo stack
+        setUndoStack((prev) => [...prev, storyContent]);
+        // Directly update editor content so user sees immediate results
+        setStoryContent((prev) => prev.replace(textToEdit, revised));
+        setProposedText(revised);
+
+        const actionLabels = {
+          rewrite: lang === "vi" ? "viết lại" : "rewritten",
+          expand: lang === "vi" ? "mở rộng" : "expanded",
+          shorten: lang === "vi" ? "rút gọn" : "shortened",
+        };
+        const noticeMsg = lang === "vi"
+          ? `✨ Đã ${actionLabels[action]} đoạn văn thành công! Bạn có thể nhấn "Hoàn tác" ở góc trên nếu muốn quay lại.`
+          : `✨ Successfully ${actionLabels[action]} selected text! Click "Undo" above to revert.`;
+        setManuscriptNotice(noticeMsg);
+        toast.success(noticeMsg);
+        setTimeout(() => setManuscriptNotice(null), 8000);
+      } else {
+        toast.error(res.message || t.unknown_error);
+      }
+    } catch (e: any) {
+      toast.error(e.message || t.unknown_error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitCustomInstruction = async (instruction: string) => {
+    if (!selectedText || !instruction.trim()) return;
+    setLoading(true);
+    try {
+      // Thử /api/edit-text trước (nhanh, chính xác cho đoạn bôi đen)
+      const res = await api.editText(selectedText, instruction);
+      if (res.status === "success" && res.revised_text) {
+        setProposedText(res.revised_text.trim());
+      } else {
+        // Fallback: dùng Copilot chat nếu edit-text thất bại (lỗi xu, mạng, ...)
+        const fallbackPayload = {
+          user_message: `Hãy chỉnh sửa đoạn văn sau theo yêu cầu: "${instruction}"\n\nĐoạn văn cần sửa:\n${selectedText}`,
+          current_story: storyContent.slice(0, 8000),
+          selected_text: selectedText,
+        };
+        const fallbackRes = await api.sendCopilotEvent(
+          sessionId, storyId, "USER_CHAT", JSON.stringify(fallbackPayload)
+        );
+        if (fallbackRes.status === "success" && fallbackRes.data) {
+          const params = fallbackRes.data.action_params || {};
+          const edited = params.updated_story_content
+            || (fallbackRes.data as any).updated_story_content
+            || params.message || "";
+          if (edited) setProposedText(edited.trim());
+          else toast.error(lang === "vi" ? "AI không trả về nội dung chỉnh sửa." : "AI returned no edited content.");
+        } else {
+          toast.error(res.message || t.unknown_error);
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message || t.unknown_error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptEdit = () => {
+    if (!proposedText) return;
+    if (selectedText) {
+      // Surgical replace: only the selected passage
+      setStoryContent((prev) => prev.replace(selectedText, proposedText));
+    } else {
+      // Full-manuscript replace from copilot edit_story_direct
+      setStoryContent(proposedText);
+    }
+    setProposedText(null);
+    setSelectedText("");
+    setCursorPosition(null);
+  };
+
+  const handleRejectEdit = () => {
+    setProposedText(null);
+    setSelectedText("");
+    setCursorPosition(null);
+  };
+
+  const handleUndoEdit = () => {
+    if (undoStack.length === 0) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setStoryContent(previous);
+    setManuscriptNotice(lang === "vi" ? "Đã hoàn tác thay đổi gần nhất của bản thảo!" : "Reverted the latest manuscript change!");
+    setTimeout(() => setManuscriptNotice(null), 4000);
+  };
+
+  // Interactive Copilot Live Chat & Direct Story Modification
+  const handleSendCopilotMessage = async (msg: string) => {
+    const userMsg: ChatMessage = { role: "user", content: msg };
+    setCopilotMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+
+    try {
+      const storyContext = storyContent.slice(0, 15000);
+      const payload: Record<string, any> = {
+        user_message: msg,
+        current_story: storyContext,
+      };
+      if (selectedText) {
+        payload.selected_text = selectedText;
+      }
+      if (cursorPosition !== null && cursorPosition !== undefined) {
+        payload.cursor_position = cursorPosition;
+      }
+      const res = await api.sendCopilotEvent(
+        sessionId,
+        storyId,
+        "USER_CHAT",
+        JSON.stringify(payload)
+      );
+
+      if (res.status === "success" && res.data) {
+        const action = res.data.action;
+        const params = res.data.action_params || {};
+
+        if (action === "edit_story_direct") {
+          let newContent = params.updated_story_content || (res.data as any).updated_story_content;
+          if (newContent) {
+            newContent = unwrapStoryProseFrontend(newContent);
+            if (!newContent.startsWith("{") && !newContent.includes('"updated_story_content"')) {
+              setUndoStack((prev) => [...prev, storyContent]);
+              setStoryContent(newContent);
+              // Show proposed text in AICopilotPanel for user to review/accept
+              setProposedText(newContent);
+              setSelectedText("");
+              setCursorPosition(null);
+              const notice = params.summary_of_changes || (lang === "vi" ? "Bản thảo đã được AI Co-pilot cập nhật trực tiếp!" : "Manuscript directly updated by AI Co-pilot!");
+              setManuscriptNotice(notice);
+              toast.success(notice);
+              setTimeout(() => setManuscriptNotice(null), 8000);
+            }
+          }
+          const responseMsg = (params.message || (lang === "vi" ? "Tôi đã cập nhật trực tiếp vào bản thảo của bạn theo yêu cầu!" : "I directly updated your manuscript as requested!")) +
+            (params.summary_of_changes ? `\n\n${t.changes_summary_prefix}${params.summary_of_changes}` : "");
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: responseMsg }
+          ]);
+        } else if (action === "reply_user") {
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: params.message || (lang === "vi" ? "Đã xử lý." : "Processed.") }
+          ]);
+        } else if (action === "command_writer") {
+          if (params.message) {
+            const pMsg = String(params.message);
+            setCopilotMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: pMsg }
+            ]);
+          }
+          await handleContinueChapterWithInstruction(params.instruction || "");
+        } else if (action === "reject_and_rewrite") {
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: (lang === "vi" ? "Đang yêu cầu viết lại: " : "Requesting rewrite: ") + (params.critique || "") }
+          ]);
+          await handleContinueChapterWithInstruction(params.fix_instruction || params.instruction || params.critique || "");
+        } else {
+          setCopilotMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: `${t.action_processed}${action}` }
+          ]);
+        }
+      } else {
+        // Fallback to /api/chat
+        const chatRes = await api.chatCopilot(storyContext, msg, storyId || undefined);
+        if (chatRes.chat_reply) {
+          const replyText = String(chatRes.chat_reply);
+          setCopilotMessages((prev) => [...prev, { role: "assistant", content: replyText }]);
+        }
+        if (chatRes.new_story_content) {
+          const cleanNew = unwrapStoryProseFrontend(chatRes.new_story_content);
+          setStoryContent((prev) => prev ? prev + "\n\n" + cleanNew : cleanNew);
+        }
+      }
+    } catch (err: any) {
+      setCopilotMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: (lang === "vi" ? "Lỗi kết nối Copilot: " : "Copilot connection error: ") + (err.message || (lang === "vi" ? "Không xác định" : "Unknown")) }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Continue Chapter (Streaming)
+  const handleContinueChapterWithInstruction = async (userInstruction: string = "") => {
+    if (streaming || loading) return;
+    setStreaming(true);
+    setLoading(true);
+
+    if (sessionId) {
+      let accumulatedChapter = "";
+      await api.streamStory(
+        "generate-chapter",
+        {
+          session_id: sessionId,
+          user_instruction: userInstruction,
+        },
+        (chunk, cleanAccumulated) => {
+          accumulatedChapter = cleanAccumulated;
+        },
+        (result) => {
+          setStreaming(false);
+          setLoading(false);
+          if (result.error) {
+            if (result.cleanText.trim()) {
+              setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+              toast.error(`${result.error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+            } else {
+              toast.error(result.error);
+            }
+          } else {
+            setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+            setCopilotMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: t.next_chapter_done }
+            ]);
+          }
+        },
+        (err) => {
+          setStreaming(false);
+          setLoading(false);
+          if (accumulatedChapter.trim()) {
+            setStoryContent((prev) => prev + "\n\n" + accumulatedChapter);
+            toast.error(`${err.message || t.unknown_error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+          } else {
+            toast.error(err.message || t.unknown_error);
+          }
+        }
+      );
+    } else {
+      try {
+        const res = await api.chatCopilot(
+          storyContent,
+          userInstruction || (lang === "vi" ? "Hãy viết tiếp chương tiếp theo. Tối thiểu 2000 từ. Kết thúc bằng tình tiết kịch tính." : "Please continue drafting the next chapter with high drama and suspense."),
+          storyId || undefined
+        );
+        setStreaming(false);
+        setLoading(false);
+        if (res.chat_reply) {
+          setCopilotMessages((prev) => [...prev, { role: "assistant", content: res.chat_reply }]);
+        }
+        if (res.new_story_content) {
+          const cleanNew = unwrapStoryProseFrontend(res.new_story_content);
+          setStoryContent((prev) => prev ? prev + "\n\n" + cleanNew : cleanNew);
+        }
+      } catch (err: any) {
+        setStreaming(false);
+        setLoading(false);
+        toast.error(err.message || t.unknown_error);
+      }
+    }
+  };
+
+  const handleContinueChapter = async () => {
+    await handleContinueChapterWithInstruction("");
+  };
+
+  // End Story (Streaming)
+  const handleEndStory = async () => {
+    if (streaming || loading) return;
+    if (!confirm(t.conclude_confirm)) return;
+
+    setStreaming(true);
+    setLoading(true);
+
+    if (sessionId) {
+      let accumulatedEnding = "";
+      await api.streamStory(
+        "end-story",
+        { session_id: sessionId },
+        (chunk, cleanAccumulated) => {
+          accumulatedEnding = cleanAccumulated;
+        },
+        (result) => {
+          setStreaming(false);
+          setLoading(false);
+          if (result.error) {
+            if (result.cleanText.trim()) {
+              setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+              toast.error(`${result.error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+            } else {
+              toast.error(result.error);
+            }
+          } else {
+            setStoryContent((prev) => prev + "\n\n" + result.cleanText);
+            setCopilotMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: t.story_concluded }
+            ]);
+          }
+        },
+        (err) => {
+          setStreaming(false);
+          setLoading(false);
+          if (accumulatedEnding.trim()) {
+            setStoryContent((prev) => prev + "\n\n" + accumulatedEnding);
+            toast.error(`${err.message || t.unknown_error} Bản nháp chưa hoàn chỉnh đã được giữ lại.`);
+          } else {
+            toast.error(err.message || t.unknown_error);
+          }
+        }
+      );
+    } else {
+      try {
+        const res = await api.chatCopilot(
+          storyContent,
+          lang === "vi"
+            ? "Hãy viết ĐOẠN KẾT THÚC. Gói gọn tất cả tuyến truyện, giải quyết xung đột chính và mang lại dư ba sâu lắng."
+            : "Write the FINAL CONCLUSION. Tie up all narrative threads and deliver an unforgettable ending.",
+          storyId || undefined
+        );
+        setStreaming(false);
+        setLoading(false);
+        if (res.chat_reply) {
+          setCopilotMessages((prev) => [...prev, { role: "assistant", content: res.chat_reply }]);
+        }
+        if (res.new_story_content) {
+          const cleanNew = unwrapStoryProseFrontend(res.new_story_content);
+          setStoryContent((prev) => prev ? prev + "\n\n" + cleanNew : cleanNew);
+        }
+      } catch (err: any) {
+        setStreaming(false);
+        setLoading(false);
+        toast.error(err.message || t.unknown_error);
+      }
+    }
+  };
+
+  // Download Story
+  const handleDownload = () => {
+    const element = document.createElement("a");
+    const file = new Blob([storyContent], { type: "text/plain;charset=utf-8" });
+    element.href = URL.createObjectURL(file);
+    element.download = `NarrAI_${Date.now()}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  // Load Saved Story from History
+  const handleSelectStory = (story: StoryDetail) => {
+    setStoryId(story.id);
+    setSessionId(story.session_id || null);
+    setStoryContent(unwrapStoryProseFrontend(story.story_content || ""));
+    setRefinedPrompt(story.refined_prompt || "");
+    setActiveTab("editor");
+    setComicPanels([]);
+    setComicId(null);
+    setCopilotMessages([
+      {
+        role: "assistant",
+        content: `${t.loaded_story_prefix}"${story.title || (lang === "vi" ? "Đang viết" : "Untitled")}"${t.loaded_story_suffix}`
+      }
+    ]);
+  };
+
+  // Adapt to Comic
+  const handleAdaptToComic = async () => {
+    if (!storyContent || storyContent.length < 10) {
+      toast.warning(t.comic_need_content);
+      return;
+    }
+
+    if (!user) {
+      toast.warning(lang === "vi" ? "Vui lòng đăng nhập để chuyển thể truyện tranh." : "Please log in to adapt to comic.");
+      setIsAuthOpen(true);
+      return;
+    }
+
+    // Refresh số dư thực từ server trước khi trừ — tránh stale state
+    let freshBalance = coinBalance;
+    try {
+      const balRes = await api.getCoinsBalance();
+      if (typeof balRes.coins === "number") freshBalance = balRes.coins;
+      else if (typeof balRes.balance === "number") freshBalance = balRes.balance;
+      setCoinBalance(freshBalance);
+    } catch { /* giữ nguyên balance cũ */ }
+
+    if (freshBalance < 16) {
+      toast.error(lang === "vi"
+        ? `Số xu không đủ. Hiện có ${freshBalance} xu, cần 16 xu để chuyển thể Manga.`
+        : `Not enough coins. You have ${freshBalance}, need 16 for Manga.`);
+      setIsCoinModalOpen(true);
+      return;
+    }
+
+    setComicLoading(true);
+    setActiveTab("comic");
+
+    try {
+      const res = await api.generateComic(storyId, storyContent.substring(0, 30000));
+      if (res.status === "success" && res.panels) {
+        setComicId(res.comic_id || null);
+        setComicPanels(res.panels);
+        setComicHasMore(!!res.has_more);
+        // Refresh balance sau khi trừ 16 xu
+        api.getCoinsBalance().then((b) => {
+          if (typeof b.coins === "number") setCoinBalance(b.coins);
+          else if (typeof b.balance === "number") setCoinBalance(b.balance);
+        });
+      } else {
+        const errMsg = res.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Failed to adapt to comic");
+        toast.error(errMsg);
+        if ((res as any).code === 401) {
+          setIsAuthOpen(true);
+        }
+        setActiveTab("editor");
+      }
+    } catch (e: any) {
+      toast.error(e.message || t.unknown_error);
+      setActiveTab("editor");
+    } finally {
+      setComicLoading(false);
+    }
+  };
+
+  // Continue Comic
+  const handleContinueComic = async () => {
+    if (!comicId) return;
+    setComicLoading(true);
+    try {
+      const res = await api.continueComic(comicId, storyContent);
+      if (res.no_more_text) {
+        toast.info(t.comic_no_new_text);
+        setComicHasMore(false);
+      } else if (res.status === "success" && res.panels) {
+        setComicPanels((prev) => [...prev, ...(res.panels || [])]);
+        setComicHasMore(!!res.has_more);
+      }
+    } catch (e: any) {
+      toast.error(e.message || t.unknown_error);
+    } finally {
+      setComicLoading(false);
+    }
+  };
+
+  // If on landing view
+  if (view === "landing") {
+    return (
+      <div className="relative z-10">
+        <LandingView
+          lang={lang}
+          onLanguageChange={handleLanguageChange}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onExploreCommunity={() => {
+            setActiveTab("posts");
+            setView("workspace");
+          }}
+        />
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={(u, fn) => {
+            setUser({ username: u, fullName: fn || u });
+            setView("workspace");
+            api.getCoinsBalance().then((bal) => {
+              if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+              else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+            }).catch(() => {});
+          }}
+          lang={lang}
+        />
+        <CoinTopupModal
+          isOpen={isCoinModalOpen}
+          onClose={() => setIsCoinModalOpen(false)}
+          currentBalance={coinBalance}
+          username={user?.username || "creator"}
+          onTopupSuccess={(added, newBalance) => {
+            setCoinBalance(newBalance);
+            toast.success(lang === "vi" ? `Nạp thành công +${added} Xu!` : `Successfully added +${added} Coins!`);
+          }}
+          lang={lang}
+        />
+        <MessengerModal
+          isOpen={isMessengerOpen}
+          onClose={() => setIsMessengerOpen(false)}
+          currentUser={user?.username || "creator"}
+          lang={lang}
+        />
+      </div>
+    );
+  }
+
+  // If on workspace view
+  return (
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#f2eee7] dark:bg-[#211d19] text-[#342722] dark:text-[#eee6d9] relative z-10 lg:flex-row">
+      {/* Left Sidebar */}
+      <Sidebar
+        username={user?.username || ""}
+        fullName={user?.fullName || ""}
+        lang={lang}
+        onLanguageChange={handleLanguageChange}
+        onNewStory={handleNewStory}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        onLogout={handleLogout}
+        coinBalance={coinBalance}
+        onOpenCoinTopup={() => setIsCoinModalOpen(true)}
+        onOpenMessenger={() => setIsMessengerOpen(true)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        hasActiveStory={!!storyContent}
+        hasActiveComic={comicPanels.length > 0}
+      />
+
+      {/* Main Workspace Area */}
+      <main className="flex-1 flex min-h-0 overflow-hidden">
+        {activeTab === "setup" && (
+          <UnifiedIntakeChat
+            lang={lang}
+            onStartWriting={handleIntakeStartWriting}
+            isGenerating={streaming || loading}
+            initialChatHistory={chatHistory}
+            onClearHistory={() => {
+              setInitialPrompt("");
+              setChatHistory([]);
+              setRefinedPrompt("");
+            }}
+          />
+        )}
+
+        {activeTab === "editor" && (
+          <div className="flex-1 flex min-h-0 min-w-0 flex-col overflow-hidden">
+            {manuscriptNotice && (
+              <div className="bg-emerald-600 dark:bg-emerald-700 text-white px-4 py-2 flex items-center justify-between shadow text-xs font-medium shrink-0 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">✨</span>
+                  <span>{manuscriptNotice}</span>
+                </div>
+                {undoStack.length > 0 && (
+                  <button
+                    onClick={handleUndoEdit}
+                    className="ml-4 font-bold bg-white/20 hover:bg-white/35 px-2.5 py-0.5 rounded transition-colors text-white"
+                  >
+                    {t.undo_btn}
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden">
+              <StoryEditor
+                content={storyContent}
+                onContentChange={setStoryContent}
+                lang={lang}
+            onToggleCopilot={() => setIsMobileCopilotOpen((open) => !open)}
+            onAdaptToComic={handleAdaptToComic}
+                onDownload={handleDownload}
+                onPublish={handlePublishStory}
+                onSelectText={(txt, pos) => {
+                  setSelectedText(txt);
+                  setCursorPosition(pos !== undefined ? pos : null);
+                }}
+                onQuickAction={handleQuickAction}
+                onOpenCustomAI={(txt) => setSelectedText(txt)}
+              />
+              <AICopilotPanel
+                lang={lang}
+                selectedText={selectedText}
+                proposedText={proposedText}
+                copilotMessages={copilotMessages}
+                onAcceptEdit={handleAcceptEdit}
+                onRejectEdit={handleRejectEdit}
+                onSubmitCustomInstruction={handleSubmitCustomInstruction}
+                onSendCopilotMessage={handleSendCopilotMessage}
+                onContinueChapter={handleContinueChapter}
+                onEndStory={handleEndStory}
+                loading={loading}
+                streaming={streaming}
+                onUndo={handleUndoEdit}
+                canUndo={undoStack.length > 0}
+                mobileOpen={isMobileCopilotOpen}
+                onCloseMobile={() => setIsMobileCopilotOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "comic" && (
+          <ComicViewer
+            panels={comicPanels}
+            hasMore={comicHasMore}
+            lang={lang}
+            onBackToEditor={() => setActiveTab("editor")}
+            onContinueComic={handleContinueComic}
+            onAdaptToComic={handleAdaptToComic}
+            loadingMore={comicLoading}
+          />
+        )}
+
+        {activeTab === "posts" && (
+          <CommunityFeedView
+            lang={lang}
+            currentUsername={user?.username}
+            onReadInEditor={handleReadStoryInEditor}
+          />
+        )}
+      </main>
+
+      <nav
+        aria-label={lang === "vi" ? "Điều hướng không gian sáng tác" : "Workspace navigation"}
+        className="grid h-16 shrink-0 grid-cols-5 border-t border-[#ded5c9] bg-[#faf7f0] px-1 pb-[env(safe-area-inset-bottom)] dark:border-[#50453c] dark:bg-[#28231f] lg:hidden"
+      >
+        <button type="button" onClick={handleNewStory} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${activeTab === "setup" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <PlusCircle className="h-4 w-4" />
+          {lang === "vi" ? "Tạo mới" : "Create"}
+        </button>
+        <button type="button" onClick={() => { setActiveTab("editor"); setIsMobileCopilotOpen(false); }} disabled={!storyContent} className={`flex flex-col items-center justify-center gap-1 text-[10px] disabled:opacity-40 ${activeTab === "editor" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <FileText className="h-4 w-4" />
+          {lang === "vi" ? "Bản thảo" : "Draft"}
+        </button>
+        <button type="button" onClick={() => { setActiveTab("comic"); setIsMobileCopilotOpen(false); }} disabled={comicPanels.length === 0} className={`flex flex-col items-center justify-center gap-1 text-[10px] disabled:opacity-40 ${activeTab === "comic" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <Palette className="h-4 w-4" />
+          Manga
+        </button>
+        <button type="button" onClick={() => { setActiveTab("posts"); setIsMobileCopilotOpen(false); }} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${activeTab === "posts" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <Users className="h-4 w-4" />
+          {lang === "vi" ? "Cộng đồng" : "Community"}
+        </button>
+        <button type="button" onClick={() => setIsMobileMenuOpen((open) => !open)} aria-expanded={isMobileMenuOpen} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${isMobileMenuOpen ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
+          <MoreHorizontal className="h-4 w-4" />
+          {lang === "vi" ? "Thêm" : "More"}
+        </button>
+      </nav>
+
+      {isMobileMenuOpen && (
+        <>
+        <button type="button" aria-label={lang === "vi" ? "Đóng menu" : "Close menu"} onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 z-30 bg-black/10 lg:hidden" />
+        <div className="fixed bottom-[4.5rem] right-3 z-40 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-[#e2d8cb] bg-[#fbf8f1] p-3 shadow-xl dark:border-[#50453c] dark:bg-[#302a25] lg:hidden">
+          <div className="mb-2 flex items-center justify-between border-b border-[#ded5c9] pb-2 dark:border-[#50453c]">
+            <span className="text-xs font-semibold text-[#342722] dark:text-[#eee6d9]">{user?.fullName || user?.username}</span>
+            <button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-[#eee4d7] dark:text-slate-300 dark:hover:bg-[#45352c]">
+              <LogOut className="h-3.5 w-3.5" />
+              {lang === "vi" ? "Đăng xuất" : "Log out"}
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => { setIsCoinModalOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-[#704331] dark:bg-[#332c26] dark:text-[#dfb79b]">
+              <Coins className="h-4 w-4" />
+              {coinBalance} {lang === "vi" ? "Xu" : "Coins"}
+            </button>
+            <button type="button" onClick={() => { setIsHistoryOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-slate-700 dark:bg-[#332c26] dark:text-slate-200">
+              <BookOpen className="h-4 w-4" />
+              {lang === "vi" ? "Lịch sử" : "History"}
+            </button>
+            <button type="button" onClick={() => { setIsMessengerOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-slate-700 dark:bg-[#332c26] dark:text-slate-200">
+              <MessageSquare className="h-4 w-4" />
+              {lang === "vi" ? "Tin nhắn" : "Messages"}
+            </button>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <LanguageSwitcher currentLang={lang} onLanguageChange={handleLanguageChange} />
+            <ThemeToggle lang={lang} />
+          </div>
+        </div>
+        </>
+      )}
+
+      {/* Modals */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={(u, fn) => {
+          setUser({ username: u, fullName: fn || u });
+          api.getCoinsBalance().then((bal) => {
+            if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+            else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+          }).catch(() => {});
+        }}
+        lang={lang}
+      />
+
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onSelectStory={handleSelectStory}
+        lang={lang}
+      />
+
+      <CoinTopupModal
+        isOpen={isCoinModalOpen}
+        onClose={() => setIsCoinModalOpen(false)}
+        currentBalance={coinBalance}
+        username={user?.username || "creator"}
+        onTopupSuccess={(added, newBalance) => {
+          setCoinBalance(newBalance);
+          toast.success(lang === "vi" ? `Nạp thành công +${added} Xu!` : `Successfully added +${added} Coins!`);
+        }}
+        lang={lang}
+      />
+
+      <MessengerModal
+        isOpen={isMessengerOpen}
+        onClose={() => setIsMessengerOpen(false)}
+        currentUser={user?.username || "creator"}
+        lang={lang}
+      />
+
+      {/* AI Art & Neural Style Laboratory Modal (Feature 30) */}
+      {isNeuralModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => setIsNeuralModalOpen(false)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors z-20"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <NeuralVisualPreview lang={lang} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

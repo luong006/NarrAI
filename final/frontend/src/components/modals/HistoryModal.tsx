@@ -1,0 +1,136 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { ClientPortal } from "@/components/portals/ClientPortal";
+import { api } from "@/lib/api";
+import { StoryDetail } from "@/lib/types";
+import { translations, Language } from "@/lib/i18n";
+import { useToast } from "@/lib/toast";
+import { X, BookOpen, Clock, FileText } from "lucide-react";
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectStory: (story: StoryDetail) => void;
+  lang: Language;
+}
+
+export function HistoryModal({ isOpen, onClose, onSelectStory, lang }: Props) {
+  const [stories, setStories] = useState<StoryDetail[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const t = translations[lang];
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchStories();
+    }
+  }, [isOpen]);
+
+  const fetchStories = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.getStories();
+      if (res.status === 'success' && res.stories) {
+        setStories(res.stories);
+      } else {
+        setStories([]);
+      }
+    } catch (e: any) {
+      setError(e.message || (lang === 'vi' ? "Lỗi tải lịch sử truyện." : "Failed to load story history."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStoryClick = async (id: number) => {
+    setLoading(true);
+    try {
+      const res = await api.getStoryDetail(id);
+      if (res.status === 'success' && res.story) {
+        onSelectStory(res.story);
+        onClose();
+      } else {
+        toast.error(t.unknown_error || (lang === 'vi' ? "Không thể tải chi tiết truyện." : "Failed to load story details."));
+      }
+    } catch (e: any) {
+      toast.error(e.message || t.network_error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <ClientPortal zIndex={60}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="relative w-full max-w-2xl max-h-[85vh] bg-[#fbf8f1] dark:bg-[#302a25] rounded-xl p-6 shadow-xl border border-[#e2d8cb] dark:border-[#50453c] flex flex-col">
+        <div className="flex items-center justify-between pb-4 border-b border-[#ded5c9] dark:border-[#50453c] mb-4">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              {t.story_history}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+          {loading && (
+            <div className="py-12 text-center text-slate-500 dark:text-slate-400">
+              {t.loading}
+            </div>
+          )}
+
+          {error && (
+            <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && stories.length === 0 && (
+            <div className="py-16 text-center text-slate-400">
+              <FileText className="w-12 h-12 mx-auto mb-2 opacity-40" />
+              <p>{lang === 'vi' ? "Bạn chưa có bản thảo nào được lưu." : "No saved manuscripts found."}</p>
+            </div>
+          )}
+
+          {!loading &&
+            stories.map((story) => (
+              <div
+                key={story.id}
+                onClick={() => handleStoryClick(story.id)}
+                className="p-4 rounded-lg border border-[#e2d8cb] dark:border-[#50453c] bg-[#f7f2ec] hover:bg-[#eee4d7] dark:bg-[#332c26] dark:hover:bg-[#45352c] cursor-pointer transition-colors hover:border-brand-300 dark:hover:border-brand-700"
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-1">
+                    {story.title || story.refined_prompt || (lang === 'vi' ? "Bản thảo không tên" : "Untitled Manuscript")}
+                  </h3>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                    {story.word_count || 0} {t.words}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
+                  {(story.snippet || story.story_content || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ").trim()}
+                </p>
+                <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+                  <Clock className="w-3 h-3" />
+                  <span>{story.created_at}</span>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+    </div>
+    </ClientPortal>
+  );
+}

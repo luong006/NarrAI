@@ -1,0 +1,38 @@
+"use client";
+
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { Sun, Moon } from "lucide-react";
+import { Language, translations } from "@/lib/i18n";
+
+interface Props {
+  lang?: Language;
+}
+
+export function ThemeToggle({ lang = "vi" }: Props) {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const t = translations[lang] || translations.vi;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="w-8 h-8" />;
+  }
+
+  const tooltip = theme === "dark" ? t.theme_light : t.theme_dark;
+  const ariaLabel = t.theme_toggle_aria;
+
+  return (
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+      title={tooltip}
+      aria-label={ariaLabel}
+    >
+      {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-brand-700" />}
+    </button>
+  );
+}
