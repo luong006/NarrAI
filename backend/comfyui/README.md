@@ -52,6 +52,8 @@ Thêm các biến môi trường sau vào file `backend/.env`:
 
 ```env
 # Kích hoạt ComfyUI
+# Dùng cục bộ: COMFYUI_URL=http://127.0.0.1:8188
+# Dùng qua Ngrok: COMFYUI_URL=https://your-subdomain.ngrok-free.app
 COMFYUI_URL=http://127.0.0.1:8188
 COMFYUI_ENABLED=true
 
@@ -61,20 +63,39 @@ COMFYUI_CHECKPOINT=
 # Tham số sinh ảnh
 COMFYUI_SAMPLER_NAME=euler
 COMFYUI_SCHEDULER=normal
-COMFYUI_STEPS=20
-COMFYUI_CFG=7.0
+COMFYUI_STEPS=25
+COMFYUI_CFG=7.5
 COMFYUI_TIMEOUT=120
 ```
 
 ---
 
-## 4. API Endpoints Quản Lý ComfyUI trong NarrAI
+## 4. Hướng Dẫn Mở Tunnel Ngrok Kết Nối Vercel/Render với ComfyUI Desktop
 
-- **`GET /api/comic/comfyui/status`**: Kiểm tra kết nối, trạng thái server, danh sách model checkpoints hiện có trong ComfyUI.
-- **`POST /api/comic/comfyui/test`**: Thử nghiệm sinh 1 khung tranh manga mẫu trực tiếp từ ComfyUI.
-- **`GET /api/comic/image/{panel_id}`**: Sinh ảnh khung tranh tự động cho truyện tranh theo panel_id.
+Nếu bạn muốn deploy web lên **Vercel** (`narr-ai.vercel.app`) hoặc **Render** mà vẫn dùng ComfyUI trên máy bạn để tạo tranh:
+
+1. **Khởi chạy ComfyUI Desktop** trên máy tính của bạn.
+2. **Khởi chạy Ngrok:**
+   * Cách 1: Chạy file `backend/comfyui/start_ngrok_tunnel.bat`
+   * Cách 2: Mở terminal chạy lệnh:
+     ```bash
+     ngrok http 8188
+     ```
+3. **Sao chép URL Ngrok:** Lấy đường dẫn HTTPS (ví dụ `https://abc-123.ngrok-free.app`).
+4. **Cài đặt biến môi trường:**
+   * Trong file `backend/.env` hoặc trên Dashboard của **Render**:
+     ```env
+     COMFYUI_URL=https://abc-123.ngrok-free.app
+     ```
+   * NarrAI đã được cấu hình tự động bypass màn hình chặn của Ngrok (`ngrok-skip-browser-warning: 69420`) để truyền API mượt mà 100%.
 
 ---
 
-## 5. Lưu Ý Git
-Các file model nặng (`*.safetensors`, `*.ckpt`) và ảnh render cache (`static/comic_cache/`) đã được cấu hình trong `.gitignore` để tránh đẩy file dung lượng lớn lên repository Git.
+## 5. API Endpoints Quản Lý ComfyUI trong NarrAI
+
+- **`GET /api/comic/comfyui/status`**: Kiểm tra kết nối, trạng thái server, danh sách checkpoints và LoRAs hiện có.
+- **`GET /api/comic/comfyui/loras`**: Liệt kê chi tiết các LoRA và từ khóa trigger phong cách.
+- **`POST /api/comic/prompt-agent/generate`**: Sinh prompt manga chi tiết từ câu chuyện chữ.
+- **`POST /api/comic/comfyui/test`**: Thử nghiệm sinh 1 khung tranh manga mẫu trực tiếp.
+- **`GET /api/comic/image/{panel_id}`**: Sinh ảnh khung tranh tự động cho truyện tranh theo panel_id.
+

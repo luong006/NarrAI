@@ -108,6 +108,14 @@ class ComfyUIService:
         self._last_avail_result: bool = False
         self._avail_ttl: float = 5.0
 
+    def _get_headers(self) -> Dict[str, str]:
+        """Headers required to bypass ngrok/tunnel warning screens and ensure direct API interaction."""
+        return {
+            "ngrok-skip-browser-warning": "69420",
+            "User-Agent": "NarrAI-ComfyUI-Client/1.0",
+            "Accept": "application/json, image/*, */*"
+        }
+
     def is_enabled(self) -> bool:
         """Returns True if ComfyUI integration is enabled."""
         return self.enabled
@@ -123,7 +131,7 @@ class ComfyUIService:
         if not force_check and (now - self._last_avail_check < self._avail_ttl):
             return self._last_avail_result
         try:
-            resp = requests.get(f"{self.base_url}/system_stats", timeout=timeout)
+            resp = requests.get(f"{self.base_url}/system_stats", headers=self._get_headers(), timeout=timeout)
             res = (resp.status_code == 200)
         except Exception:
             res = False
@@ -134,7 +142,7 @@ class ComfyUIService:
     def get_system_stats(self) -> Dict[str, Any]:
         """Fetch system stats from ComfyUI."""
         try:
-            resp = requests.get(f"{self.base_url}/system_stats", timeout=5)
+            resp = requests.get(f"{self.base_url}/system_stats", headers=self._get_headers(), timeout=5)
             if resp.status_code == 200:
                 return resp.json()
         except Exception as e:
@@ -146,7 +154,7 @@ class ComfyUIService:
         Queries ComfyUI for available checkpoint models from CheckpointLoaderSimple.
         """
         try:
-            resp = requests.get(f"{self.base_url}/object_info/CheckpointLoaderSimple", timeout=5)
+            resp = requests.get(f"{self.base_url}/object_info/CheckpointLoaderSimple", headers=self._get_headers(), timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 input_info = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {})
@@ -162,7 +170,7 @@ class ComfyUIService:
         Queries ComfyUI for available LoRA models from LoraLoader.
         """
         try:
-            resp = requests.get(f"{self.base_url}/object_info/LoraLoader", timeout=5)
+            resp = requests.get(f"{self.base_url}/object_info/LoraLoader", headers=self._get_headers(), timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 input_info = data.get("LoraLoader", {}).get("input", {}).get("required", {})
@@ -358,7 +366,7 @@ class ComfyUIService:
         payload = {"prompt": workflow, "client_id": cid}
         url = f"{self.base_url}/prompt"
 
-        resp = requests.post(url, json=payload, timeout=10)
+        resp = requests.post(url, json=payload, headers=self._get_headers(), timeout=10)
         if resp.status_code != 200:
             raise RuntimeError(f"ComfyUI /prompt failed with status {resp.status_code}: {resp.text[:300]}")
 
@@ -381,7 +389,7 @@ class ComfyUIService:
 
         while time.time() - start_time < max_time:
             try:
-                resp = requests.get(url, timeout=3)
+                resp = requests.get(url, headers=self._get_headers(), timeout=3)
                 if resp.status_code == 200:
                     consecutive_errors = 0
                     history = resp.json()
@@ -422,7 +430,7 @@ class ComfyUIService:
         query_string = urllib.parse.urlencode(params)
         url = f"{self.base_url}/view?{query_string}"
 
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, headers=self._get_headers(), timeout=30)
         if resp.status_code != 200:
             raise RuntimeError(f"ComfyUI /view failed with status {resp.status_code}")
 
