@@ -34,7 +34,7 @@ class TestComfyUIService(unittest.TestCase):
         mock_resp.status_code = 200
         mock_get.return_value = mock_resp
         self.assertTrue(self.service.is_available())
-        mock_get.assert_called_once_with("http://127.0.0.1:8188/system_stats", timeout=0.5)
+        mock_get.assert_called_once_with("http://127.0.0.1:8188/system_stats", timeout=2.5)
 
     @patch("requests.get")
     def test_is_available_false_on_connection_error(self, mock_get):

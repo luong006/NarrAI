@@ -121,6 +121,15 @@ class ComicPromptAgent:
                 "triggers": KNOWN_LORAS_CATALOG["retro_scifi_anime"]["trigger_prompt"]
             })
 
+        # 5. Check Vietnamese Lacquer Art / Sơn Mài
+        if any(kw in combined for kw in ["sơn mài", "son mai", "dát vàng", "sơn ta", "khảm trai", "tranh sơn mài"]):
+            selected_loras.append({
+                "name": "SonMaiVN_by_Lam_f2.safetensors",
+                "strength_model": 1.0,
+                "strength_clip": 1.0,
+                "triggers": KNOWN_LORAS_CATALOG["vietnam_son_mai"]["trigger_prompt"]
+            })
+
         return selected_loras
 
     def craft_panel_prompt(

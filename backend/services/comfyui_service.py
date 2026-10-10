@@ -56,10 +56,17 @@ KNOWN_LORAS_CATALOG = {
     },
     "retro_scifi_anime": {
         "patterns": ["retro_sci-fi", "retro sci-fi", "90_s_anime", "90s anime", "retro anime", "scifi", "sci-fi", "cyberpunk"],
-        "default_filename": "Retro_Sci-fi_90_s_anime_style.safetensors",
+        "default_filename": "Retro_Sci-fi_90_s_anime_style_Anima_v2_anima_3296384_epoch_15.safetensors",
         "trigger_prompt": "retro 90s sci-fi anime style, classic 1990s anime aesthetic, sharp cell shading, high contrast screentone linework",
         "default_strength": 1.0,
         "description": "Phong cách anime/manga viễn tưởng retro thập niên 90"
+    },
+    "vietnam_son_mai": {
+        "patterns": ["sonmai", "sơn mài", "son mai", "sonmaivn"],
+        "default_filename": "SonMaiVN_by_Lam_f2.safetensors",
+        "trigger_prompt": "SonMaiVN style, traditional Vietnamese lacquer painting, gold leaf lacquer texture, rich lacquer art finish",
+        "default_strength": 1.0,
+        "description": "Nghệ thuật tranh sơn mài truyền thống Việt Nam"
     }
 }
 
@@ -99,13 +106,13 @@ class ComfyUIService:
         self.cfg = float(os.environ.get("COMFYUI_CFG", "7.0"))
         self._last_avail_check: float = 0.0
         self._last_avail_result: bool = False
-        self._avail_ttl: float = 3.0
+        self._avail_ttl: float = 5.0
 
     def is_enabled(self) -> bool:
         """Returns True if ComfyUI integration is enabled."""
         return self.enabled
 
-    def is_available(self, timeout: float = 0.5, force_check: bool = False) -> bool:
+    def is_available(self, timeout: float = 2.5, force_check: bool = False) -> bool:
         """
         Fast non-blocking ping to ComfyUI /system_stats with TTL caching
         to determine if ComfyUI server is actively running.
