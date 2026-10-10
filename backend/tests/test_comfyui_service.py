@@ -34,7 +34,7 @@ class TestComfyUIService(unittest.TestCase):
         mock_resp.status_code = 200
         mock_get.return_value = mock_resp
         self.assertTrue(self.service.is_available())
-        mock_get.assert_called_once_with("http://127.0.0.1:8188/system_stats", timeout=2.0)
+        mock_get.assert_called_once_with("http://127.0.0.1:8188/system_stats", timeout=0.5)
 
     @patch("requests.get")
     def test_is_available_false_on_connection_error(self, mock_get):
@@ -177,6 +177,123 @@ class TestComfyUIService(unittest.TestCase):
         mock_fetch.assert_called_once_with("manga_output.png", "", "output")
 
 
+    @patch("requests.get")
+    def test_get_available_loras(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "LoraLoader": {
+                "input": {
+                    "required": {
+                        "lora_name": [
+                            [
+                                "lamInkVN Vietnam ink wash painting.safetensors",
+                                "AIDVN_VietnameseHeritageHouse.safetensors",
+                                "CTAI-Vietnamese house early 1980s.safetensors",
+                                "Retro_Sci-fi_90_s_anime_style.safetensors"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+        mock_get.return_value = mock_resp
+
+        loras = self.service.get_available_loras()
+        self.assertEqual(len(loras), 4)
+        self.assertIn("lamInkVN Vietnam ink wash painting.safetensors", loras)
+
+    @patch("requests.get")
+    def test_match_lora(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "LoraLoader": {
+                "input": {
+                    "required": {
+                        "lora_name": [
+                            [
+                                "lamInkVN Vietnam ink wash painting.safetensors",
+                                "AIDVN_VietnameseHeritageHouse.safetensors"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+        mock_get.return_value = mock_resp
+
+        matched = self.service.match_lora("vietnam_ink")
+        self.assertEqual(matched, "lamInkVN Vietnam ink wash painting.safetensors")
+
+        matched_heritage = self.service.match_lora("nhà cổ")
+        self.assertEqual(matched_heritage, "AIDVN_VietnameseHeritageHouse.safetensors")
+
+    def test_build_manga_workflow_with_chained_loras(self):
+        loras = [
+            {"name": "lamInkVN Vietnam ink wash painting.safetensors", "strength_model": 0.9, "strength_clip": 0.8},
+            {"name": "AIDVN_VietnameseHeritageHouse.safetensors", "strength_model": 1.0, "strength_clip": 1.0}
+        ]
+        workflow = self.service.build_manga_workflow(
+            prompt="manga scene with traditional house",
+            loras=loras
+        )
+        # Verify LoRA 1 node created at "10"
+        self.assertIn("10", workflow)
+        self.assertEqual(workflow["10"]["class_type"], "LoraLoader")
+        self.assertEqual(workflow["10"]["inputs"]["model"], ["4", 0])
+        self.assertEqual(workflow["10"]["inputs"]["clip"], ["4", 1])
+        self.assertEqual(workflow["10"]["inputs"]["strength_model"], 0.9)
+
+        # Verify LoRA 2 node created at "11" chained from "10"
+        self.assertIn("11", workflow)
+        self.assertEqual(workflow["11"]["class_type"], "LoraLoader")
+        self.assertEqual(workflow["11"]["inputs"]["model"], ["10", 0])
+        self.assertEqual(workflow["11"]["inputs"]["clip"], ["10", 1])
+
+        # Verify KSampler receives output from last LoRA node ("11")
+        self.assertEqual(workflow["3"]["inputs"]["model"], ["11", 0])
+        # Verify CLIPTextEncode receives clip from last LoRA node ("11")
+        self.assertEqual(workflow["6"]["inputs"]["clip"], ["11", 1])
+        self.assertEqual(workflow["7"]["inputs"]["clip"], ["11", 1])
+
+
+class TestComicPromptAgent(unittest.TestCase):
+    """Test ComicPromptAgent prompt generation and LoRA detection."""
+
+    def setUp(self):
+        from agents.comic_prompt_agent import ComicPromptAgent
+        self.agent = ComicPromptAgent()
+
+    def test_detect_vietnamese_ink_lora(self):
+        story = "Khung cảnh sông nước mênh mông, nét vẽ phong cách tranh thủy mặc cổ điển."
+        loras = self.agent.detect_scene_loras(story)
+        self.assertTrue(any("lamInkVN" in l["name"] for l in loras))
+
+    def test_detect_heritage_house_lora(self):
+        story = "Hai người đứng trước gian nhà cổ ba gian lợp mái ngói rêu phong, hàng cột gỗ lim uy nghiêm."
+        loras = self.agent.detect_scene_loras(story)
+        self.assertTrue(any("AIDVN" in l["name"] for l in loras))
+
+    def test_detect_retro_scifi_lora(self):
+        story = "Chiếc phi thuyền viễn tưởng lướt qua thành phố cyberpunk trong đêm mưa."
+        loras = self.agent.detect_scene_loras(story)
+        self.assertTrue(any("Retro_Sci-fi" in l["name"] for l in loras))
+
+    def test_craft_panel_prompt_heuristic_fallback(self):
+        story = "An nhìn Minh bằng ánh mắt nghi ngờ khi đứng trước ngôi nhà cổ."
+        char_map = {"An": {"dna": "17yo Vietnamese schoolgirl, black hair"}, "Minh": {"dna": "17yo Vietnamese boy"}}
+        result = self.agent.craft_panel_prompt(
+            story_text=story,
+            character_dna_map=char_map,
+            setting_anchor="ancient wooden courtyard"
+        )
+        self.assertIn("image_prompt", result)
+        self.assertIn("AIDVN", result["image_prompt"])
+        self.assertIn("pure monochrome", result["image_prompt"])
+        self.assertIn("recommended_loras", result)
+
+
 class TestComfyUIIntegrationInPipeline(unittest.TestCase):
     """Test ComfyUI integration inside get_cached_or_generate_image."""
 
@@ -234,6 +351,6 @@ class TestComfyUIIntegrationInPipeline(unittest.TestCase):
         mock_cf.assert_called_once()
 
 
-
 if __name__ == "__main__":
     unittest.main()
+

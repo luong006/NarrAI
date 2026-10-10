@@ -4,6 +4,7 @@ import json
 import time
 import uuid
 import urllib.parse
+import re
 from typing import Optional, Dict, Any, List, Tuple
 import requests
 
@@ -30,15 +31,48 @@ DEFAULT_MANGA_NEGATIVE = (
     "blurry, low resolution, text, watermark, speech bubbles"
 )
 
+# Known LoRAs with style keywords and trigger prompts
+KNOWN_LORAS_CATALOG = {
+    "vietnam_ink": {
+        "patterns": ["lamink", "vietnam ink", "ink wash", "thuy mac", "thủy mặc", "tranh mực"],
+        "default_filename": "lamInkVN Vietnam ink wash painting.safetensors",
+        "trigger_prompt": "lamInkVN style, traditional Vietnamese ink wash painting, monochrome ink wash, delicate brush strokes",
+        "default_strength": 1.0,
+        "description": "Phong cách tranh thủy mặc / thủy hoa truyền thống Việt Nam"
+    },
+    "vietnam_heritage_house": {
+        "patterns": ["aidvn", "heritage", "vietnameseheritage", "nha co", "nhà cổ", "dinh lang", "đình làng", "chua", "chùa"],
+        "default_filename": "AIDVN_VietnameseHeritageHouse.safetensors",
+        "trigger_prompt": "AIDVN Vietnamese heritage house, traditional Vietnamese ancient architecture, curved tiled roof, ornate carved wooden pillars",
+        "default_strength": 1.0,
+        "description": "Kiến trúc nhà cổ, đình làng, chùa chiền di sản truyền thống Việt Nam"
+    },
+    "vietnam_retro_house": {
+        "patterns": ["ctai", "vietnamese house early", "1980", "1990", "bao cap", "bao cấp", "nha pho xua", "phố cổ xưa"],
+        "default_filename": "CTAI-Vietnamese house early 1980s.safetensors",
+        "trigger_prompt": "CTAI-Vietnamese house style, vintage 1980s Vietnamese architecture, aged yellow plaster walls, nostalgic Vietnamese neighborhood",
+        "default_strength": 1.0,
+        "description": "Kiến trúc nhà phố, ngõ phố thời kỳ bao cấp thập niên 80-90 Việt Nam"
+    },
+    "retro_scifi_anime": {
+        "patterns": ["retro_sci-fi", "retro sci-fi", "90_s_anime", "90s anime", "retro anime", "scifi", "sci-fi", "cyberpunk"],
+        "default_filename": "Retro_Sci-fi_90_s_anime_style.safetensors",
+        "trigger_prompt": "retro 90s sci-fi anime style, classic 1990s anime aesthetic, sharp cell shading, high contrast screentone linework",
+        "default_strength": 1.0,
+        "description": "Phong cách anime/manga viễn tưởng retro thập niên 90"
+    }
+}
+
 
 class ComfyUIService:
     """
     Client service for integrating ComfyUI into NarrAI manga generation pipeline.
     Supports:
-      - Health checking & auto-discovery of available checkpoints
+      - Health checking & auto-discovery of checkpoints & LoRAs in the loras/ folder
+      - Dynamic LoRA stacking / chaining (Model & CLIP)
       - Standard text-to-image manga workflows (SD1.5 / SDXL)
       - Dynamic layout dimension mapping (square, wide, tall)
-      - Synchronous execution polling with timeout
+      - Synchronous execution polling with fast fail
       - Seamless retrieval and post-processing
     """
 
@@ -116,6 +150,53 @@ class ComfyUIService:
             print(f"[ComfyUI] Could not fetch available checkpoints: {e}")
         return []
 
+    def get_available_loras(self) -> List[str]:
+        """
+        Queries ComfyUI for available LoRA models from LoraLoader.
+        """
+        try:
+            resp = requests.get(f"{self.base_url}/object_info/LoraLoader", timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                input_info = data.get("LoraLoader", {}).get("input", {}).get("required", {})
+                lora_names = input_info.get("lora_name", [[]])[0]
+                if isinstance(lora_names, list):
+                    return lora_names
+        except Exception as e:
+            print(f"[ComfyUI] Could not fetch available LoRAs: {e}")
+        return []
+
+    def match_lora(self, keyword_or_name: str) -> Optional[str]:
+        """
+        Matches a keyword, catalog key, or partial name to an actual available LoRA filename in ComfyUI.
+        """
+        available = self.get_available_loras()
+        if not available:
+            return None
+
+        kw = keyword_or_name.lower().strip()
+
+        # 1. Direct exact match
+        for lora in available:
+            if lora.lower() == kw:
+                return lora
+
+        # 2. Check if keyword matches a catalog key or any pattern inside catalog
+        for cat_key, cat in KNOWN_LORAS_CATALOG.items():
+            patterns = [p.lower() for p in cat.get("patterns", [])]
+            if kw == cat_key or any(p in kw or kw in p for p in patterns):
+                for lora in available:
+                    lora_l = lora.lower()
+                    if any(p in lora_l for p in patterns) or cat.get("default_filename", "").lower() in lora_l:
+                        return lora
+
+        # 3. Substring / pattern match against available LoRA filenames
+        for lora in available:
+            if kw in lora.lower():
+                return lora
+
+        return None
+
     def resolve_checkpoint(self) -> Optional[str]:
         """
         Resolves which checkpoint filename to use:
@@ -131,7 +212,7 @@ class ComfyUIService:
             return None
 
         # Prioritize anime/manga/sdxl models if present in ComfyUI
-        priorities = ["manga", "anime", "animagine", "anything", "sdxl", "counterfeit", "v1-5"]
+        priorities = ["animagine", "manga", "anime", "anything", "sdxl", "counterfeit", "v1-5"]
         for prio in priorities:
             for ckpt in available:
                 if prio in ckpt.lower():
@@ -147,32 +228,19 @@ class ComfyUIService:
         width: int = 768,
         height: int = 768,
         checkpoint: Optional[str] = None,
+        loras: Optional[List[Dict[str, Any]]] = None,
         steps: Optional[int] = None,
         cfg: Optional[float] = None
     ) -> Dict[str, Any]:
         """
-        Builds standard ComfyUI text-to-image API prompt workflow dictionary.
+        Builds standard ComfyUI text-to-image API prompt workflow dictionary,
+        with support for dynamic LoRA chaining between CheckpointLoaderSimple and CLIP/KSampler.
         """
-        ckpt_name = checkpoint or self.resolve_checkpoint() or "v1-5-pruned-emaonly.safetensors"
+        ckpt_name = checkpoint or self.resolve_checkpoint() or "animagineXLV31_v31.safetensors"
         use_steps = steps if steps is not None else self.steps
         use_cfg = cfg if cfg is not None else self.cfg
 
         workflow = {
-            "3": {
-                "class_type": "KSampler",
-                "inputs": {
-                    "cfg": use_cfg,
-                    "denoise": 1.0,
-                    "latent_image": ["5", 0],
-                    "model": ["4", 0],
-                    "negative": ["7", 0],
-                    "positive": ["6", 0],
-                    "sampler_name": self.sampler_name,
-                    "scheduler": self.scheduler,
-                    "seed": int(seed),
-                    "steps": use_steps
-                }
-            },
             "4": {
                 "class_type": "CheckpointLoaderSimple",
                 "inputs": {
@@ -185,20 +253,6 @@ class ComfyUIService:
                     "batch_size": 1,
                     "height": height,
                     "width": width
-                }
-            },
-            "6": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "clip": ["4", 1],
-                    "text": prompt
-                }
-            },
-            "7": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "clip": ["4", 1],
-                    "text": negative_prompt or DEFAULT_MANGA_NEGATIVE
                 }
             },
             "8": {
@@ -216,6 +270,76 @@ class ComfyUIService:
                 }
             }
         }
+
+        # Handle LoRA chaining
+        current_model = ["4", 0]
+        current_clip = ["4", 1]
+        node_id_counter = 10
+
+        if loras and isinstance(loras, list):
+            available_loras = self.get_available_loras()
+            for lora_item in loras:
+                if not isinstance(lora_item, dict):
+                    continue
+                raw_name = str(lora_item.get("name", "") or lora_item.get("lora_name", "")).strip()
+                if not raw_name:
+                    continue
+
+                # Match against available loras or catalog
+                matched_filename = self.match_lora(raw_name) or raw_name
+                # Only insert if matched or filename ends with standard model extensions
+                strength_model = float(lora_item.get("strength_model", 1.0))
+                strength_clip = float(lora_item.get("strength_clip", 1.0))
+
+                lora_node_id = str(node_id_counter)
+                node_id_counter += 1
+
+                workflow[lora_node_id] = {
+                    "class_type": "LoraLoader",
+                    "inputs": {
+                        "model": current_model,
+                        "clip": current_clip,
+                        "lora_name": matched_filename,
+                        "strength_model": strength_model,
+                        "strength_clip": strength_clip
+                    }
+                }
+                current_model = [lora_node_id, 0]
+                current_clip = [lora_node_id, 1]
+
+        # KSampler receives the final model output
+        workflow["3"] = {
+            "class_type": "KSampler",
+            "inputs": {
+                "cfg": use_cfg,
+                "denoise": 1.0,
+                "latent_image": ["5", 0],
+                "model": current_model,
+                "negative": ["7", 0],
+                "positive": ["6", 0],
+                "sampler_name": self.sampler_name,
+                "scheduler": self.scheduler,
+                "seed": int(seed),
+                "steps": use_steps
+            }
+        }
+
+        # CLIPTextEncode receives the final CLIP output
+        workflow["6"] = {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": current_clip,
+                "text": prompt
+            }
+        }
+        workflow["7"] = {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": current_clip,
+                "text": negative_prompt or DEFAULT_MANGA_NEGATIVE
+            }
+        }
+
         return workflow
 
     def queue_prompt(self, workflow: Dict[str, Any], client_id: Optional[str] = None) -> str:
@@ -304,18 +428,19 @@ class ComfyUIService:
         seed: int = 123456,
         layout_type: str = "square",
         checkpoint: Optional[str] = None,
+        loras: Optional[List[Dict[str, Any]]] = None,
         steps: Optional[int] = None,
         cfg: Optional[float] = None
     ) -> bytes:
         """
         Full end-to-end pipeline:
         1. Resolve layout dimensions
-        2. Build workflow
+        2. Build workflow with optional LoRAs
         3. Submit prompt to ComfyUI
         4. Poll for output completion
         5. Fetch image bytes and return
         """
-        width, height = LAYOUT_DIMENSIONS.get(layout_type.lower(), LAYOUT_DIMENSIONS["square"])
+        width, height = LAYOUT_MAP_DIMS(layout_type)
 
         workflow = self.build_manga_workflow(
             prompt=prompt,
@@ -324,12 +449,13 @@ class ComfyUIService:
             width=width,
             height=height,
             checkpoint=checkpoint,
+            loras=loras,
             steps=steps,
             cfg=cfg
         )
 
         prompt_id = self.queue_prompt(workflow)
-        print(f"[ComfyUI] Queued manga generation prompt_id={prompt_id}, dims={width}x{height}, seed={seed}")
+        print(f"[ComfyUI] Queued manga generation prompt_id={prompt_id}, dims={width}x{height}, seed={seed}, loras={len(loras or [])}")
 
         filename, subfolder, folder_type = self.poll_for_image_output(prompt_id)
         if not filename:
@@ -337,6 +463,10 @@ class ComfyUIService:
 
         img_bytes = self.fetch_image_bytes(filename, subfolder, folder_type)
         return img_bytes
+
+
+def LAYOUT_MAP_DIMS(layout_type: str) -> Tuple[int, int]:
+    return LAYOUT_DIMENSIONS.get(layout_type.lower(), LAYOUT_DIMENSIONS["square"])
 
 
 # Global singleton
@@ -366,11 +496,12 @@ def generate_image_comfyui(
     custom_negative_prompt: Optional[str] = None,
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None,
-    genre: str = ""
+    genre: str = "",
+    loras: Optional[List[Dict[str, Any]]] = None
 ) -> bytes:
     """
     Convenience wrapper to generate a manga panel with ComfyUI,
-    incorporating cultural and genre-specific negative prompts.
+    incorporating cultural and genre-specific negative prompts and LoRA stack.
     """
     from services.cloudflare_ai import get_master_negative_prompt
 
@@ -388,5 +519,6 @@ def generate_image_comfyui(
         prompt=prompt,
         negative_prompt=negative_prompt,
         seed=seed,
-        layout_type=layout_type
+        layout_type=layout_type,
+        loras=loras
     )

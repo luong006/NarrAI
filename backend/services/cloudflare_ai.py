@@ -4,7 +4,7 @@ import requests
 import urllib.parse
 import io
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 
 try:
     from PIL import Image, ImageOps
@@ -216,11 +216,12 @@ def get_cached_or_generate_image(
     cultural_tier: Optional[int] = None,
     narrative_mode: Optional[str] = None,
     genre: str = "",
+    loras: Optional[List[Dict[str, Any]]] = None,
     force_refresh: bool = False,
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
-    Otherwise attempts ComfyUI (if running locally/enabled),
+    Otherwise attempts ComfyUI (if running locally/enabled) with dynamic LoRA chaining,
     with fallback to Cloudflare Workers AI with a deterministic panel-specific seed,
     with fallback to Pollinations B&W manga, then writes to disk cache.
     Returns (image_bytes, media_type).
@@ -268,7 +269,15 @@ def get_cached_or_generate_image(
         from services.comfyui_service import is_comfyui_enabled, is_comfyui_available, generate_image_comfyui
         if is_comfyui_enabled() and is_comfyui_available():
             try:
-                print(f"[Comic Image] Attempting image generation for panel {panel_id} via ComfyUI...")
+                active_loras = loras
+                if active_loras is None:
+                    try:
+                        from agents.comic_prompt_agent import ComicPromptAgent
+                        active_loras = ComicPromptAgent().detect_scene_loras(prompt, genre=genre)
+                    except Exception:
+                        active_loras = None
+
+                print(f"[Comic Image] Attempting image generation for panel {panel_id} via ComfyUI (LoRAs: {len(active_loras or [])})...")
                 img_bytes = generate_image_comfyui(
                     prompt=prompt,
                     seed=panel_seed,
@@ -276,7 +285,8 @@ def get_cached_or_generate_image(
                     layout_type=layout_type,
                     cultural_tier=cultural_tier,
                     narrative_mode=narrative_mode,
-                    genre=genre
+                    genre=genre,
+                    loras=active_loras
                 )
                 if img_bytes and _is_valid_image_payload(img_bytes):
                     print(f"[Comic Image] Panel {panel_id} generated successfully via ComfyUI!")
