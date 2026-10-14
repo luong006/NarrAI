@@ -3,14 +3,57 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 import logging
+import os
 
 from db.models import User
 from auth import decode_access_token
+from fastapi.security import OAuth2PasswordBearer
+from db.models import get_db
 from services.story_pipeline_manager import StoryPipelineManager
 
 logger = logging.getLogger("narrai.story_pipeline_router")
 
-router = APIRouter(tags=["AI Story Pipeline"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
+
+
+async def require_pipeline_moderator(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yêu cầu đăng nhập để sử dụng trạm biên soạn.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = decode_access_token(token)
+    username = payload.get("sub") if payload else None
+    user = db.query(User).filter(User.username == username).first() if username else None
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập không hợp lệ.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    moderator_usernames = {
+        value.strip().casefold()
+        for value in os.environ.get("NARRAI_MODERATOR_USERNAMES", "").split(",")
+        if value.strip()
+    }
+    if user.username.casefold() not in moderator_usernames:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền sử dụng trạm biên soạn.",
+        )
+    return user
+
+
+router = APIRouter(
+    tags=["AI Story Pipeline"],
+    dependencies=[Depends(require_pipeline_moderator)],
+)
 public_story_router = APIRouter(tags=["Published Stories"])
 
 # Singleton manager instance

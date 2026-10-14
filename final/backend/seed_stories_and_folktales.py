@@ -476,8 +476,8 @@ def seed_database_and_pipeline():
                 "status": "merged",
                 "createdAt": datetime.now(timezone.utc).isoformat(),
                 "updatedAt": datetime.now(timezone.utc).isoformat(),
-                "prUrl": f"https://github.com/anhdinh0701/final/pull/{len(queue_data['stories'])+1}",
-                "prNumber": len(queue_data["stories"]) + 1,
+                "prUrl": None,
+                "prNumber": None,
                 "branchName": f"ai-stories/{item['id']}",
                 "error": None
             })

@@ -19,8 +19,8 @@ class GitHubService:
         load_dotenv(dotenv_path=env_path)
         
         self.token = os.getenv("GITHUB_TOKEN", "").strip()
-        self.owner = os.getenv("GITHUB_OWNER", "anhdinh0701").strip()
-        self.repo = os.getenv("GITHUB_REPO", "final").strip()
+        self.owner = os.getenv("GITHUB_OWNER", "luong006").strip()
+        self.repo = os.getenv("GITHUB_REPO", "NarrAI").strip()
         self.base_branch = os.getenv("GITHUB_BASE_BRANCH", "main").strip()
         self.api_base = "https://api.github.com"
 

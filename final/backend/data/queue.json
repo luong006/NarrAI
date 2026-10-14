@@ -16,10 +16,10 @@
         "vi",
         "en"
       ],
-      "status": "pr_created",
+      "status": "pending",
       "createdAt": "2026-10-11T00:00:00Z",
       "updatedAt": "2026-10-11T02:10:55.242920+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/compare/main...ai-stories/tran-hung-dao",
+      "prUrl": null,
       "prNumber": null,
       "branchName": "ai-stories/tran-hung-dao",
       "error": null
@@ -39,10 +39,10 @@
         "vi",
         "en"
       ],
-      "status": "pr_created",
+      "status": "pending",
       "createdAt": "2026-10-11T00:00:00Z",
       "updatedAt": "2026-10-11T02:11:29.487616+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/compare/main...ai-stories/chu-dong-tu",
+      "prUrl": null,
       "prNumber": null,
       "branchName": "ai-stories/chu-dong-tu",
       "error": null
@@ -112,8 +112,8 @@
       "status": "merged",
       "createdAt": "2026-10-11T02:53:29.377038+00:00",
       "updatedAt": "2026-10-11T02:53:29.377038+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/pull/5",
-      "prNumber": 5,
+      "prUrl": null,
+      "prNumber": null,
       "branchName": "ai-stories/tam-cam",
       "error": null
     },
@@ -136,8 +136,8 @@
       "status": "merged",
       "createdAt": "2026-10-11T02:53:29.377038+00:00",
       "updatedAt": "2026-10-11T02:53:29.377038+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/pull/6",
-      "prNumber": 6,
+      "prUrl": null,
+      "prNumber": null,
       "branchName": "ai-stories/thach-sanh",
       "error": null
     },
@@ -160,8 +160,8 @@
       "status": "merged",
       "createdAt": "2026-10-11T02:53:29.377038+00:00",
       "updatedAt": "2026-10-11T02:53:29.377038+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/pull/7",
-      "prNumber": 7,
+      "prUrl": null,
+      "prNumber": null,
       "branchName": "ai-stories/cay-tre-tram-dot",
       "error": null
     },
@@ -184,8 +184,8 @@
       "status": "merged",
       "createdAt": "2026-10-11T02:53:29.377038+00:00",
       "updatedAt": "2026-10-11T02:53:29.377038+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/pull/8",
-      "prNumber": 8,
+      "prUrl": null,
+      "prNumber": null,
       "branchName": "ai-stories/an-khe-tra-vang",
       "error": null
     },
@@ -208,8 +208,8 @@
       "status": "merged",
       "createdAt": "2026-10-11T02:53:29.377038+00:00",
       "updatedAt": "2026-10-11T02:53:29.377038+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/pull/9",
-      "prNumber": 9,
+      "prUrl": null,
+      "prNumber": null,
       "branchName": "ai-stories/su-tich-banh-chung-banh-giay",
       "error": null
     },
@@ -232,8 +232,8 @@
       "status": "merged",
       "createdAt": "2026-10-11T02:53:29.377038+00:00",
       "updatedAt": "2026-10-11T02:53:29.377038+00:00",
-      "prUrl": "https://github.com/anhdinh0701/final/pull/10",
-      "prNumber": 10,
+      "prUrl": null,
+      "prNumber": null,
       "branchName": "ai-stories/thanh-giong",
       "error": null
     },

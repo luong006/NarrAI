@@ -715,7 +715,7 @@ export const api = {
   },
 
   async mergePipelinePullRequest(prNumber: number, storyId: string): Promise<{ status: string; message: string }> {
-    window.open(`https://github.com/anhdinh0701/final/pull/${prNumber}`, '_blank');
+    window.open(`https://github.com/luong006/NarrAI/pull/${prNumber}`, '_blank');
     return { status: 'success', message: `Đang mở GitHub PR #${prNumber} để duyệt và merge` };
   },
 

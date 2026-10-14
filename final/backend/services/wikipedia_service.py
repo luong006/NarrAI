@@ -15,7 +15,7 @@ class WikipediaService:
     
     VI_API = "https://vi.wikipedia.org/w/api.php"
     EN_API = "https://en.wikipedia.org/w/api.php"
-    USER_AGENT = "NarrAIStoryPipeline/2.0 (https://github.com/anhdinh0701/final; contact@narrai.vn)"
+    USER_AGENT = "NarrAIStoryPipeline/2.0 (https://github.com/luong006/NarrAI; contact@narrai.vn)"
 
     def __init__(self, timeout: float = 12.0):
         self.timeout = timeout

@@ -46,6 +46,7 @@ final/
    - `GROQ_API_KEY_COMIC`: Key Groq phần tạo prompt tranh ComfyUI.
    - `GROQ_API_KEY`: Key Groq dự phòng chung.
    - `JWT_SECRET`: Một chuỗi ngẫu nhiên bí mật (ví dụ: `narrai_secret_key_2026_super_safe`).
+   - `NARRAI_MODERATOR_USERNAMES`: Danh sách tài khoản được phép dùng Trạm biên soạn AI, phân tách bằng dấu phẩy.
    - `COMFYUI_ENABLED`: `true`
    - `COMFYUI_URL`: Link ngrok ComfyUI của bạn (Ví dụ: `https://xxxx-xx-xx.ngrok-free.app` khi mở tunnel, hoặc tạm thời để `http://127.0.0.1:8188`).
    - `CLOUDFLARE_API_TOKEN`: *(Tuỳ chọn)* Token Cloudflare Workers AI.
