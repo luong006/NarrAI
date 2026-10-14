@@ -351,6 +351,102 @@ body, html {
   background: #FAF7F2 !important;
 }
 
+.landing-content {
+  --landing-burgundy: #7f2021;
+  --landing-burgundy-deep: #5b191b;
+  --landing-gold: #bd8526;
+  --landing-gold-line: #e6d2a7;
+  --landing-paper: #fffaf0;
+  --landing-paper-alt: #fbf1dc;
+  background: var(--landing-paper);
+}
+
+.landing-content > section {
+  border-color: var(--landing-gold-line) !important;
+}
+
+.landing-content #studios,
+.landing-content #featured-worlds {
+  background: var(--landing-paper) !important;
+}
+
+.landing-content #recent-projects,
+.landing-content #heritage {
+  background: var(--landing-paper-alt) !important;
+}
+
+.landing-content [class~="text-neutral-950"],
+.landing-content [class~="text-neutral-900"] {
+  color: var(--landing-burgundy-deep) !important;
+}
+
+.landing-content [class~="text-neutral-700"],
+.landing-content [class~="text-neutral-600"] {
+  color: #654d40 !important;
+}
+
+.landing-content [class~="text-neutral-500"] {
+  color: #8c6c4a !important;
+}
+
+.landing-content [class~="text-emerald-600"] {
+  color: var(--landing-burgundy) !important;
+}
+
+.landing-content [class~="bg-white"],
+.landing-content [class*="bg-white/"],
+.landing-content [class~="bg-neutral-50"],
+.landing-content [class~="bg-neutral-100"] {
+  background-color: #fffdf8 !important;
+}
+
+.landing-content [class~="border-neutral-100"],
+.landing-content [class~="border-neutral-200"],
+.landing-content [class~="border-neutral-300"],
+.landing-content [class*="border-neutral-300/"] {
+  border-color: var(--landing-gold-line) !important;
+}
+
+.landing-content #studios .grid > .group,
+.landing-content #recent-projects .grid > .group,
+.landing-content #featured-worlds .grid > .group {
+  border-color: var(--landing-gold-line) !important;
+  background-color: #fffdf8 !important;
+  box-shadow: 0 8px 24px rgb(91 25 27 / 7%);
+}
+
+.landing-content #studios .grid > .group:hover,
+.landing-content #recent-projects .grid > .group:hover,
+.landing-content #featured-worlds .grid > .group:hover {
+  border-color: var(--landing-burgundy) !important;
+  box-shadow: 0 14px 30px rgb(91 25 27 / 12%);
+}
+
+.landing-content [class~="hover:border-neutral-950"]:hover,
+.landing-content [class~="hover:border-neutral-900"]:hover {
+  border-color: var(--landing-burgundy) !important;
+}
+
+.landing-content #heritage > div:last-child {
+  border-color: #e6d2a7 !important;
+  background: #fffaf0 !important;
+  box-shadow: 0 8px 24px rgb(91 25 27 / 7%);
+}
+
+.landing-content footer {
+  border-color: var(--landing-burgundy-deep) !important;
+  background: var(--landing-burgundy-deep) !important;
+  color: #f7e6bd !important;
+}
+
+.landing-content footer [class~="text-neutral-600"] {
+  color: #f0ddb0 !important;
+}
+
+.landing-content footer a:hover {
+  color: #ffe15c !important;
+}
+
 .landing-book-scene {
   position: relative;
   padding: 28px 24px 46px;

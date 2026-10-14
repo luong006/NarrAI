@@ -500,6 +500,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
         {/* ========================================================= */}
         {/* 4 CORE STUDIOS (THẺ CHỨC NĂNG) */}
         {/* ========================================================= */}
+        <div className="landing-content">
         <section
           id="studios"
           className="relative z-10 mx-auto max-w-7xl px-4 pb-16 sm:px-8 sm:pb-20 lg:px-10 border-t border-neutral-300/80 pt-12 bg-[#FAF7F2]"
@@ -914,6 +915,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
             </div>
           </div>
         </footer>
+        </div>
 
       </div>
     </main>
