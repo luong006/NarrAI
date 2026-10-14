@@ -352,12 +352,12 @@ body, html {
 }
 
 .landing-content {
-  --landing-burgundy: #7f2021;
-  --landing-burgundy-deep: #5b191b;
-  --landing-gold: #bd8526;
-  --landing-gold-line: #e6d2a7;
-  --landing-paper: #fffaf0;
-  --landing-paper-alt: #fbf1dc;
+  --landing-burgundy: #8f0000;
+  --landing-burgundy-deep: #681111;
+  --landing-gold: #ffb000;
+  --landing-gold-line: #efd9a8;
+  --landing-paper: #fffdf8;
+  --landing-paper-alt: #fff4d6;
   background: var(--landing-paper);
 }
 
@@ -428,8 +428,8 @@ body, html {
 }
 
 .landing-content #heritage > div:last-child {
-  border-color: #e6d2a7 !important;
-  background: #fffaf0 !important;
+  border-color: #efd9a8 !important;
+  background: #fffdf8 !important;
   box-shadow: 0 8px 24px rgb(91 25 27 / 7%);
 }
 

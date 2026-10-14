@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { translations, Language } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { DongSonDrum } from "@/components/intro/DongSonDrum";
 
 interface Props {
   lang: Language;
@@ -153,13 +152,14 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,_rgba(255,209,92,0.18),_transparent_65%)]"
           />
-          <div className="relative mx-auto flex h-[220px] max-w-5xl items-center justify-center overflow-hidden sm:h-[300px] lg:h-[340px]">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#541315]/35 via-transparent to-[#541315]/30" />
-            <DongSonDrum
-              size={560}
-              progress={1}
-              pulseProgress={0}
-              glowIntensity={0.85}
+          <div className="relative mx-auto mt-5 aspect-[2.81/1] w-full max-w-[900px] overflow-hidden shadow-[0_12px_32px_rgba(40,12,10,0.35)] ring-1 ring-[#f3d68d]/40 sm:mt-7">
+            <Image
+              src="/assets/landing/dong-son-chim-lac-relief.png"
+              alt="Phù điêu chim Lạc trên trống đồng Đông Sơn"
+              fill
+              priority
+              sizes="(max-width: 900px) 100vw, 900px"
+              className="object-cover"
             />
           </div>
           <h1
@@ -170,7 +170,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
           </h1>
         </section>
 
-        <section className="bg-[#ffe15c] px-5 py-9 text-[#8e1b1d] sm:py-12">
+        <section className="bg-[#fff0c2] px-5 py-9 text-[#8e1b1d] sm:py-12">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 sm:flex-row">
             <h2 className="text-center font-sans text-3xl font-extrabold leading-tight sm:text-left sm:text-4xl lg:text-5xl">
               {lang === "vi" ? "Hãy bắt đầu ngay hôm nay" : "Start today"}
@@ -178,7 +178,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
             <button
               type="button"
               onClick={onOpenAuth}
-              className="shrink-0 rounded-full bg-black px-6 py-3 text-xs font-bold text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 focus:ring-offset-[#ffe15c]"
+              className="shrink-0 rounded-full bg-black px-6 py-3 text-xs font-bold text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 focus:ring-offset-[#fff0c2]"
             >
               {lang === "vi" ? "Hợp tác với chúng tôi" : "Create with NarrAI"}
             </button>
