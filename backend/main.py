@@ -1125,13 +1125,12 @@ def get_comic_image(panel_id: int, retry: int = 0, db: Session = Depends(get_db)
         story = db.query(Story).filter(Story.id == story_id).first()
         memory = _get_story_memory(story, db)
         bible = getattr(memory, "story_bible", None)
-        layout_type = getattr(panel, "layout_type", "square") or "square"
+        panel_id = int(panel.id)
         img_bytes, media_type = get_cached_or_generate_image(
             panel_id,
             str(panel.image_prompt or "monochrome manga illustration of a character in the story setting"),
             seed=comic_seed,
             story_id=story_id,
-            layout_type=layout_type,
             cultural_tier=getattr(bible, "cultural_tier", None),
             narrative_mode=getattr(bible, "narrative_mode", None),
             genre=str(getattr(bible, "genre", "") or (story.genre if story else "") or ""),
@@ -1146,104 +1145,6 @@ def get_comic_image(panel_id: int, retry: int = 0, db: Session = Depends(get_db)
             content={"detail": "Image generation failed. Retry to request a fresh render."},
             headers={"Cache-Control": "no-store"},
         )
-
-
-@app.get("/api/comic/comfyui/status")
-def get_comfyui_status():
-    """Returns the current connection status and available models of the ComfyUI instance."""
-    from services.comfyui_service import get_comfyui_service, KNOWN_LORAS_CATALOG
-    service = get_comfyui_service()
-    is_avail = service.is_available()
-    checkpoints = service.get_available_checkpoints() if is_avail else []
-    loras = service.get_available_loras() if is_avail else []
-    resolved = service.resolve_checkpoint() if is_avail else None
-    return {
-        "enabled": service.is_enabled(),
-        "available": is_avail,
-        "base_url": service.base_url,
-        "selected_checkpoint": resolved,
-        "available_checkpoints": checkpoints,
-        "available_loras": loras,
-        "known_loras_catalog": KNOWN_LORAS_CATALOG,
-        "sampler": service.sampler_name,
-        "scheduler": service.scheduler,
-        "steps": service.steps,
-        "cfg": service.cfg,
-    }
-
-
-@app.get("/api/comic/comfyui/loras")
-def get_comfyui_loras():
-    """Returns all discovered LoRAs in the ComfyUI loras/ directory and the known style catalog."""
-    from services.comfyui_service import get_comfyui_service, KNOWN_LORAS_CATALOG
-    service = get_comfyui_service()
-    is_avail = service.is_available()
-    loras = service.get_available_loras() if is_avail else []
-    return {
-        "status": "online" if is_avail else "offline",
-        "available_loras": loras,
-        "catalog": KNOWN_LORAS_CATALOG
-    }
-
-
-class ComicPromptAgentRequest(BaseModel):
-    story_text: str
-    genre: Optional[str] = ""
-    setting_anchor: Optional[str] = None
-    character_dna_map: Optional[Dict[str, Any]] = None
-    narrative_mode: Optional[str] = None
-    cultural_tier: Optional[int] = None
-
-
-@app.post("/api/comic/prompt-agent/generate")
-def generate_comic_prompt(req: ComicPromptAgentRequest):
-    """Uses ComicPromptAgent to analyze story text, select matching LoRAs, and craft a rich manga prompt."""
-    from agents.comic_prompt_agent import ComicPromptAgent
-    agent = ComicPromptAgent()
-    result = agent.craft_panel_prompt(
-        story_text=req.story_text,
-        character_dna_map=req.character_dna_map,
-        setting_anchor=req.setting_anchor,
-        genre=req.genre or "",
-        narrative_mode=req.narrative_mode,
-        cultural_tier=req.cultural_tier
-    )
-    return {
-        "status": "success",
-        "data": result
-    }
-
-
-class ComfyUITestRequest(BaseModel):
-    prompt: Optional[str] = "masterpiece monochrome Japanese manga illustration of a heroic protagonist"
-    layout_type: Optional[str] = "square"
-    loras: Optional[List[Dict[str, Any]]] = None
-
-
-@app.post("/api/comic/comfyui/test")
-def test_comfyui_generation(req: ComfyUITestRequest = ComfyUITestRequest()):
-    """Generates a test image using ComfyUI if available, with optional LoRAs."""
-    from services.comfyui_service import get_comfyui_service, generate_image_comfyui
-    service = get_comfyui_service()
-    if not service.is_available():
-        return JSONResponse(
-            status_code=503,
-            content={"status": "error", "message": f"ComfyUI is not reachable at {service.base_url}. Please ensure ComfyUI is running."}
-        )
-    try:
-        img_bytes = generate_image_comfyui(
-            prompt=req.prompt or "masterpiece monochrome Japanese manga illustration",
-            layout_type=req.layout_type or "square",
-            loras=req.loras
-        )
-        media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
-        return Response(content=img_bytes, media_type=media_type)
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": f"ComfyUI generation test failed: {str(e)}"}
-        )
-
 
 
 @app.post("/api/chat")
