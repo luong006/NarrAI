@@ -9,23 +9,25 @@ interface Props {
 
 export function LanguageSwitcher({ currentLang, onLanguageChange }: Props) {
   return (
-    <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-100 dark:bg-slate-800">
+    <div className="flex items-center rounded border border-neutral-300 dark:border-neutral-700 p-0.5 bg-neutral-100 dark:bg-neutral-900">
       <button
+        type="button"
         onClick={() => onLanguageChange("vi")}
-        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+        className={`px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors ${
           currentLang === "vi"
-            ? "bg-white dark:bg-slate-900 text-brand-700 dark:text-brand-300 shadow-sm"
-            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            ? "bg-white dark:bg-black text-black dark:text-white shadow-sm border border-neutral-200 dark:border-neutral-800"
+            : "text-neutral-500 hover:text-black dark:hover:text-white"
         }`}
       >
         VIE
       </button>
       <button
+        type="button"
         onClick={() => onLanguageChange("en")}
-        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+        className={`px-2.5 py-1 text-xs font-mono font-bold rounded transition-colors ${
           currentLang === "en"
-            ? "bg-white dark:bg-slate-900 text-brand-700 dark:text-brand-300 shadow-sm"
-            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            ? "bg-white dark:bg-black text-black dark:text-white shadow-sm border border-neutral-200 dark:border-neutral-800"
+            : "text-neutral-500 hover:text-black dark:hover:text-white"
         }`}
       >
         ENG

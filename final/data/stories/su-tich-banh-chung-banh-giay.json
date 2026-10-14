@@ -1,0 +1,63 @@
+{
+  "id": "su-tich-banh-chung-banh-giay",
+  "title": "Sự tích Bánh Chưng Bánh Giầy",
+  "slug": "su-tich-banh-chung-banh-giay",
+  "topic": "Truyền thuyết thời đại Hùng Vương",
+  "category": "Truyền thuyết & Thần thoại",
+  "genre": [
+    "Truyền thuyết",
+    "Vua Hùng",
+    "Văn hóa ẩm thực",
+    "Đạo hiếu"
+  ],
+  "summary": "Truyền thuyết thời Vua Hùng thứ 6 về chàng hoàng tử Lang Liêu hiếu thảo, dùng hạt gạo nếp quê hương làm nên bánh Chưng vuông tượng trưng cho Đất và bánh Giầy tròn tượng trưng cho Trời.",
+  "content": "Đời Hùng Vương thứ sáu, sau khi đánh tan giặc Ân, đất nước thái bình, nhà vua muốn truyền ngôi cho con. Vua có hai mươi người con trai, ai cũng tài giỏi. Vua bèn mở hội truyền rằng: \"Ta muốn truyền ngôi cho người biết nối chí ta, không nhất thiết là con trưởng. Đến ngày đầu xuân, ai dâng được lễ vật cúng Tiên vương vừa ý ta nhất, thể hiện được lòng hiếu thảo và ý nghĩa sâu xa, ta sẽ truyền ngôi báu cho\".\n\nCác hoàng tử đua nhau sai người lên rừng săn muông thú quý hiếm, lặn lội xuống biển sâu mò ngọc trai ngà voi, đồi mồi, sơn hào hải vị với hy vọng đoạt được ngai vàng.\n\nDuy chỉ có người con trai thứ mười tám tên là Lang Liêu, mồ côi mẹ từ nhỏ, tính tình khiêm nhường, gần gũi với nhân dân đồng ruộng là vô cùng lo lắng. Chàng nghĩ mình chỉ quen với việc cấy cày trồng trọt, lấy đâu ra của ngon vật lạ như các anh em.\n\nMột đêm nọ, Lang Liêu nằm mộng thấy một vị Thần nhân râu tóc bạc phơ hiện ra bảo chàng: \"Trong trời đất, không có gì quý bằng hạt gạo, vì hạt gạo nuôi sống con người. Ngươi hãy lấy gạo nếp thơm làm chiếc bánh hình tròn tượng trưng cho Trời, và chiếc bánh hình vuông tượng trưng cho Đất, ở trong bọc nhân ngon, đặt lá xanh bên ngoài bọc kín. Đó chính là lễ vật quý giá nhất dâng lên Tiên vương\".\n\nTỉnh dậy, Lang Liêu vô cùng mừng rỡ. Chàng chọn những hạt nếp cái hoa vàng mẩy tròn nhất, đỗ xanh đãi sạch vỏ, thịt lợn ba chỉ ướp tiêu thơm nồng. Chàng dùng lá dong xanh mướt gói thành chiếc bánh vuông vắn, đem luộc chín kỹ suốt một ngày một đêm, gọi là Bánh Chưng tượng trưng cho Đất mẹ sinh sôi muôn loài. Chàng lại lấy nếp thơm đồ xôi, giã nhuyễn rồi nặn thành hình tròn trắng muốt, mịn màng, gọi là Bánh Giầy tượng trưng cho Bầu Trời che chở.\n\nĐến ngày hẹn, các hoàng tử dâng lên mâm cao cỗ đầy gấm vóc, sơn hào hải vị. Đến lượt Lang Liêu chỉ dâng lên hai mâm bánh mộc mạc làm từ hạt gạo quê hương. Vua Hùng nếm thử, tấm tắc khen hương vị thơm ngon đậm đà, bèn hỏi ý nghĩa.\n\nLang Liêu đem lời dạy của Thần kể lại rành mạch. Vua Hùng xúc động rơi lệ phán trước quần thần: \"Bánh của Lang Liêu không chỉ ngon miệng mà còn chứa đựng đạo lý bao la của Đất Trời, công ơn sinh thành dưỡng dục của cha mẹ và tôn vinh hạt ngọc của người nông dân cày cấy\".\n\nVua Hùng quyết định truyền ngôi báu cho Lang Liêu. Từ đó, cứ mỗi dịp Tết Nguyên Đán cổ truyền, người Việt Nam luôn gói bánh Chưng bánh Giầy dâng cúng tổ tiên để ghi nhớ cội nguồn dân tộc.",
+  "characters": [
+    {
+      "name": "Lang Liêu",
+      "role": "lead",
+      "gender": "male",
+      "dna": "noble 20yo Vietnamese prince of Hung Kings era, humble sincere expression, athletic graceful posture, wearing ancient bronze-age patterned sash and dark indigo woven tunic"
+    },
+    {
+      "name": "Hùng Vương thứ 6",
+      "role": "supporting",
+      "gender": "male",
+      "dna": "venerable 60yo King of Van Lang, majestic benevolent beard, wearing royal bronze feather headdress and red embroidered ancient robe"
+    }
+  ],
+  "world_setting": "Kinh đô Phong Châu thời Hùng Vương, bếp lửa bập bùng nấu bánh đêm đông và núi non Văn Lang hùng vĩ.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Lang Liêu ngồi trầm ngâm bên hiên nhà sàn, trăn trở tìm lễ vật ý nghĩa dâng lên vua cha.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, thoughtful young Vietnamese prince in ancient Van Lang tunic sitting on rustic wooden veranda looking at rice fields, night moonlight screentone",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Trong giấc mộng thanh khiết, vị Thần nhân chỉ dẫn chàng bí quyết tạo nên bánh Chưng và bánh Giầy từ hạt gạo nếp.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, mystical celestial deity in dream realm imparting divine wisdom to sleeping prince, ethereal light rays and rice grain aura",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Bên bếp lửa hồng bập bùng suốt đêm đông, Lang Liêu cẩn trọng canh nồi bánh Chưng thơm ngát mùi lá dong nếp mới.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, dedicated young prince tending large boiling pot over glowing campfire at night, warm flickering shadows, atmospheric cozy manga style",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Vua Hùng nâng mâm bánh Chưng bánh Giầy khen ngợi trước triều đình và truyền lại ngôi báu cho Lang Liêu.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, ancient Vietnamese King on carved wooden throne tasting square and round rice cakes, proclaiming humble prince as new king before cheering courtiers",
+      "layout_type": "tall"
+    }
+  ],
+  "metadata": {
+    "language": "vi",
+    "wordCount": 514,
+    "createdAt": "2026-10-11T02:55:55.258317+00:00",
+    "aiModel": "NarrAI-Engine-Pro",
+    "status": "published"
+  }
+}

@@ -34,9 +34,9 @@ const config: Config = {
         }
       },
       fontFamily: {
-        sans: ['"Be Vietnam Pro"', 'system-ui', '-apple-system', 'sans-serif'],
-        serif: ['"Merriweather"', '"Lora"', 'Georgia', 'serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        sans: ["'Aptos Display'", "'Aptos'", '-apple-system', 'BlinkMacSystemFont', "'Segoe UI'", 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        serif: ["'Aptos Display'", "'Aptos'", '-apple-system', 'BlinkMacSystemFont', "'Segoe UI'", 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        mono: ["'Aptos Display'", "'Aptos'", '"JetBrains Mono"', 'monospace'],
       },
     },
   },

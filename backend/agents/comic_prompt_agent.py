@@ -2,6 +2,10 @@ import os
 import json
 import re
 from typing import Dict, Any, List, Optional, Tuple
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
@@ -74,19 +78,21 @@ class ComicPromptAgent:
                 or os.environ.get("GROQ_API_KEY")
             )
             try:
-                self.groq_client = GroqClient(api_key=api_key) if api_key else None
+                comic_model = os.environ.get("GROQ_MODEL_COMIC", "qwen/qwen3.8-27b")
+                self.groq_client = GroqClient(model_name=comic_model, api_key=api_key) if api_key else None
             except Exception:
                 self.groq_client = None
 
     def detect_scene_loras(self, story_text: str, setting_text: str = "", genre: str = "") -> List[Dict[str, Any]]:
         """
         Heuristically identifies relevant LoRAs based on story content, setting, and keywords.
+        Supports both accented and unaccented Vietnamese search tokens.
         """
         combined = f"{story_text} {setting_text} {genre}".lower()
         selected_loras = []
 
-        # 1. Check Vietnamese Ink Wash
-        if any(kw in combined for kw in ["thủy mặc", "thuỷ mặc", "tranh mực", "bút lông", "mực tàu", "ink wash", "lamink", "sông nước", "núi non"]):
+        # 1. Check Vietnamese Ink Wash / Thủy Mặc
+        if any(kw in combined for kw in ["thủy mặc", "thuỷ mặc", "thuy mac", "tranh mực", "tranh muc", "bút lông", "mực tàu", "ink wash", "lamink", "sông nước", "núi non"]):
             selected_loras.append({
                 "name": "lamInkVN Vietnam ink wash painting.safetensors",
                 "strength_model": 1.0,
@@ -94,8 +100,8 @@ class ComicPromptAgent:
                 "triggers": KNOWN_LORAS_CATALOG["vietnam_ink"]["trigger_prompt"]
             })
 
-        # 2. Check Vietnamese Heritage Architecture
-        if any(kw in combined for kw in ["nhà cổ", "đình làng", "chùa", "cung đình", "thành quách", "cột gỗ", "mái ngói", "di sản", "aidvn", "gian nhà gỗ"]):
+        # 2. Check Vietnamese Heritage Architecture / Nhà Cổ
+        if any(kw in combined for kw in ["nhà cổ", "nha co", "đình làng", "dinh lang", "chùa", "chua", "cung đình", "thành quách", "cột gỗ", "mái ngói", "di sản", "aidvn", "gian nhà gỗ"]):
             selected_loras.append({
                 "name": "AIDVN_VietnameseHeritageHouse.safetensors",
                 "strength_model": 1.0,
@@ -103,8 +109,8 @@ class ComicPromptAgent:
                 "triggers": KNOWN_LORAS_CATALOG["vietnam_heritage_house"]["trigger_prompt"]
             })
 
-        # 3. Check Vietnamese 1980s/1990s Retro Architecture
-        if any(kw in combined for kw in ["bao cấp", "thập niên 80", "thập niên 90", "ngõ nhỏ", "tường vàng", "nhà tập thể", "quán cóc", "ctai"]):
+        # 3. Check Vietnamese 1980s/1990s Retro Architecture / Bao Cấp
+        if any(kw in combined for kw in ["bao cấp", "bao cap", "thập niên 80", "thap nien 80", "thập niên 90", "thap nien 90", "ngõ nhỏ", "ngo nho", "tường vàng", "nhà tập thể", "quán cóc", "ctai"]):
             selected_loras.append({
                 "name": "CTAI-Vietnamese house early 1980s.safetensors",
                 "strength_model": 1.0,
@@ -113,7 +119,7 @@ class ComicPromptAgent:
             })
 
         # 4. Check Retro Sci-Fi / 90s Anime
-        if any(kw in combined for kw in ["viễn tưởng", "sci-fi", "robot", "máy bay", "không gian", "cyberpunk", "khoa học", "retro anime", "mecha"]):
+        if any(kw in combined for kw in ["viễn tưởng", "vien tuong", "sci-fi", "scifi", "robot", "máy bay", "không gian", "cyberpunk", "khoa học", "retro anime", "mecha"]):
             selected_loras.append({
                 "name": "Retro_Sci-fi_90_s_anime_style.safetensors",
                 "strength_model": 1.0,
@@ -122,12 +128,21 @@ class ComicPromptAgent:
             })
 
         # 5. Check Vietnamese Lacquer Art / Sơn Mài
-        if any(kw in combined for kw in ["sơn mài", "son mai", "dát vàng", "sơn ta", "khảm trai", "tranh sơn mài"]):
+        if any(kw in combined for kw in ["sơn mài", "son mai", "dát vàng", "sơn ta", "khảm trai", "tranh sơn mài", "sonmaivn"]):
             selected_loras.append({
                 "name": "SonMaiVN_by_Lam_f2.safetensors",
                 "strength_model": 1.0,
                 "strength_clip": 1.0,
                 "triggers": KNOWN_LORAS_CATALOG["vietnam_son_mai"]["trigger_prompt"]
+            })
+
+        # 6. Check Vietnamese Character / Traditional Clothing / Áo Dài / Nón Lá
+        if any(kw in combined for kw in ["áo dài", "ao dai", "nón lá", "non la", "xinom", "xinomvnpony", "phụ nữ việt nam", "cô gái việt nam", "hồ gươm", "ho guom", "tháp rùa", "cầu thê húc"]):
+            selected_loras.append({
+                "name": "xinomvnpony.safetensors",
+                "strength_model": 0.8,
+                "strength_clip": 0.8,
+                "triggers": KNOWN_LORAS_CATALOG.get("vietnam_xinom", {}).get("trigger_prompt", "xinomvnpony, Vietnamese cultural aesthetic, authentic Vietnamese clothing")
             })
 
         return selected_loras
@@ -177,21 +192,22 @@ DETECTED RELEVANT LORAS:
 
 Please construct the structured Manga Diffusion Prompt JSON now."""
 
-        try:
-            response_text = self.groq_client.generate(
-                prompt=user_message,
-                system_prompt=PROMPT_DIRECTOR_SYSTEM_PROMPT,
-                temperature=0.3,
-                max_tokens=600
-            )
-            parsed = self._clean_and_parse_json(response_text)
-            if parsed and isinstance(parsed, dict) and "image_prompt" in parsed:
-                # Merge detected LoRAs if LLM missed them
-                if not parsed.get("recommended_loras") and detected_loras:
-                    parsed["recommended_loras"] = detected_loras
-                return parsed
-        except Exception as e:
-            print(f"[ComicPromptAgent] LLM generation failed ({e}), using heuristic director fallback...")
+        if self.groq_client:
+            try:
+                response_text = self.groq_client.generate(
+                    prompt=user_message,
+                    system_prompt=PROMPT_DIRECTOR_SYSTEM_PROMPT,
+                    temperature=0.3,
+                    max_tokens=600
+                )
+                parsed = self._clean_and_parse_json(response_text)
+                if parsed and isinstance(parsed, dict) and "image_prompt" in parsed:
+                    # Merge detected LoRAs if LLM missed them
+                    if not parsed.get("recommended_loras") and detected_loras:
+                        parsed["recommended_loras"] = detected_loras
+                    return parsed
+            except Exception as e:
+                print(f"[ComicPromptAgent] LLM generation failed ({e}), using heuristic director fallback...")
 
         # Fallback Heuristic Generation
         return self._heuristic_prompt_fallback(

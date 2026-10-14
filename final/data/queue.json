@@ -1,0 +1,416 @@
+{
+  "version": 1,
+  "stories": [
+    {
+      "id": "tran-hung-dao",
+      "title": "Trần Hưng Đạo",
+      "topic": "Nhân vật lịch sử Việt Nam",
+      "category": "Lịch sử Việt Nam",
+      "genre": [
+        "Lịch sử",
+        "Anh hùng dân tộc",
+        "Kháng chiến chống Nguyên Mông"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "pr_created",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T02:10:55.242920+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/compare/main...ai-stories/tran-hung-dao",
+      "prNumber": null,
+      "branchName": "ai-stories/tran-hung-dao",
+      "error": null
+    },
+    {
+      "id": "chu-dong-tu",
+      "title": "Chử Đồng Tử",
+      "topic": "Truyền thuyết Việt Nam",
+      "category": "Truyền thuyết & Thần thoại",
+      "genre": [
+        "Truyền thuyết",
+        "Tứ bất tử",
+        "Tình yêu dân gian"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "pr_created",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T02:11:29.487616+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/compare/main...ai-stories/chu-dong-tu",
+      "prNumber": null,
+      "branchName": "ai-stories/chu-dong-tu",
+      "error": null
+    },
+    {
+      "id": "hai-ba-trung",
+      "title": "Hai Bà Trưng",
+      "topic": "Khởi nghĩa & Nữ anh hùng lịch sử",
+      "category": "Lịch sử Việt Nam",
+      "genre": [
+        "Lịch sử",
+        "Nữ tướng",
+        "Khởi nghĩa Mê Linh"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "pending",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": null,
+      "error": null
+    },
+    {
+      "id": "son-tinh-thuy-tinh",
+      "title": "Sơn Tinh Thủy Tinh",
+      "topic": "Truyền thuyết dân gian & Thiên nhiên",
+      "category": "Truyền thuyết & Thần thoại",
+      "genre": [
+        "Truyền thuyết",
+        "Thần thoại Việt Nam",
+        "Vua Hùng"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "pending",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": null,
+      "error": null
+    },
+    {
+      "id": "tam-cam",
+      "title": "Tấm Cám",
+      "topic": "Truyện cổ tích Việt Nam",
+      "category": "Truyện cổ tích & Thần thoại",
+      "genre": [
+        "Cổ tích",
+        "Dân gian Việt Nam",
+        "Nhân quả",
+        "Phép màu"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T02:53:29.377038+00:00",
+      "updatedAt": "2026-10-11T02:53:29.377038+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/pull/5",
+      "prNumber": 5,
+      "branchName": "ai-stories/tam-cam",
+      "error": null
+    },
+    {
+      "id": "thach-sanh",
+      "title": "Thạch Sanh",
+      "topic": "Truyện cổ tích dũng sĩ Việt Nam",
+      "category": "Truyện cổ tích & Thần thoại",
+      "genre": [
+        "Cổ tích",
+        "Dũng sĩ",
+        "Diệt ác trừ tà",
+        "Công lý"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T02:53:29.377038+00:00",
+      "updatedAt": "2026-10-11T02:53:29.377038+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/pull/6",
+      "prNumber": 6,
+      "branchName": "ai-stories/thach-sanh",
+      "error": null
+    },
+    {
+      "id": "cay-tre-tram-dot",
+      "title": "Cây Tre Trăm Đốt",
+      "topic": "Truyện cổ tích dân gian Việt Nam",
+      "category": "Truyện cổ tích & Thần thoại",
+      "genre": [
+        "Cổ tích",
+        "Dân gian",
+        "Công lý",
+        "Hài hước dân gian"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T02:53:29.377038+00:00",
+      "updatedAt": "2026-10-11T02:53:29.377038+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/pull/7",
+      "prNumber": 7,
+      "branchName": "ai-stories/cay-tre-tram-dot",
+      "error": null
+    },
+    {
+      "id": "an-khe-tra-vang",
+      "title": "Ăn Khế Trả Vàng (Cây Khế)",
+      "topic": "Truyện cổ tích đạo đức & Nhân quả",
+      "category": "Truyện cổ tích & Thần thoại",
+      "genre": [
+        "Cổ tích",
+        "Đạo đức",
+        "Nhân quả",
+        "Bài học cuộc sống"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T02:53:29.377038+00:00",
+      "updatedAt": "2026-10-11T02:53:29.377038+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/pull/8",
+      "prNumber": 8,
+      "branchName": "ai-stories/an-khe-tra-vang",
+      "error": null
+    },
+    {
+      "id": "su-tich-banh-chung-banh-giay",
+      "title": "Sự tích Bánh Chưng Bánh Giầy",
+      "topic": "Truyền thuyết thời đại Hùng Vương",
+      "category": "Truyền thuyết & Thần thoại",
+      "genre": [
+        "Truyền thuyết",
+        "Vua Hùng",
+        "Văn hóa ẩm thực",
+        "Đạo hiếu"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T02:53:29.377038+00:00",
+      "updatedAt": "2026-10-11T02:53:29.377038+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/pull/9",
+      "prNumber": 9,
+      "branchName": "ai-stories/su-tich-banh-chung-banh-giay",
+      "error": null
+    },
+    {
+      "id": "thanh-giong",
+      "title": "Thánh Gióng (Phù Đổng Thiên Vương)",
+      "topic": "Truyền thuyết anh hùng dân tộc",
+      "category": "Truyền thuyết & Thần thoại",
+      "genre": [
+        "Truyền thuyết",
+        "Tứ bất tử",
+        "Chống giặc ngoại xâm",
+        "Anh hùng"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T02:53:29.377038+00:00",
+      "updatedAt": "2026-10-11T02:53:29.377038+00:00",
+      "prUrl": "https://github.com/anhdinh0701/final/pull/10",
+      "prNumber": 10,
+      "branchName": "ai-stories/thanh-giong",
+      "error": null
+    },
+    {
+      "id": "so-dua",
+      "title": "Sọ Dừa",
+      "topic": "Truyện cổ tích kỳ ảo & Đạo đức dân gian",
+      "category": "Truyện Cổ Tích",
+      "genre": [
+        "Cổ tích",
+        "Dân gian",
+        "Kỳ ảo",
+        "Đạo đức",
+        "Tình yêu"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/so-dua",
+      "error": null
+    },
+    {
+      "id": "su-tich-trau-cau",
+      "title": "Sự tích Trầu Cau",
+      "topic": "Truyền thuyết đạo nghĩa & Tình cảm gia đình",
+      "category": "Truyện Cổ Tích",
+      "genre": [
+        "Cổ tích",
+        "Truyền thuyết",
+        "Gia đình",
+        "Nghĩa vợ chồng",
+        "Tình anh em"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/su-tich-trau-cau",
+      "error": null
+    },
+    {
+      "id": "ngo-quyen",
+      "title": "Ngô Quyền & Đại Thắng Bạch Đằng Giang (938)",
+      "topic": "Đại thắng lịch sử chấm dứt ngàn năm Bắc thuộc",
+      "category": "Truyện Lịch Sử",
+      "genre": [
+        "Lịch sử",
+        "Chiến trận",
+        "Bạch Đằng",
+        "Chấm dứt Bắc thuộc",
+        "Anh hùng dân tộc"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/ngo-quyen",
+      "error": null
+    },
+    {
+      "id": "ly-thuong-kiet",
+      "title": "Lý Thường Kiệt & Bản Tuyên Ngôn Nam Quốc Sơn Hà (1077)",
+      "topic": "Kháng chiến chống Tống & Bản tuyên ngôn độc lập đầu tiên",
+      "category": "Truyện Lịch Sử",
+      "genre": [
+        "Lịch sử",
+        "Quân sự",
+        "Chiến lược",
+        "Nam Quốc Sơn Hà",
+        "Đại Việt"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/ly-thuong-kiet",
+      "error": null
+    },
+    {
+      "id": "quang-trung",
+      "title": "Quang Trung - Nguyễn Huệ & Đại Thắng Kỷ Dậu (1789)",
+      "topic": "Hành quân thần tốc & Đại phá 29 vạn quân Thanh",
+      "category": "Truyện Lịch Sử",
+      "genre": [
+        "Lịch sử",
+        "Quang Trung",
+        "Tây Sơn",
+        "Ngọc Hồi Đống Đa",
+        "Thần tốc"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/quang-trung",
+      "error": null
+    },
+    {
+      "id": "dinh-bo-linh",
+      "title": "Đinh Bộ Lĩnh & Cờ Lau Tập Trận Dẹp Loạn 12 Sứ Quân",
+      "topic": "Tuổi thơ cờ lau tập trận & Thống nhất đất nước",
+      "category": "Truyện Lịch Sử",
+      "genre": [
+        "Lịch sử",
+        "Đinh Bộ Lĩnh",
+        "Cờ lau tập trận",
+        "Đại Cồ Việt",
+        "Thống nhất"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/dinh-bo-linh",
+      "error": null
+    },
+    {
+      "id": "le-loi",
+      "title": "Lê Lợi & Khởi Nghĩa Lam Sơn - Sự Tích Hồ Gươm",
+      "topic": "Khởi nghĩa Lam Sơn & Thanh gươm Thuận Thiên",
+      "category": "Truyện Lịch Sử",
+      "genre": [
+        "Lịch sử",
+        "Lê Lợi",
+        "Lam Sơn",
+        "Hồ Gươm",
+        "Thuận Thiên"
+      ],
+      "language": "vi",
+      "sourceLanguages": [
+        "vi",
+        "en"
+      ],
+      "status": "merged",
+      "createdAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-11T00:00:00Z",
+      "prUrl": null,
+      "prNumber": null,
+      "branchName": "ai-stories/le-loi",
+      "error": null
+    }
+  ]
+}

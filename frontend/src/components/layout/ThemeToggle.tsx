@@ -19,20 +19,31 @@ export function ThemeToggle({ lang = "vi" }: Props) {
   }, []);
 
   if (!mounted) {
-    return <div className="w-8 h-8" />;
+    return <div className="h-7 w-16" />;
   }
 
-  const tooltip = theme === "dark" ? t.theme_light : t.theme_dark;
-  const ariaLabel = t.theme_toggle_aria;
+  const isDark = theme === "dark";
+  const tooltip = isDark ? t.theme_light : t.theme_dark;
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded border border-neutral-300 bg-white text-black hover:bg-neutral-100 dark:border-neutral-700 dark:bg-black dark:text-white dark:hover:bg-neutral-900 transition-colors select-none flex items-center gap-1.5"
       title={tooltip}
-      aria-label={ariaLabel}
+      aria-label={t.theme_toggle_aria}
     >
-      {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-brand-700" />}
+      {isDark ? (
+        <>
+          <Sun className="w-3.5 h-3.5" />
+          <span>{lang === "vi" ? "Sáng" : "Light"}</span>
+        </>
+      ) : (
+        <>
+          <Moon className="w-3.5 h-3.5" />
+          <span>{lang === "vi" ? "Tối" : "Dark"}</span>
+        </>
+      )}
     </button>
   );
 }

@@ -2,7 +2,7 @@ from llm.groq_client import GroqClient
 
 class EditorAgent:
     def __init__(self):
-        self.llm = GroqClient(model_name="openai/gpt-oss-120b")
+        self.llm = GroqClient(model_name="qwen/qwen3.8-27b")
         
     def edit_text(self, original_text: str, instruction: str) -> str:
         """

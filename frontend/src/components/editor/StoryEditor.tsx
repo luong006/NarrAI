@@ -1,8 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import {
+  Sparkles,
+  Share2,
+  Image as ImageIcon,
+  Download,
+  Save,
+  CheckCircle2,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeft,
+  BookOpen,
+  Maximize2,
+  Minimize2,
+  Bookmark,
+  Users,
+  Compass,
+} from "lucide-react";
 import { translations, Language } from "@/lib/i18n";
-import { Sparkles, Download, Palette, Wand2, Maximize2, Minimize2, Check, X, FileText, Share2, Shield, BookOpen, Bot } from "lucide-react";
 
 interface Props {
   content: string;
@@ -54,7 +70,6 @@ function sanitizeProseSafetyNet(text: string): string {
 
   for (let i = 0; i < 5; i++) {
     const prev = clean;
-    // Strip markdown code fences
     clean = clean.replace(/^```(?:json|markdown)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
 
     if (
@@ -72,7 +87,6 @@ function sanitizeProseSafetyNet(text: string): string {
             const v = (parsed as Record<string, unknown>)[k];
             if (v && typeof v === "string") {
               found = v;
-              break;
             }
           }
           if (!found && parsed.action_params && typeof parsed.action_params === "object") {
@@ -113,11 +127,7 @@ function sanitizeProseSafetyNet(text: string): string {
 
   clean = clean.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   clean = clean.replace(/\n{3,}/g, "\n\n");
-
-  // Strip all HTML tags completely — editor dùng innerText nên <b>, <i>, <em>... hiện raw
   clean = clean.replace(/<[^>]+>/g, "");
-
-  // Unescape common HTML entities
   clean = clean
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -126,7 +136,6 @@ function sanitizeProseSafetyNet(text: string): string {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'");
 
-  // Strip raw English dramatic beat meta-tags (Hook, Rising Friction, Turning Point, etc.)
   clean = clean.replace(/^\s*\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger|Beat\s*\d+|Nhịp\s*\d+)\*\*\s*\n?/gim, "");
   clean = clean.replace(/\*\*(?:Hook|Rising Friction(?:\s*\/\s*Complication)?|Turning Point|Visceral Climax|Lingering Cliffhanger)\*\*\s*/gi, "");
 
@@ -153,45 +162,63 @@ export function StoryEditor({
   const [floatingPos, setFloatingPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedText, setSelectedText] = useState("");
   const isTypingRef = useRef(false);
+  const [isOutlineOpen, setIsOutlineOpen] = useState(true);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [storyTitle, setStoryTitle] = useState(lang === "vi" ? "Bản Thảo Đại Việt" : "Untitled Manuscript");
+  const [savedStatus, setSavedStatus] = useState<"saved" | "saving">("saved");
   const t = translations[lang];
 
-  // Feature 23: Loading Skeleton state during Intake-to-Editor transition
   const isSkeletonVisible = Boolean(
     (isLoading || isStreaming) && (!content || content.trim().length === 0)
   );
 
-  // Determine narrative mode (passed or auto-detected from content)
-  const resolvedMode = (() => {
-    if (narrativeMode) return narrativeMode.toUpperCase();
-    const lower = (content || "").toLowerCase();
-    const canonHeroes = ["trần hưng đạo", "bạch đằng", "quang trung", "lê lợi", "lý thường kiệt", "hai bà trưng", "ngô quyền", "đinh bộ lĩnh", "võ nguyên giáp", "điện biên phủ", "thánh gióng", "hùng vương", "an dương vương", "bà triệu", "như nguyệt", "ngọc hồi"];
-    if (canonHeroes.some(h => lower.includes(h))) return "CHINH_SU";
-    const daSuTerms = ["thời nhà trần", "thời nhà lê", "thời nguyễn", "thời lý", "kinh thành thăng long", "cấm vệ quân", "nghĩa quân"];
-    if (daSuTerms.some(term => lower.includes(term))) return "DA_SU";
-    return "HU_CAU_TU_DO";
-  })();
+  const cleanContent = useMemo(() => sanitizeProseSafetyNet(content), [content]);
 
-  const resolvedLabel = (() => {
-    if (modeLabel) return modeLabel;
-    if (resolvedMode === "CHINH_SU") return "Chính sử";
-    if (resolvedMode === "DA_SU") return "Dã sử";
-    return "Hư cấu tự do";
-  })();
-
-  // Sync content when streaming or loaded externally
   useEffect(() => {
     if (editorRef.current && !isTypingRef.current) {
-      const displayContent = sanitizeProseSafetyNet(content);
-      if (editorRef.current.innerText !== displayContent) {
-        editorRef.current.innerText = displayContent;
+      if (editorRef.current.innerText !== cleanContent) {
+        editorRef.current.innerText = cleanContent;
       }
     }
-  }, [content, isSkeletonVisible]);
+    setSavedStatus("saving");
+    const saveTimer = setTimeout(() => {
+      setSavedStatus("saved");
+    }, 800);
+    return () => clearTimeout(saveTimer);
+  }, [cleanContent]);
 
-  // Calculate word count
-  const words = content.trim() ? content.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+  // Extract chapters or headings
+  const chapters = useMemo(() => {
+    if (!cleanContent) return [{ id: 1, title: lang === "vi" ? "Chương 1: Khởi đầu" : "Chapter 1: The Beginning" }];
+    const lines = cleanContent.split("\n");
+    const found: Array<{ id: number; title: string }> = [];
+    let count = 1;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^(chương|hồi|tiết|chapter|part)\s+\d+/i.test(trimmed)) {
+        found.push({ id: count++, title: trimmed.slice(0, 40) });
+      }
+    }
+    if (found.length === 0) {
+      return [{ id: 1, title: lang === "vi" ? "Chương 1: Mở màn" : "Chapter 1: Opening Scene" }];
+    }
+    return found;
+  }, [cleanContent, lang]);
 
-  // Handle text selection for floating toolbar and DOM caret position calculation
+  const words = useMemo(() => {
+    return cleanContent ? cleanContent.split(/\s+/).filter(Boolean).length : 0;
+  }, [cleanContent]);
+
+  const readTimeMinutes = Math.max(1, Math.ceil(words / 220));
+
+  const resolvedLabel = useMemo(() => {
+    if (modeLabel) return modeLabel;
+    if (narrativeMode === "authentic_history") {
+      return lang === "vi" ? "Chính sử" : "Authentic History";
+    }
+    return lang === "vi" ? "Dã sử" : "Historical Fiction";
+  }, [modeLabel, narrativeMode, lang]);
+
   const handleSelectionChange = () => {
     const selection = window.getSelection();
     if (!selection || !editorRef.current) {
@@ -228,68 +255,109 @@ export function StoryEditor({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-[#f2eee7] dark:bg-[#211d19] transition-colors">
-      {/* Editor Top Bar */}
-      <div className="h-14 border-b border-[#ded5c9] dark:border-[#50453c] bg-[#faf7f0] dark:bg-[#28231f] px-2 sm:px-6 flex items-center justify-between gap-2 shrink-0">
+    <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-[#FAF7F2] text-neutral-900 transition-colors font-sans">
+      
+      {/* ========================================================= */}
+      {/* WORKSPACE HEADER (STORY LAB) */}
+      {/* ========================================================= */}
+      <div className="h-14 border-b border-neutral-300/80 bg-[#FAF7F2]/90 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between gap-3 shrink-0 select-none">
+        {/* Left: Breadcrumb & Title */}
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <FileText className="w-5 h-5 text-brand-700 dark:text-brand-400" />
-          <h2 className="max-w-[82px] sm:max-w-none font-bold text-xs sm:text-base text-slate-900 dark:text-white truncate">
-            {t.editor_title}
-          </h2>
-          <span className="hidden sm:inline-flex text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-[#f1ece3] dark:bg-[#332c26] text-slate-600 dark:text-slate-400">
-            {words} {t.words}
-          </span>
-          {/* Narrative Mode Auto-detected Badge */}
+          <button
+            type="button"
+            onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+            className="hidden lg:flex p-1.5 rounded hover:bg-neutral-200/70 text-neutral-600 hover:text-neutral-950 transition-colors"
+            title={isOutlineOpen ? "Thu gọn thanh điều hướng" : "Mở thanh điều hướng"}
+          >
+            {isOutlineOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+          </button>
+
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-500 shrink-0">
+            <span>NarrAI</span>
+            <ChevronRight className="w-3 h-3 text-neutral-400" />
+            <span className="text-neutral-950 font-bold uppercase tracking-wider">Story Lab</span>
+          </div>
+
+          <div className="hidden sm:block h-4 w-px bg-neutral-300 mx-1" />
+
+          {/* Editable Story Title */}
+          <input
+            type="text"
+            value={storyTitle}
+            onChange={(e) => setStoryTitle(e.target.value)}
+            className="hidden sm:block bg-transparent text-xs font-mono font-bold text-neutral-950 border-b border-transparent hover:border-neutral-400 focus:border-neutral-950 outline-none px-1 py-0.5 max-w-[180px] lg:max-w-xs truncate"
+            title="Đổi tiêu đề tác phẩm"
+          />
+
+          {/* Auto-save Status Badge */}
+          <div className="flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded border border-neutral-300/80 bg-white text-neutral-700 shadow-xs">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            <span>{savedStatus === "saved" ? (lang === "vi" ? "Đã lưu" : "Saved") : (lang === "vi" ? "Đang lưu..." : "Saving...")}</span>
+          </div>
+
+          {/* Narrative Mode Badge */}
           <div
-            className={`hidden md:inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-semibold transition-all shadow-xs ${
-              resolvedMode === "CHINH_SU"
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                : resolvedMode === "DA_SU"
-                ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30"
-                : "bg-[#eee4d7] text-[#704331] dark:bg-[#45352c] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044]"
-            }`}
+            className="hidden md:inline-flex items-center text-[11px] px-2 py-0.5 rounded border border-neutral-300/80 bg-white text-neutral-900 font-mono font-bold shadow-xs"
             title={`Chế độ sáng tác: ${resolvedLabel}`}
           >
-            {resolvedMode === "CHINH_SU" && <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
-            {resolvedMode === "DA_SU" && <BookOpen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
-            {resolvedMode === "HU_CAU_TU_DO" && <Sparkles className="w-3.5 h-3.5 text-[#805342] dark:text-[#dfb79b] shrink-0" />}
-            <span>{resolvedLabel}</span>
+            <span>[{resolvedLabel}]</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 font-mono text-xs">
+          {/* Focus Mode Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsFocusMode(!isFocusMode)}
+            className="hidden md:flex items-center gap-1 px-2 py-1 rounded border border-neutral-300 hover:bg-neutral-200/70 text-neutral-700 hover:text-neutral-950 transition-colors"
+            title={isFocusMode ? "Thoát chế độ tập trung" : "Chế độ tập trung viết"}
+          >
+            {isFocusMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Toggle Assistant on Mobile */}
           {onToggleCopilot && (
             <button
               type="button"
               onClick={onToggleCopilot}
-              className="lg:hidden px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#704331] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044] hover:bg-[#eee4d7] dark:hover:bg-[#45352c] flex items-center gap-1.5"
+              className="lg:hidden flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-bold uppercase tracking-wider text-neutral-900 border border-neutral-300 hover:bg-neutral-200/70 transition-colors"
             >
-              <Bot className="w-3.5 h-3.5" />
-              <span>{lang === "vi" ? "Trợ lý" : "Assistant"}</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{lang === "vi" ? "AI Co-pilot" : "Copilot"}</span>
             </button>
           )}
+
+          {/* Publish to Feed */}
           {onPublish && (
             <button
+              type="button"
               onClick={onPublish}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[#fffaf0] bg-[#714033] hover:bg-[#573229] shadow-sm flex items-center gap-1.5 transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider text-neutral-900 border border-neutral-300 hover:bg-neutral-200/70 transition-colors"
               title={lang === "vi" ? "Lưu bản thảo và xuất bản lên Bảng tin cộng đồng" : "Save and publish to community feed"}
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t.btn_publish}</span>
+              <span>{t.btn_publish}</span>
             </button>
           )}
 
+          {/* Adapt to Comic */}
           <button
+            type="button"
             onClick={onAdaptToComic}
-            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 shadow-sm flex items-center gap-1.5 transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-neutral-950 text-white hover:bg-neutral-800 transition-colors shadow-sm"
           >
-            <Palette className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{t.comic_btn}</span>
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>{t.comic_btn}</span>
           </button>
 
+          {/* Export / Download */}
           <button
+            type="button"
             onClick={onDownload}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-neutral-300 hover:bg-neutral-200/70 text-neutral-900 transition-colors"
+            title="Tải về bản thảo dạng TXT"
           >
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t.download_btn}</span>
@@ -297,93 +365,169 @@ export function StoryEditor({
         </div>
       </div>
 
-      {/* Manuscript Reading Paper Canvas */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center">
-        <div className="relative w-full max-w-3xl min-h-[85vh] bg-[#fbf8f1] dark:bg-[#302a25] rounded-lg shadow-sm border border-[#e2d8cb] dark:border-[#50453c] p-8 sm:p-14 transition-colors">
-          {isSkeletonVisible ? (
-            <div
-              className="space-y-6 animate-pulse select-none"
-              data-testid="manuscript-loading-skeleton"
-            >
-              {/* Dong Son Bronze Header */}
-              <div className="flex items-center justify-between pb-6 border-b border-amber-500/20 dark:border-amber-500/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 dark:bg-amber-400/10 border border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400 shadow-sm">
-                    <Sparkles className="w-5 h-5 animate-spin text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-amber-950 dark:text-amber-300 font-serif tracking-wide">
-                      {lang === "vi" ? "Đang khởi tạo bản thảo văn học..." : "Composing literary manuscript..."}
-                    </h3>
-                    <p className="text-[11px] text-amber-800/80 dark:text-amber-400/70">
-                      {lang === "vi"
-                        ? "AI đang kiến tạo dàn ý, thiết lập phân cảnh và chấp bút những dòng đầu tiên..."
-                        : "AI is structuring narrative beats and drafting opening lines..."}
-                    </p>
-                  </div>
+      {/* ========================================================= */}
+      {/* BODY AREA (LEFT OUTLINE + CENTER EDITOR) */}
+      {/* ========================================================= */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        
+        {/* B. Left Outline & Chapter Sidebar (Collapsible) */}
+        {isOutlineOpen && !isFocusMode && (
+          <aside className="w-60 border-r border-neutral-300/80 bg-[#FAF7F2] p-3.5 flex flex-col justify-between shrink-0 overflow-y-auto hidden lg:flex select-none">
+            <div className="space-y-4">
+              {/* Story Overview Card */}
+              <div className="p-3 rounded-lg border border-neutral-300/80 bg-white shadow-xs">
+                <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-neutral-500 mb-2">
+                  <span>Tổng quan truyện</span>
+                  <BookOpen className="w-3.5 h-3.5" />
                 </div>
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                  <span>Dong Son AI</span>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-1.5 rounded bg-neutral-100/90 border border-neutral-200">
+                    <span className="text-xs font-bold text-neutral-950 font-mono">{words}</span>
+                    <span className="text-[9px] block text-neutral-500 uppercase">{t.words}</span>
+                  </div>
+                  <div className="p-1.5 rounded bg-neutral-100/90 border border-neutral-200">
+                    <span className="text-xs font-bold text-neutral-950 font-mono">~{readTimeMinutes}m</span>
+                    <span className="text-[9px] block text-neutral-500 uppercase">Đọc</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Animated pulse placeholder title bar */}
-              <div className="h-9 w-2/3 rounded-lg bg-gradient-to-r from-amber-400/20 via-amber-300/40 to-amber-400/20 dark:from-amber-600/20 dark:via-amber-500/35 dark:to-amber-600/20 shadow-sm mb-8" />
-
-              {/* Multi-line shimmering paragraph blocks with varying widths (90%, 80%, 95%, 70%) */}
-              <div className="space-y-3.5">
-                <div className="h-4 w-[90%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[80%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[95%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[70%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
+              {/* Chapters Navigator */}
+              <div>
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-500">
+                    Danh Sách Chương
+                  </span>
+                  <span className="text-[10px] font-mono text-neutral-400">[{chapters.length}]</span>
+                </div>
+                <div className="space-y-1">
+                  {chapters.map((ch) => (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-mono font-medium transition-colors flex items-center justify-between bg-neutral-950 text-white font-bold shadow-xs"
+                    >
+                      <span className="truncate">{ch.title}</span>
+                      <span className="text-[10px] opacity-75">●</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Decorative separator */}
-              <div className="py-2 flex items-center justify-center opacity-60">
-                <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-              </div>
-
-              {/* Shimmer paragraph 2 */}
-              <div className="space-y-3.5">
-                <div className="h-4 w-[92%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[85%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[90%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[75%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-              </div>
-
-              {/* Shimmer paragraph 3 */}
-              <div className="space-y-3.5 pt-2">
-                <div className="h-4 w-[88%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[95%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
-                <div className="h-4 w-[65%] rounded bg-gradient-to-r from-amber-500/15 via-amber-400/30 to-amber-500/15 dark:from-amber-700/20 dark:via-amber-600/35 dark:to-amber-700/20" />
+              {/* Character & Lore Shortcuts in Chapter */}
+              <div className="pt-2 border-t border-neutral-200">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-500 block mb-2 px-1">
+                  Nhân Vật & Điển Tích
+                </span>
+                <div className="space-y-1.5 text-xs font-mono">
+                  <div className="p-2 rounded-lg bg-white border border-neutral-200 shadow-xs flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-neutral-500" />
+                    <span className="truncate text-[11px] text-neutral-800">Trần Khắc Liêm (Hiệp sĩ)</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-white border border-neutral-200 shadow-xs flex items-center gap-2">
+                    <Compass className="w-3.5 h-3.5 text-neutral-500" />
+                    <span className="truncate text-[11px] text-neutral-800">Bến đò Vạn Kiếp (Bối cảnh)</span>
+                  </div>
+                </div>
               </div>
             </div>
-          ) : (
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onMouseUp={handleSelectionChange}
-              onKeyUp={handleSelectionChange}
-              onFocus={() => { isTypingRef.current = true; }}
-              onBlur={() => { isTypingRef.current = false; }}
-              onInput={(e) => {
-                const newTxt = e.currentTarget.innerText;
-                onContentChange(newTxt);
-              }}
-              className="outline-none font-serif text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-[1.85] tracking-wide whitespace-pre-wrap min-h-[70vh]"
-              data-placeholder={t.editor_placeholder}
-            />
-          )}
+
+            {/* Bottom Quick Advice */}
+            <div className="p-2.5 rounded-lg border border-neutral-300/80 bg-white text-[10px] font-mono text-neutral-600 shadow-xs">
+              💡 Bôi đen đoạn văn để gọi nhanh các lệnh viết lại của AI Co-pilot.
+            </div>
+          </aside>
+        )}
+
+        {/* C. Center Editor Manuscript Reading Canvas */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 flex justify-center bg-[#FAF7F2]">
+          <div className="relative w-full max-w-3xl min-h-[85vh] bg-white rounded-xl shadow-md border border-neutral-300/80 p-6 sm:p-12 lg:p-14 transition-colors">
+            
+            {/* Manuscript Header Bar inside paper */}
+            <div className="flex items-center justify-between pb-4 mb-6 border-b border-neutral-200 text-xs font-mono text-neutral-500">
+              <span className="uppercase tracking-widest font-bold">
+                {lang === "vi" ? "BẢN THẢO VĂN HỌC" : "LITERARY MANUSCRIPT"}
+              </span>
+              <div className="flex items-center gap-3">
+                <span>{words} {t.words}</span>
+                <span>·</span>
+                <span>{cleanContent.length} ký tự</span>
+              </div>
+            </div>
+
+            {isSkeletonVisible ? (
+              <div
+                className="space-y-6 animate-pulse select-none"
+                data-testid="manuscript-loading-skeleton"
+              >
+                <div className="flex items-center justify-between pb-4 border-b border-neutral-200">
+                  <div className="flex items-center gap-3">
+                    <div className="px-2.5 py-1 rounded bg-neutral-100 border border-neutral-300 text-xs font-mono font-bold text-neutral-950">
+                      [ĐANG SOẠN]
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-neutral-950 font-serif tracking-wide">
+                        {lang === "vi" ? "Đang khởi tạo bản thảo văn học..." : "Composing literary manuscript..."}
+                      </h3>
+                      <p className="text-[11px] text-neutral-600">
+                        {lang === "vi"
+                          ? "AI đang kiến tạo dàn ý, thiết lập phân cảnh và chấp bút những dòng đầu tiên..."
+                          : "AI is structuring narrative beats and drafting opening lines..."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded border border-neutral-300 bg-neutral-100 text-neutral-950 text-xs font-mono">
+                    <span>[NARR AI]</span>
+                  </div>
+                </div>
+
+                <div className="h-9 w-2/3 rounded bg-neutral-200 shadow-sm mb-8" />
+
+                <div className="space-y-3.5">
+                  <div className="h-4 w-[90%] rounded bg-neutral-200" />
+                  <div className="h-4 w-[80%] rounded bg-neutral-200" />
+                  <div className="h-4 w-[95%] rounded bg-neutral-200" />
+                  <div className="h-4 w-[70%] rounded bg-neutral-200" />
+                </div>
+
+                <div className="py-2 flex items-center justify-center opacity-60">
+                  <div className="w-20 h-0.5 bg-neutral-300" />
+                </div>
+
+                <div className="space-y-3.5">
+                  <div className="h-4 w-[92%] rounded bg-neutral-200" />
+                  <div className="h-4 w-[85%] rounded bg-neutral-200" />
+                  <div className="h-4 w-[90%] rounded bg-neutral-200" />
+                  <div className="h-4 w-[75%] rounded bg-neutral-200" />
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onMouseUp={handleSelectionChange}
+                onKeyUp={handleSelectionChange}
+                onFocus={() => { isTypingRef.current = true; }}
+                onBlur={() => { isTypingRef.current = false; }}
+                onInput={(e) => {
+                  const newTxt = e.currentTarget.innerText;
+                  onContentChange(newTxt);
+                }}
+                className="outline-none font-serif text-neutral-950 text-base sm:text-lg leading-[1.85] tracking-wide whitespace-pre-wrap min-h-[70vh] selection:bg-neutral-200"
+                data-placeholder={t.editor_placeholder}
+              />
+            )}
+          </div>
         </div>
+
       </div>
 
       {/* Floating Selection Toolbar */}
       {floatingPos && (
         <div
           style={{ left: `${floatingPos.x}px`, top: `${floatingPos.y}px` }}
-          className="fixed z-40 flex items-center gap-1 p-1 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl border border-slate-700 animate-in fade-in zoom-in-95 duration-150"
+          className="fixed z-40 flex items-center gap-1.5 p-1.5 bg-neutral-900 dark:bg-[#171717] text-white rounded-lg border border-neutral-700 dark:border-white/20 shadow-2xl animate-in fade-in zoom-in-95 duration-150 font-mono text-xs backdrop-blur-md"
         >
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -391,10 +535,9 @@ export function StoryEditor({
               onQuickAction("rewrite", selectedText);
               setFloatingPos(null);
             }}
-            className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
+            className="px-2.5 py-1 hover:bg-neutral-800 dark:hover:bg-neutral-800 rounded transition-colors"
           >
-            <Wand2 className="w-3 h-3 text-[#dfb79b]" />
-            <span>{t.tool_rewrite}</span>
+            [Viết lại]
           </button>
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -402,10 +545,9 @@ export function StoryEditor({
               onQuickAction("expand", selectedText);
               setFloatingPos(null);
             }}
-            className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
+            className="px-2.5 py-1 hover:bg-neutral-800 dark:hover:bg-neutral-800 rounded transition-colors"
           >
-            <Maximize2 className="w-3 h-3 text-emerald-400" />
-            <span>{t.tool_expand}</span>
+            [Mở rộng]
           </button>
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -413,10 +555,9 @@ export function StoryEditor({
               onQuickAction("shorten", selectedText);
               setFloatingPos(null);
             }}
-            className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors"
+            className="px-2.5 py-1 hover:bg-neutral-800 dark:hover:bg-neutral-800 rounded transition-colors"
           >
-            <Minimize2 className="w-3 h-3 text-amber-400" />
-            <span>{t.tool_shorten}</span>
+            [Rút gọn]
           </button>
           {onOpenCustomAI && (
             <button
@@ -425,10 +566,9 @@ export function StoryEditor({
                 onOpenCustomAI(selectedText);
                 setFloatingPos(null);
               }}
-              className="px-2.5 py-1 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 rounded flex items-center gap-1 transition-colors text-[#dfb79b]"
+              className="px-2.5 py-1 bg-white text-black hover:bg-neutral-200 rounded font-bold transition-colors"
             >
-              <Sparkles className="w-3 h-3 text-brand-400" />
-              <span>{t.tool_ai}</span>
+              [AI Co-pilot]
             </button>
           )}
         </div>
@@ -436,3 +576,5 @@ export function StoryEditor({
     </div>
   );
 }
+
+export default StoryEditor;

@@ -1,0 +1,63 @@
+{
+  "id": "son-tinh-thuy-tinh",
+  "title": "Sơn Tinh Thủy Tinh",
+  "slug": "son-tinh-thuy-tinh",
+  "topic": "Truyền thuyết thời Hùng Vương & Thiên nhiên",
+  "category": "Truyện Cổ Tích",
+  "genre": [
+    "Cổ tích",
+    "Truyền thuyết",
+    "Thần thoại",
+    "Hùng Vương",
+    "Kỳ ảo"
+  ],
+  "summary": "Truyền thuyết hùng tráng giải thích hiện tượng bão lũ hàng năm qua trận chiến kinh thiên động địa giữa thần núi Tản Viên Sơn Tinh và chúa tể sông biển Thủy Tinh để rước công chúa Mỵ Nương.",
+  "content": "Hùng Vương thứ mười tám có một người con gái tên là Mỵ Nương, nhan sắc tuyệt trần, tính nết đoan trang hiền dịu. Vua cha yêu thương nàng hết mực, muốn kén cho nàng một người chồng thật xứng đáng.\n\nMột hôm, có hai chàng trai cùng đến cầu hôn. Một người tự xưng là Sơn Tinh, chúa miền non cao Tản Viên, có tài vẫy tay về phía đông, phía đông nổi cồn bãi; vẫy tay về phía tây, phía tây mọc lên từng dãy núi non trùng điệp. Người kia tự xưng là Thủy Tinh, chúa vùng nước thẳm biển sâu, có tài gọi gió gió đến, hô mưa mưa về, dâng nước ngập tràn đồng bãi. Cả hai đều có phép thần thông biến hóa, ngang tài ngang sức khiến vua Hùng băn khoăn không biết chọn ai.\n\nSau khi bàn bạc cùng các lạc hầu, vua Hùng phán: \"Hai người đều tài ba phi thường, nhưng ta chỉ có một con gái. Ngày mai, ai đem sính lễ đến trước sẽ được rước Mỵ Nương về làm vợ. Sính lễ gồm: một trăm ván cơm nếp, một trăm tiệp bánh chưng, voi chín ngà, gà chín cựa, ngựa chín hồng mao, mỗi thứ một đôi\".\n\nHôm sau, từ tinh mơ gà gáy, Sơn Tinh đã đem đầy đủ sính lễ quý giá đến trước sân rồng. Vua Hùng mừng rỡ gả công chúa Mỵ Nương cho Sơn Tinh. Sơn Tinh rước nàng về núi cao Tản Viên trong tiếng kèn trống rộn rã.\n\nThủy Tinh đến sau, không lấy được vợ liền đùng đùng nổi giận, tập hợp quân binh đuổi theo hòng cướp lại Mỵ Nương. Thủy Tinh hô mưa, gọi gió, làm rung chuyển đất trời, dâng nước sông lên cuồn cuộn ngập tràn đồng ruộng, nhà cửa, thành Phong Châu nổi lềnh bềnh trên biển nước đỏ ngầu.\n\nSơn Tinh không hề nao núng. Thần dùng phép màu dời từng quả đồi, dựng từng dãy núi chặn đứng dòng nước xiết. Nước dâng cao bao nhiêu, đồi núi của Sơn Tinh lại cao lên bấy nhiêu. Dân chúng trên núi cùng nhau giã gạo, bắn nỏ, lăn đá đánh trả quân thủy quái. Hai bên giao tranh kịch liệt suốt nhiều ngày đêm. Cuối cùng, Thủy Tinh đuối sức, phép cạn, đành phải rút quân về biển sâu.\n\nTừ đó oán thù khắc sâu, năm nào cũng vậy, cứ vào khoảng tháng bảy tháng tám, Thủy Tinh lại dâng nước làm mưa bão ngập lụt đánh Sơn Tinh. Nhưng lần nào cũng vậy, Thủy Tinh đều chuốc lấy thất bại trước sự kiên cường của thần núi Tản Viên.",
+  "characters": [
+    {
+      "name": "Sơn Tinh",
+      "role": "lead",
+      "gender": "male",
+      "dna": "majestic mountain deity Tan Vien, powerful muscular physique, resolute heroic eyes, wearing traditional bronze battle chestplate and tribal feathered headband wielding earth magic staff"
+    },
+    {
+      "name": "Thủy Tinh",
+      "role": "antagonist",
+      "gender": "male",
+      "dna": "fierce oceanic water lord, wild aquatic flowing dark hair, sharp ruthless gaze, dark scaled armor holding trident spear summoning tidal waves"
+    },
+    {
+      "name": "Mỵ Nương",
+      "role": "supporting",
+      "gender": "female",
+      "dna": "radiant royal princess, graceful innocent beauty, ornate bronze era silk gown adorned with jade and golden ornaments"
+    }
+  ],
+  "world_setting": "Vùng đất Phong Châu cổ kính thời Hùng Vương, đỉnh núi Tản Viên mây phủ hùng vĩ đối đầu với những đợt sóng cuồng phong bão táp.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Sơn Tinh và Thủy Tinh cùng thi triển thần thông kinh thiên trước điện rồng vua Hùng.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, epic confrontation between Mountain God raising stone peaks and Water God summoning swirling water dragons before King Hung court, dynamic perspective manga style",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Đúng sáng sớm hôm sau, Sơn Tinh rước đầy đủ sính lễ thần thoại voi chín ngà, ngựa chín hồng mao đến đón Mỵ Nương.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, divine Mountain God presenting mythical nine-tusked elephant and crimson-maned steed to delighted ancient Vietnamese royal court, intricate lineart",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Thủy Tinh nổi giận dâng nước ngập tràn đất trời, triệu hồi thủy quái tấn công thành trì.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, enraged Water God summoning massive tsunami engulfing ancient ancient river valleys, lightning crackling in storm clouds, high contrast manga screentone",
+      "layout_type": "tall"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Sơn Tinh hiên ngang dời non lấp biển, đánh tan dòng nước xiết bảo vệ bình yên cho muôn dân.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, heroic Mountain God raising colossal stone barriers against raging torrents, victorious epic stance atop mountain peak, masterpiece 2D manga lineart",
+      "layout_type": "wide"
+    }
+  ]
+}

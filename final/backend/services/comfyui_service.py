@@ -5,6 +5,7 @@ import time
 import uuid
 import urllib.parse
 import re
+import threading
 from typing import Optional, Dict, Any, List, Tuple
 import requests
 
@@ -24,11 +25,12 @@ LAYOUT_DIMENSIONS = {
     "tall": (512, 896),
 }
 
-# Standard ComfyUI default negative prompt for manga
+# Standard ComfyUI default negative prompt for 2D anime manga
 DEFAULT_MANGA_NEGATIVE = (
-    "color, colorful, vibrant, saturated, photorealistic, photograph, 3d render, CGI, "
-    "western comic, bad anatomy, deformed hands, extra limbs, mutated fingers, "
-    "blurry, low resolution, text, watermark, speech bubbles"
+    "color, colorful, vibrant, saturated, photorealistic, photograph, photo, realistic portrait, "
+    "graphite pencil drawing, charcoal sketch, realistic shading, 3d render, CGI, digital painting, "
+    "western comic, multiple frames, collage, split image, multi panel comic, comic strip layout, border frame, "
+    "bad anatomy, deformed hands, extra limbs, mutated fingers, blurry, low resolution, text, watermark, speech bubbles"
 )
 
 # Known LoRAs with style keywords and trigger prompts
@@ -67,8 +69,17 @@ KNOWN_LORAS_CATALOG = {
         "trigger_prompt": "SonMaiVN style, traditional Vietnamese lacquer painting, gold leaf lacquer texture, rich lacquer art finish",
         "default_strength": 1.0,
         "description": "Nghệ thuật tranh sơn mài truyền thống Việt Nam"
+    },
+    "vietnam_xinom": {
+        "patterns": ["xinomvnpony", "xinom", "ao dai", "áo dài", "non la", "nón lá", "vietnamese woman", "vietnam girl"],
+        "default_filename": "xinomvnpony.safetensors",
+        "trigger_prompt": "xinomvnpony, Vietnamese cultural aesthetic, authentic Vietnamese clothing",
+        "default_strength": 0.8,
+        "description": "Trang phục và nhân vật văn hóa Việt Nam (áo dài, nón lá, nét đẹp truyền thống)"
     }
 }
+
+_comfyui_gpu_lock = threading.Lock()
 
 
 class ComfyUIService:
@@ -87,12 +98,34 @@ class ComfyUIService:
         self,
         base_url: Optional[str] = None,
         enabled: Optional[bool] = None,
-        timeout: int = 120,
+        timeout: int = 300,
         checkpoint: Optional[str] = None
     ):
+        self._config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "data",
+            "comfyui_config.json"
+        )
+        
+        persisted_url = None
+        try:
+            if os.path.isfile(self._config_path):
+                with open(self._config_path, "r", encoding="utf-8") as f:
+                    cfg_data = json.load(f)
+                    persisted_url = cfg_data.get("base_url")
+        except Exception:
+            pass
+
+        # Try auto-discovering local ngrok tunnel on port 4040 if no explicit URL is configured
+        discovered_tunnel = None
+        if not base_url and not os.environ.get("COMFYUI_URL") and not persisted_url:
+            discovered_tunnel = self._check_ngrok_tunnel()
+
         self.base_url = (
             base_url
             or os.environ.get("COMFYUI_URL")
+            or persisted_url
+            or discovered_tunnel
             or "http://127.0.0.1:8188"
         ).rstrip("/")
         
@@ -102,11 +135,25 @@ class ComfyUIService:
         self.custom_checkpoint = checkpoint or os.environ.get("COMFYUI_CHECKPOINT", "").strip() or None
         self.sampler_name = os.environ.get("COMFYUI_SAMPLER_NAME", "euler")
         self.scheduler = os.environ.get("COMFYUI_SCHEDULER", "normal")
-        self.steps = int(os.environ.get("COMFYUI_STEPS", "20"))
+        self.steps = int(os.environ.get("COMFYUI_STEPS", "18"))
         self.cfg = float(os.environ.get("COMFYUI_CFG", "7.0"))
         self._last_avail_check: float = 0.0
         self._last_avail_result: bool = False
         self._avail_ttl: float = 5.0
+
+    def _check_ngrok_tunnel(self) -> Optional[str]:
+        """Tries to query local ngrok API at 127.0.0.1:4040 to discover active public URL."""
+        try:
+            r = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=1.5)
+            if r.status_code == 200:
+                tunnels = r.json().get("tunnels", [])
+                for t in tunnels:
+                    pub = t.get("public_url")
+                    if pub and (pub.startswith("http://") or pub.startswith("https://")):
+                        return pub
+        except Exception:
+            pass
+        return None
 
     def _get_headers(self) -> Dict[str, str]:
         """Headers required to bypass ngrok/tunnel warning screens and ensure direct API interaction."""
@@ -116,11 +163,37 @@ class ComfyUIService:
             "Accept": "application/json, image/*, */*"
         }
 
+    def set_base_url(self, url: str) -> bool:
+        """
+        Updates the ComfyUI base URL dynamically (e.g. when updating ngrok/Cloudflare tunnel URL).
+        Normalizes protocol and trailing slashes, persists to disk config, then verifies connection.
+        """
+        if not url or not isinstance(url, str):
+            return False
+        clean_url = url.strip().rstrip("/")
+        if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+            if "localhost" in clean_url or "127.0.0.1" in clean_url:
+                clean_url = f"http://{clean_url}"
+            else:
+                clean_url = f"https://{clean_url}"
+        self.base_url = clean_url
+        self._last_avail_check = 0.0
+
+        # Persist to disk so restarts or worker spin-ups retain the configured URL
+        try:
+            os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
+            with open(self._config_path, "w", encoding="utf-8") as f:
+                json.dump({"base_url": self.base_url}, f)
+        except Exception as e:
+            print(f"[ComfyUI] Could not persist base_url config: {e}")
+
+        return self.is_available(timeout=5.0, force_check=True)
+
     def is_enabled(self) -> bool:
         """Returns True if ComfyUI integration is enabled."""
         return self.enabled
 
-    def is_available(self, timeout: float = 2.5, force_check: bool = False) -> bool:
+    def is_available(self, timeout: float = 4.0, force_check: bool = False) -> bool:
         """
         Fast non-blocking ping to ComfyUI /system_stats with TTL caching
         to determine if ComfyUI server is actively running.
@@ -230,10 +303,11 @@ class ComfyUIService:
         priorities = ["animagine", "manga", "anime", "anything", "sdxl", "counterfeit", "v1-5"]
         for prio in priorities:
             for ckpt in available:
-                if prio in ckpt.lower():
+                if prio in ckpt.lower() and not ckpt.startswith("~$"):
                     return ckpt
 
-        return available[0]
+        clean_available = [c for c in available if not c.startswith("~$")]
+        return clean_available[0] if clean_available else available[0]
 
     def build_manga_workflow(
         self,
@@ -301,8 +375,16 @@ class ComfyUIService:
                     continue
 
                 # Match against available loras or catalog
-                matched_filename = self.match_lora(raw_name) or raw_name
-                # Only insert if matched or filename ends with standard model extensions
+                matched_filename = self.match_lora(raw_name)
+                # CRITICAL: Only add LoraLoader if the LoRA file is ACTUALLY available in ComfyUI!
+                # If we add a nonexistent LoRA, ComfyUI will abort with FileNotFoundError!
+                if available_loras:
+                    if not matched_filename or matched_filename not in available_loras:
+                        print(f"[ComfyUI] LoRA '{raw_name}' not found in ComfyUI models; skipping to avoid prompt failure.")
+                        continue
+                elif not matched_filename:
+                    matched_filename = raw_name
+
                 strength_model = float(lora_item.get("strength_model", 1.0))
                 strength_clip = float(lora_item.get("strength_clip", 1.0))
 
@@ -380,6 +462,7 @@ class ComfyUIService:
     def poll_for_image_output(self, prompt_id: str, timeout: Optional[int] = None) -> Tuple[str, str, str]:
         """
         Polls ComfyUI /history/{prompt_id} until task finishes.
+        Detects execution errors immediately without hanging.
         Returns (filename, subfolder, folder_type).
         """
         max_time = timeout or self.timeout
@@ -389,32 +472,51 @@ class ComfyUIService:
 
         while time.time() - start_time < max_time:
             try:
-                resp = requests.get(url, headers=self._get_headers(), timeout=3)
+                resp = requests.get(url, headers=self._get_headers(), timeout=10)
                 if resp.status_code == 200:
                     consecutive_errors = 0
                     history = resp.json()
                     if prompt_id in history:
                         task_data = history[prompt_id]
                         status = task_data.get("status", {})
-                        if status.get("completed", False) or "outputs" in task_data:
-                            outputs = task_data.get("outputs", {})
-                            for node_id, node_output in outputs.items():
-                                if "images" in node_output and len(node_output["images"]) > 0:
-                                    img_info = node_output["images"][0]
-                                    return (
-                                        img_info.get("filename", ""),
-                                        img_info.get("subfolder", ""),
-                                        img_info.get("type", "output")
-                                    )
+                        
+                        # Check for execution error immediately (fail-fast)
+                        if status.get("status_str") == "error":
+                            error_msg = "ComfyUI prompt execution error"
+                            for msg in status.get("messages", []):
+                                if isinstance(msg, list) and len(msg) > 1 and msg[0] == "execution_error":
+                                    err_info = msg[1]
+                                    error_msg = f"Node {err_info.get('node_id')} ({err_info.get('node_type')}): {err_info.get('exception_message')}"
+                                    break
+                            raise RuntimeError(f"ComfyUI execution failed for prompt {prompt_id}: {error_msg}")
+
+                        # Check for generated output image
+                        outputs = task_data.get("outputs", {})
+                        for node_id, node_output in outputs.items():
+                            if "images" in node_output and len(node_output["images"]) > 0:
+                                img_info = node_output["images"][0]
+                                return (
+                                    img_info.get("filename", ""),
+                                    img_info.get("subfolder", ""),
+                                    img_info.get("type", "output")
+                                )
+
+                        # If completed but produced no images
+                        if status.get("completed", False):
+                            raise RuntimeError(f"ComfyUI prompt {prompt_id} completed without image outputs")
                 else:
                     consecutive_errors += 1
+                    time.sleep(1.0)
+            except RuntimeError:
+                raise
             except Exception as e:
                 consecutive_errors += 1
-                print(f"[ComfyUI] Polling history warning: {e}")
-                if consecutive_errors >= 3:
+                print(f"[ComfyUI] Polling history notice (attempt {consecutive_errors}/30): {e}")
+                if consecutive_errors >= 30:
                     raise ConnectionError(f"Lost connection to ComfyUI at {self.base_url} while polling prompt {prompt_id}: {e}")
+                time.sleep(1.5)
 
-            time.sleep(0.5)
+            time.sleep(2.0)
 
         raise TimeoutError(f"ComfyUI prompt execution timed out after {max_time}s (prompt_id: {prompt_id})")
 
@@ -454,6 +556,7 @@ class ComfyUIService:
         3. Submit prompt to ComfyUI
         4. Poll for output completion
         5. Fetch image bytes and return
+        Acquires _comfyui_gpu_lock to prevent concurrent GPU/tunnel collisions.
         """
         width, height = LAYOUT_MAP_DIMS(layout_type)
 
@@ -469,15 +572,16 @@ class ComfyUIService:
             cfg=cfg
         )
 
-        prompt_id = self.queue_prompt(workflow)
-        print(f"[ComfyUI] Queued manga generation prompt_id={prompt_id}, dims={width}x{height}, seed={seed}, loras={len(loras or [])}")
+        with _comfyui_gpu_lock:
+            prompt_id = self.queue_prompt(workflow)
+            print(f"[ComfyUI] Queued manga generation prompt_id={prompt_id}, dims={width}x{height}, seed={seed}, loras={len(loras or [])}")
 
-        filename, subfolder, folder_type = self.poll_for_image_output(prompt_id)
-        if not filename:
-            raise RuntimeError(f"ComfyUI completed without output image for prompt_id={prompt_id}")
+            filename, subfolder, folder_type = self.poll_for_image_output(prompt_id)
+            if not filename:
+                raise RuntimeError(f"ComfyUI completed without output image for prompt_id={prompt_id}")
 
-        img_bytes = self.fetch_image_bytes(filename, subfolder, folder_type)
-        return img_bytes
+            img_bytes = self.fetch_image_bytes(filename, subfolder, folder_type)
+            return img_bytes
 
 
 def LAYOUT_MAP_DIMS(layout_type: str) -> Tuple[int, int]:
@@ -495,8 +599,8 @@ def get_comfyui_service() -> ComfyUIService:
     return _comfyui_service
 
 
-def is_comfyui_available() -> bool:
-    return get_comfyui_service().is_available()
+def is_comfyui_available(timeout: float = 6.0, force_check: bool = False) -> bool:
+    return get_comfyui_service().is_available(timeout=timeout, force_check=force_check)
 
 
 def is_comfyui_enabled() -> bool:

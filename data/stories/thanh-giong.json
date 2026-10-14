@@ -1,0 +1,57 @@
+{
+  "id": "thanh-giong",
+  "title": "Thánh Gióng (Phù Đổng Thiên Vương)",
+  "slug": "thanh-giong",
+  "topic": "Truyền thuyết anh hùng dân tộc",
+  "category": "Truyền thuyết & Thần thoại",
+  "genre": [
+    "Truyền thuyết",
+    "Tứ bất tử",
+    "Chống giặc ngoại xâm",
+    "Anh hùng"
+  ],
+  "summary": "Truyền thuyết về cậu bé làng Gióng lên ba chưa biết nói cười, khi giặc Ân tràn vào bờ cõi bỗng vươn vai thành tráng sĩ cưỡi ngựa sắt, nhổ tre ngà quét sạch quân xâm lược rồi bay về trời.",
+  "content": "Đời Hùng Vương thứ sáu, ở làng Phù Đổng có hai vợ chồng già hiền lành chăm chỉ nhưng mãi chưa có con. Một hôm người vợ ra đồng thấy một vết chân khổng lồ, bèn đặt chân vào ướm thử. Về nhà bà thụ thai, mười hai tháng sau sinh ra một cậu bé khôi ngô, đặt tên là Gióng. Kỳ lạ thay, lên ba tuổi cậu bé vẫn không biết nói, không biết cười, đặt đâu nằm đấy.\n\nBấy giờ giặc Ân hung tàn kéo sang xâm lược nước ta, thế giặc rất mạnh. Vua Hùng lo lắng sai sứ giả đi khắp nơi tìm người tài giỏi cứu nước.\n\nKhi sứ giả đi ngang qua làng Phù Đổng gióng trống loan truyền lệnh vua, cậu bé Gióng bỗng nhiên cất tiếng nói đầu tiên bảo mẹ: \"Mẹ ra mời sứ giả vào đây cho con!\".\n\nTrước mặt sứ giả, cậu bé dõng dạc phán: \"Ông về tâu với đức vua đúc cho ta một con ngựa sắt, một thanh gươm sắt, một bộ áo giáp sắt và một chiếc nón sắt, ta sẽ phá tan lũ giặc này!\".\n\nSứ giả kinh ngạc vội về tâu vua. Vua Hùng mừng rỡ lập tức tập hợp thợ rèn ngày đêm đúc ngựa sắt và binh giáp.\n\nTừ ngày đó, Gióng lớn nhanh như thổi. Cơm ăn bao nhiêu cũng không no, áo vừa may xong đã chật ních. Dân làng Phù Đổng nô nức gom góp từng nồi cơm, cà pháo, mo cơm nuôi Gióng lớn khôn vì nghĩa lớn.\n\nKhi giặc Ân đã tiến sát chân núi Trâu Sơn, sứ giả đem ngựa sắt và giáp sắt tới. Gióng vươn vai một cái bỗng biến thành một tráng sĩ khổng lồ, mình cao hơn trượng, oai phong lẫm liệt. Tráng sĩ mặc giáp sắt, cầm gươm sắt, nhảy lên lưng ngựa. Con ngựa sắt hí vang một tiếng dài, phun lửa đỏ rực rồi phi như bay ra trận.\n\nTráng sĩ xông thẳng vào đồn giặc, vung gươm chém giặc như chém chuối, giặc Ân ngã rạ la liệt. Gươm sắt gãy, tráng sĩ không hề nao núng, liền nhổ từng bụi tre ngà bên đường quật túi bụi vào quân thù khiến giặc tan tác tháo chạy.\n\nQuét sạch bóng giặc Ân, tráng sĩ một mình một ngựa phi thẳng lên đỉnh núi Sóc Sơn. Tại đây, người cởi giáp sắt để lại rồi cùng ngựa sắt từ từ bay thẳng lên trời cao.\n\nĐể tưởng nhớ công ơn cứu nước, vua Hùng phong chàng là Phù Đổng Thiên Vương và lập đền thờ tại quê nhà làng Gióng, phong làm một trong Tứ bất tử của dân tộc Việt Nam.",
+  "characters": [
+    {
+      "name": "Thánh Gióng",
+      "role": "lead",
+      "gender": "male",
+      "dna": "legendary giant Vietnamese warrior deity, towering heroic build, resolute divine piercing eyes, wearing heavy ancient iron armor plates and holding iron sword and bamboo stalk"
+    }
+  ],
+  "world_setting": "Làng Phù Đổng thanh bình, chiến trường rực lửa Trâu Sơn và đỉnh non cao Sóc Sơn linh thiêng.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Cậu bé Gióng lên ba bỗng cất tiếng nói thiêng liêng đầu tiên, nhờ mẹ mời sứ giả cứu nước vào nhà.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, miraculous young 3yo boy speaking clearly to amazed mother and royal envoy inside rustic ancient straw house, mystical atmosphere",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Dân làng Phù Đổng nô nức chung tay gom từng bát gạo, quả cà nuôi chàng tráng sĩ lớn nhanh như thổi.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, united ancient Vietnamese villagers offering large bowls of rice to rapidly growing giant heroic youth, heartwarming community spirit",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Tráng sĩ Gióng cưỡi ngựa sắt phun lửa rực trời, nhổ từng bụi tre ngà quét sạch bóng quân xâm lược.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, epic battle scene, giant warrior hero riding armored horse breathing flames, swinging large bamboo cluster defeating enemy hordes, dynamic perspective",
+      "layout_type": "tall"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Trên đỉnh núi Sóc Sơn lộng gió, Thánh Gióng cởi giáp sắt rồi cùng ngựa thiêng từ từ bay về cõi trời bất tử.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, majestic hero riding celestial iron horse ascending into glowing cloud sky from windy mountain peak, divine transcendent departure",
+      "layout_type": "wide"
+    }
+  ],
+  "metadata": {
+    "language": "vi",
+    "wordCount": 454,
+    "createdAt": "2026-10-11T02:55:55.260281+00:00",
+    "aiModel": "NarrAI-Engine-Pro",
+    "status": "published"
+  }
+}

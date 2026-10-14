@@ -41,7 +41,10 @@ final/
    - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
    - **Instance Type**: `Free`.
 5. Trong mục **Environment Variables** (Biến môi trường), thêm các biến:
-   - `GROQ_API_KEY`: Key Groq của bạn (lấy tại https://console.groq.com).
+   - `GROQ_API_KEY_BIBLE`: Key Groq phần phác thảo cốt truyện / QA Refiner.
+   - `GROQ_API_KEY_STORY`: Key Groq phần tạo câu chuyện / Copilot.
+   - `GROQ_API_KEY_COMIC`: Key Groq phần tạo prompt tranh ComfyUI.
+   - `GROQ_API_KEY`: Key Groq dự phòng chung.
    - `JWT_SECRET`: Một chuỗi ngẫu nhiên bí mật (ví dụ: `narrai_secret_key_2026_super_safe`).
    - `COMFYUI_ENABLED`: `true`
    - `COMFYUI_URL`: Link ngrok ComfyUI của bạn (Ví dụ: `https://xxxx-xx-xx.ngrok-free.app` khi mở tunnel, hoặc tạm thời để `http://127.0.0.1:8188`).

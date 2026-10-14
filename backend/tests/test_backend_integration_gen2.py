@@ -42,6 +42,7 @@ from services.banking_service import (
     INITIAL_TRIAL_COINS,
     user_mutexes,
     verify_ledger_integrity,
+    topup_coins,
 )
 
 
@@ -310,9 +311,10 @@ class TestBackendIntegrationGen2(unittest.TestCase):
     def test_comic_generate_deducts_16_coins_and_rolls_back_on_failure(self):
         """Comic generation deducts 16 coins and triggers compensating rollback if director fails."""
         from auth import create_access_token, get_password_hash
-        user = User(username="manga_creator", password_hash=get_password_hash("Pass123!"), coins=20)
+        user = User(username="manga_creator", password_hash=get_password_hash("Pass123!"), coins=0)
         self.db.add(user)
         self.db.commit()
+        topup_coins(self.db, user.id, 20, description="Initial coins for testing")
         story = Story(user_id=user.id, refined_prompt="Manga prompt", story_content="Nội dung truyện rất dài...")
         self.db.add(story)
         self.db.commit()

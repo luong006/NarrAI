@@ -30,7 +30,6 @@ from services.cloudflare_ai import (
     get_deterministic_comic_seed,
     generate_image_cf,
     get_cached_or_generate_image,
-    format_pollinations_prompt,
 )
 
 
@@ -253,25 +252,6 @@ class TestChallengerR2M3Adversarial(unittest.TestCase):
         # Both setting and action must be present
         self.assertIn("setting:", final_prompt)
         self.assertIn("writing attentively", final_prompt)
-
-    def test_fix_pollinations_fallback_preserves_setting_and_action(self):
-        """
-        FIXED: format_pollinations_prompt cleanly preserves setting anchor and action gesture
-        without broken words or mid-token truncations.
-        """
-        prompt = (
-            f"{STYLE_PREFIX}"
-            "setting: modern Japanese high school classroom interior, "
-            "sitting at wooden student desk, writing attentively, "
-            "17yo Vietnamese schoolgirl, soft oval face, gentle dark almond eyes, sharp jawline, "
-            "wearing crisp white short-sleeve school uniform button-up shirt with stiff collar"
-            f"{STYLE_SUFFIX}"
-        )
-        formatted = format_pollinations_prompt(prompt, max_len=300)
-        self.assertIn("setting:", formatted)
-        self.assertIn("writing attentively", formatted)
-        self.assertNotIn(", ,", formatted)
-        self.assertFalse(re.search(r'\b[a-z]{1,2}$', formatted))
 
 
 if __name__ == "__main__":

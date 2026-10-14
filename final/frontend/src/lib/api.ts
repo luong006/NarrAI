@@ -16,7 +16,17 @@ import {
   SocialPostDetailResponse,
 } from './types';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://narrai-c1oc.onrender.com/api';
+function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8000/api';
+  }
+  return 'https://final-1-jl49.onrender.com/api';
+}
+
+export const API_BASE_URL = getBaseUrl();
 
 function authHeaders(): Record<string, string> {
   const token = storage.getToken();
@@ -145,32 +155,43 @@ export const api = {
   },
 
   // Setup Flow
-  async chatInterview(history: Array<{role: string; content: string}>): Promise<InterviewResponse> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/chat-interview`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ chat_history: history }),
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        let message = `Lỗi máy chủ (${res.status})`;
-        try {
-          const parsed = JSON.parse(errorText);
-          message = parsed.message || parsed.detail || message;
-        } catch {}
-        if (res.status === 503) {
-          message = "Máy chủ AI đang khởi động (Render cold-boot, mất khoảng 30s). Hãy bấm Thử lại sau giây lát.";
+  async chatInterview(history: Array<{role: string; content: string}>, maxRetries = 2): Promise<InterviewResponse> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/chat-interview`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ chat_history: history, fallback_to_heuristic: true }),
+        });
+        if (!res.ok) {
+          const errorText = await res.text();
+          let message = `Lỗi máy chủ (${res.status})`;
+          try {
+            const parsed = JSON.parse(errorText);
+            message = parsed.message || parsed.detail || message;
+          } catch {}
+          if (res.status === 503 && attempt < maxRetries) {
+            await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+            continue;
+          }
+          if (res.status === 503) {
+            message = "Máy chủ AI đang khởi động (Render cold-boot). Hãy bấm Thử lại sau giây lát.";
+          }
+          return { status: 'error', message };
         }
-        return { status: 'error', message };
+        return await res.json();
+      } catch (err: any) {
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        return {
+          status: 'error',
+          message: err?.message || 'Không thể kết nối với máy chủ AI (Lỗi mạng hoặc máy chủ ngoại tuyến)',
+        };
       }
-      return await res.json();
-    } catch (err: any) {
-      return {
-        status: 'error',
-        message: err?.message || 'Không thể kết nối với máy chủ AI (Lỗi mạng hoặc máy chủ ngoại tuyến)',
-      };
     }
+    return { status: 'error', message: 'Không thể kết nối với máy chủ AI sau nhiều lần thử.' };
   },
 
   async refinePrompt(history: Array<{role: string; content: string}>): Promise<RefineResponse> {
@@ -344,32 +365,53 @@ export const api = {
     }
   },
 
-  async continueComic(comicId: number, storyText: string): Promise<ComicResponse> {
-    const res = await fetch(`${API_BASE_URL}/comic/continue`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ comic_id: comicId, story_text: storyText }),
-    });
-    return res.json();
+  async continueComic(comicId: number, storyText: string): Promise<ComicResponse & { code?: number; error_code?: string; required_coins?: number; current_coins?: number }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/comic/continue`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ comic_id: comicId, story_text: storyText }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return {
+          status: 'error',
+          message: data.detail || data.message || `Lỗi HTTP ${res.status}`,
+          code: res.status,
+          error_code: data.error_code,
+          required_coins: data.required_coins,
+          current_coins: data.current_coins,
+        } as any;
+      }
+      return data;
+    } catch (err: any) {
+      return {
+        status: 'error',
+        message: err.message || 'Không thể kết nối tới máy chủ khi tạo tiếp tranh',
+      } as any;
+    }
   },
 
   getComicImageUrl(imageUrl: string): string {
     if (!imageUrl) return '';
-    if (imageUrl.startsWith('http')) return imageUrl;
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:')) return imageUrl;
     const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '');
-    return new URL(imageUrl, `${apiOrigin}/`).toString();
+    try {
+      const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+      return `${apiOrigin}${cleanPath}`;
+    } catch {
+      return imageUrl;
+    }
   },
 
   // Coins & Banking
   async getCoinsBalance(): Promise<{ status: string; coins?: number; balance?: number }> {
     try {
-      const res = await fetch(`${API_BASE_URL}/balance`, { headers: authHeaders() });
-      if (!res.ok) {
-        const fallbackRes = await fetch(`${API_BASE_URL}/coins/balance`, { headers: authHeaders() });
-        if (fallbackRes.ok) return fallbackRes.json();
-        return { status: 'error', coins: 0 };
-      }
-      return res.json();
+      const res = await fetch(`${API_BASE_URL}/coins/balance`, { headers: authHeaders() });
+      if (res.ok) return res.json();
+      const fallbackRes = await fetch(`${API_BASE_URL}/balance`, { headers: authHeaders() });
+      if (fallbackRes.ok) return fallbackRes.json();
+      return { status: 'error', coins: 0 };
     } catch {
       return { status: 'error', coins: 0 };
     }
@@ -540,5 +582,166 @@ export const api = {
     } catch (err: any) {
       return { success: false, message: err?.message };
     }
+  },
+
+  // ComfyUI Integration Helpers
+  async getComfyUIStatus(): Promise<{
+    enabled: boolean;
+    available: boolean;
+    base_url: string;
+    selected_checkpoint?: string;
+    available_checkpoints?: string[];
+    available_loras?: string[];
+  }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/comic/comfyui/status`, { headers: authHeaders() });
+      if (res.ok) return res.json();
+      return { enabled: false, available: false, base_url: '' };
+    } catch {
+      return { enabled: false, available: false, base_url: '' };
+    }
+  },
+
+  async setComfyUIUrl(url: string): Promise<{ status: string; url: string; online: boolean; message: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/comic/comfyui/set-url`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ url }),
+      });
+      return res.json();
+    } catch (err: any) {
+      return { status: 'error', url, online: false, message: err.message || 'Không thể kết nối' };
+    }
+  },
+
+  // ==================== AI STORY PIPELINE ENDPOINTS ====================
+
+  async getPipelineQueue(): Promise<{ status: string; data: import('./types').PipelineOverview }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/queue`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách hàng đợi pipeline");
+    return res.json();
+  },
+
+  async addPipelinePrompt(payload: {
+    title: string;
+    id?: string;
+    topic?: string;
+    category?: string;
+    genre?: string[];
+    language?: string;
+    sourceLanguages?: string[];
+  }): Promise<{ status: string; message: string; data: import('./types').PipelineStoryItem }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/queue`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi khi thêm đề bài vào hàng đợi");
+    return data;
+  },
+
+  async batchAddPipelinePrompts(items: any[]): Promise<{ status: string; data: any }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/queue/batch`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ items }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi khi nhập hàng loạt đề bài");
+    return data;
+  },
+
+  async updatePipelinePrompt(
+    storyId: string,
+    updates: Partial<import('./types').PipelineStoryItem>
+  ): Promise<{ status: string; message: string; data: import('./types').PipelineStoryItem }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/queue/${storyId}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify(updates),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi khi cập nhật đề bài");
+    return data;
+  },
+
+  async deletePipelinePrompt(storyId: string): Promise<{ status: string; message: string }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/queue/${storyId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi khi xóa đề bài");
+    return data;
+  },
+
+  async runPipeline(payload?: { story_id?: string; limit?: number }): Promise<{ status: string; data: any }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/run`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi khi thực thi pipeline");
+    return data;
+  },
+
+  async getPipelineJobs(): Promise<{ status: string; overview: import('./types').PipelineOverview; recentLogs: import('./types').PipelineLogEntry[] }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/jobs`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải trạng thái công việc pipeline");
+    return res.json();
+  },
+
+  async getPipelineJobDetail(storyId: string): Promise<{ status: string; story: import('./types').PipelineStoryItem; logs: import('./types').PipelineLogEntry[]; preview?: import('./types').PipelineStoryDetail }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/jobs/${storyId}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải chi tiết tiến trình");
+    return res.json();
+  },
+
+  async getPipelinePullRequests(): Promise<{ status: string; count: number; data: import('./types').PipelinePullRequest[] }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/pull-requests`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Không thể tải danh sách Pull Requests");
+    return res.json();
+  },
+
+  async mergePipelinePullRequest(prNumber: number, storyId: string): Promise<{ status: string; message: string }> {
+    window.open(`https://github.com/anhdinh0701/final/pull/${prNumber}`, '_blank');
+    return { status: 'success', message: `Đang mở GitHub PR #${prNumber} để duyệt và merge` };
+  },
+
+  async revalidatePipelineStory(storyId: string): Promise<{ status: string; storyId: string; validation: import('./types').PipelineValidationResult }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/validate/${storyId}`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Lỗi khi kiểm định lại truyện");
+    return data;
+  },
+
+  async getPipelineStoryPreview(storyId: string): Promise<{ status: string; data: import('./types').PipelineStoryDetail }> {
+    const res = await fetch(`${API_BASE_URL}/admin/story-pipeline/preview/${storyId}`, {
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Chưa có bản thảo truyện để xem trước");
+    return data;
+  },
+
+  async getPublishedStories(category?: string): Promise<{ status: string; count: number; data: import('./types').PipelineStoryDetail[] }> {
+    const url = category ? `${API_BASE_URL}/stories/published?category=${encodeURIComponent(category)}` : `${API_BASE_URL}/stories/published`;
+    const res = await fetch(url);
+    if (!res.ok) return { status: 'error', count: 0, data: [] };
+    return res.json();
   },
 };

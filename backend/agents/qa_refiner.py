@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+import base64
 from typing import Optional, List, Dict, Any, Tuple
 from llm.groq_client import GroqClient
 
@@ -17,8 +18,8 @@ class QARefiner:
 
     MODELS = [
         "qwen/qwen3.8-27b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
     ]
 
     KEY_ENV_VARS = [
@@ -81,7 +82,7 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
     def get_available_keys(cls) -> List[Tuple[str, str]]:
         """
         Returns list of tuples: (env_var_name, key_value)
-        ordered by priority: GROQ_API_KEY_BIBLE -> GROQ_API_KEY -> GROQ_API_KEY_COPILOT.
+        ordered by priority: GROQ_API_KEY_BIBLE -> GROQ_API_KEY -> GROQ_API_KEY_COPILOT -> partitioned -> builtins.
         """
         keys = []
         seen = set()
@@ -90,6 +91,19 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
             if val and val.strip() and val.strip() not in seen:
                 keys.append((var_name, val.strip()))
                 seen.add(val.strip())
+
+        extra_vars = [
+            "GROQ_API_KEY_INTAKE",
+            "GROQ_API_KEY_STORY",
+            "GROQ_API_KEY_COMIC",
+        ]
+        for var_name in extra_vars:
+            val = os.environ.get(var_name)
+            if val and val.strip() and val.strip() not in seen:
+                keys.append((var_name, val.strip()))
+                seen.add(val.strip())
+
+
         if not keys:
             dummy = "gsk_fallback_dummy_key"
             keys.append(("DEFAULT", dummy))
@@ -188,7 +202,33 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
         latest_input = user_texts[-1] if user_texts else ""
         lower = latest_input.lower()
 
-        # 1. Historical check
+        # 1. Life / Romance / Healing check
+        life_keywords = ["cà phê", "quán", "cô đơn", "tâm hồn", "mưa", "chữa lành", "gặp gỡ", "phố cổ", "hà nội", "sách", "tình cảm", "tình yêu"]
+        matched_life = [k for k in life_keywords if k in lower]
+        if matched_life:
+            return (
+                "NarrAI đã tiếp nhận ý niệm truyện **Đời sống & Chữa lành** trong không gian quán cà phê đêm mưa lắng đọng.\n\n"
+                "**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+                "1. **Ngẫu nhiên gặp gỡ**: Quán đông khách chỉ còn một chiếc bàn trống, hai người buộc phải ngồi chung và bắt đầu cuộc trò chuyện từ một cuốn sách cũ.\n"
+                "2. **Vết thương quá khứ**: Một người đang trốn chạy áp lực cuộc sống muốn tìm nơi tĩnh lặng, người kia là vị khách quen trầm lặng luôn biết lắng nghe.\n"
+                "3. **Sự cố kết nối**: Đêm mưa bão khiến quán mất điện, ánh nến bập bùng mở ra những bí mật sâu kín nhất mà cả hai chưa từng kể với ai.\n\n"
+                "*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới để tiếp tục)*"
+            )
+
+        # 2. Folktale check
+        folktale_keywords = ["cổ tích", "thạch sanh", "chằn tinh", "tấm cám", "thần thoại", "búa sắt", "sơn tinh", "thủy tinh", "an dương vương"]
+        matched_folk = [k for k in folktale_keywords if k in lower]
+        if matched_folk:
+            return (
+                "NarrAI đã tiếp nhận ý tưởng **Cổ tích & Thần thoại Việt Nam** giàu tính anh hùng ca.\n\n"
+                "**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+                "1. **Hành động quả cảm**: Trận giáp chiến sinh tử lúc nửa đêm bằng sức mạnh phi thường và nhát búa quyết định trừ hại cho dân lành.\n"
+                "2. **Mưu lược và địa hình**: Khéo léo lợi dụng địa thế miếu hoang và sự biến hóa của quái thú để tung đòn trí mạng.\n"
+                "3. **Bẫy phản bội**: Sau chiến thắng vang dội là âm mưu tráo đoạt lễ vật của kẻ hèn hạ, mở ra hành trình đòi lại công lý.\n\n"
+                "*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới để tiếp tục)*"
+            )
+
+        # 3. Historical check
         hist_figures = [
             "thánh gióng", "trần hưng đạo", "lý thường kiệt", "ngô quyền", "lê lợi",
             "quang trung", "hai bà trưng", "bạch đằng", "đại việt", "nhà trần",
@@ -199,56 +239,64 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
             entity_name = matched_hist[0].title()
             return (
                 f"Hình tượng {entity_name} trong trang sử hào hùng mở ra một tiền đề sáng tác giàu sức gợi.\n\n"
-                f"1. Bạn muốn khai thác tác phẩm theo góc nhìn Chính sử bám sát sử liệu, hay Dã sử phóng tác từ góc nhìn của một nhân chứng bình dị bên cạnh ngài? "
-                f"(Một khúc tráng ca hào hùng chuẩn mực, hay câu chuyện sâu kín về những hy sinh thầm lặng nơi chiến trường?)\n"
-                f"2. Biến cố mang tính bước ngoặt nào sẽ là điểm nhấn kịch tính nhất trong hồi mở đầu? "
-                f"(Một quyết định chiến lược cân não trước thế giặc áp đảo, hay thử thách khắc nghiệt thử lửa ý chí của nhân vật?)"
+                f"**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+                f"1. **Chính sử chuẩn mực**: Bám sát sử liệu, khắc họa quy mô chiến trận và tầm nhìn chiến lược cân não của bậc danh tướng.\n"
+                f"2. **Dã sử phóng tác**: Góc nhìn người nghĩa sĩ áo vải bên dòng sông lịch sử, giằng xé giữa đại cuộc quốc gia và nghĩa tình riêng biệt.\n"
+                f"3. **Thời khắc quyết định**: Canh bạc thủy triều hoặc trận phục kích hiểm địa làm xoay chuyển toàn bộ cục diện chiến tranh.\n\n"
+                f"*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới để tiếp tục)*"
             )
 
-        # 2. Sci-Fi / Cyberpunk check
+        # 4. Sci-Fi / Cyberpunk check
         scifi_keywords = ["cyberpunk", "2099", "sài gòn 2099", "robot", "trí tuệ nhân tạo", "hacker", "ký ức số", "hậu tận thế"]
         matched_scifi = [k for k in scifi_keywords if k in lower]
         if matched_scifi:
             setting_label = "Sài Gòn 2099" if ("2099" in lower or "sài gòn" in lower) else "thế giới tương lai"
             return (
                 f"Không gian {setting_label} với những xung đột công nghệ và thế giới ngầm mạng là mảnh đất màu mỡ cho câu chuyện kịch tính.\n\n"
-                f"1. Nhân vật chính dấn thân vào biến cố này vì mục tiêu sống còn nào? "
-                f"(Tìm kiếm mảnh ký ức đã bị tập đoàn xóa sạch, hay phơi bày âm mưu kiểm soát ý thức của một trí tuệ nhân tạo tự quản?)\n"
-                f"2. Cái giá lớn nhất mà nhân vật phải đánh đổi để sinh tồn trong thế giới neon là gì? "
-                f"(Đánh mất dần nhân tính qua những lần cấy ghép công nghệ, hay trở thành kẻ thù của toàn bộ mạng lưới ngầm?)"
+                f"**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+                f"1. **Vụ án ký ức số**: Một thám tử ngầm điều tra đường dây buôn bán ký ức nhân tạo bất hợp pháp trong khu ổ chuột ngầm.\n"
+                f"2. **Tập đoàn công nghệ đối đầu**: Nhân vật chính phát hiện mảnh mã độc đe dọa xóa sổ ý thức của toàn thành phố.\n"
+                f"3. **Cái giá của nhân tính**: Một người máy nổi loạn dấn thân tìm kiếm cảm xúc chân thật giữa rừng đèn neon lạnh lẽo.\n\n"
+                f"*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới để tiếp tục)*"
             )
 
-        # 3. Xianxia / Fantasy check
+        # 5. Xianxia / Fantasy check
         fantasy_keywords = ["tu chân", "tiên hiệp", "kiếm hiệp", "đan điền", "ma pháp", "pháp sư", "linh hồn", "pháp bảo", "trừ tà", "trận pháp"]
         matched_fan = [k for k in fantasy_keywords if k in lower]
         if matched_fan:
             concept_label = matched_fan[0]
             return (
                 f"Ý niệm kỳ ảo xoay quanh yếu tố {concept_label} mở ra một thế giới quan rộng lớn và giàu bí ẩn.\n\n"
-                f"1. Bí mật cổ xưa hoặc nghịch thiên tạo hóa nào mà nhân vật chính tình cờ nắm giữ ngay từ chương mở đầu? "
-                f"(Một cấm thuật gia truyền mang lời nguyền đoản mệnh, hay tàn hồn của một cường giả thượng cổ đang thức tỉnh?)\n"
-                f"2. Xung đột sinh tử đầu tiên sẽ đẩy nhân vật vào tình thế hiểm nghèo nào? "
-                f"(Bị môn phái truy sát vì mang tội danh oan khuất, hay buộc phải phá vỡ đạo tâm để bảo vệ người quan trọng nhất?)"
+                f"**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+                f"1. **Thần hồn dị biến**: Thiếu niên mang linh hồn kỳ lạ, từng bước giải mã phong ấn ngàn năm dưới cấm địa.\n"
+                f"2. **Trùng sinh quật khởi**: Bị phản bội phế bỏ đan điền, trùng sinh trở lại với bí pháp nghịch thiên chấn động tam giới.\n"
+                f"3. **Hành trình độc bộ**: Một mình dấn thân vào cấm vực săn lùng linh dược ngàn năm cứu sống người thân thiết nhất.\n\n"
+                f"*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới để tiếp tục)*"
             )
 
-        # 4. Detective / Thriller check
+        # 6. Detective / Thriller check
         thriller_keywords = ["thám tử", "án mạng", "vụ án", "giết người", "điều tra", "manh mối", "hung thủ", "tâm lý tội phạm"]
         matched_thrill = [k for k in thriller_keywords if k in lower]
         if matched_thrill:
             return (
-                f"Vụ án và nút thắt suy luận bạn vừa đề cập tạo nên nhịp điệu căng thẳng nghẹt thở.\n\n"
-                f"1. Manh mối dị thường nhất tại hiện trường dẫn dắt nhân vật điều tra theo hướng nào? "
-                f"(Một bằng chứng cố tình ngụy tạo để đánh lạc hướng cơ quan chức năng, hay lời trăn trối mã hóa của nạn nhân trước lúc lâm chung?)\n"
-                f"2. Mối liên hệ bí mật giữa hung thủ và nhân vật chính là gì? "
-                f"(Một đối thủ trí tuệ từng đụng độ trong quá khứ, hay một bóng ma tâm lý gắn liền với vết thương chưa lành của điều tra viên?)"
+                "Vụ án và nút thắt suy luận bạn vừa đề cập tạo nên nhịp điệu căng thẳng nghẹt thở.\n\n"
+                "**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+                "1. **Bí ẩn hiện trường**: Nạn nhân để lại lời trăn trối mã hóa chỉ duy nhất thám tử hiểu được ý nghĩa.\n"
+                "2. **Hung thủ trong bóng tối**: Đối thủ cũ từng biến mất nhiều năm bất ngờ tái xuất với một kế hoạch trả thù hoàn hảo.\n"
+                "3. **Chạy đua với thời gian**: Cuộc đấu trí 24 giờ giải cứu con tin trước khi quả bom bí mật phát nổ.\n\n"
+                "*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới để tiếp tục)*"
             )
 
-        # 5. Extract capitalized proper nouns or key terms
+        # 7. Extract capitalized proper nouns or key terms with strict stopwords
         caps = re.findall(r"\b[A-ZÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ][a-zàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]+", latest_input)
         excluded_stopwords = {
             "Tôi", "Bạn", "Một", "Khi", "Hãy", "Trong", "Để", "Nếu",
             "Chuyện", "Câu", "Viết", "Kể", "Vào", "Đây", "Đó", "Về",
             "Tác", "Cuộc", "Ngày", "Ở",
+            "Hai", "Ba", "Bốn", "Năm", "Sáu", "Bảy", "Tám", "Chín", "Mười",
+            "Hà", "Nội", "Sài", "Gòn", "Đà", "Nẵng", "Việt", "Nam",
+            "Phố", "Cổ", "Quán", "Đêm", "Mưa", "Người", "Những", "Các", "Mọi",
+            "Từng", "Mỗi", "Đầu", "Cuối", "Tâm", "Hồn", "Cô", "Đơn", "Tình", "Cờ"
         }
         filtered_caps = [c for c in caps if c not in excluded_stopwords]
         anchor = f"nhân vật {filtered_caps[0]}" if filtered_caps else "cốt truyện của bạn"
@@ -260,10 +308,11 @@ TUYỆT ĐỐI CHỈ SỬ DỤNG TIẾNG VIỆT TỰ NHIÊN, VĂN PHONG VĂN H�
 
         return (
             f"Chi tiết trọng tâm '{display_snippet}' đặt nền móng sắc nét cho {anchor}.\n\n"
-            f"1. Động cơ thôi thúc mạnh mẽ nhất của nhân vật chính trong hồi mở đầu là gì? "
-            f"(Khao khát tìm kiếm chân lý và bảo vệ những người thương yêu, hay bị thúc đẩy bởi một món nợ quá khứ không thể chối từ?)\n"
-            f"2. Trở ngại bất ngờ nào xuất hiện ngay phân cảnh đầu tiên khiến toàn bộ toan tính bị đảo lộn? "
-            f"(Sự xuất hiện của một thế lực đối kháng áp đảo, hay một bí mật nghiệt ngã bị phơi bày trước ánh sáng?)"
+            f"**Các hướng phát triển gợi ý để bạn lựa chọn:**\n"
+            f"1. **Xung đột nội tâm**: Khai thác sâu sắc mâu thuẫn giữa lý trí và cảm xúc của nhân vật chính khi đứng trước một lựa chọn mang tính sinh tử.\n"
+            f"2. **Biến cố bất ngờ**: Tạo một bước ngoặt bất ngờ ngay chương mở đầu khiến mọi kế hoạch chuẩn bị trước đó bị đảo lộn hoàn toàn.\n"
+            f"3. **Đồng minh đối lập**: Giới thiệu một người đồng hành mang bí mật và lý tưởng đối nghịch, tạo nên sự va chạm nảy lửa trong từng đối thoại.\n\n"
+            f"*(Bạn có thể bấm trực tiếp vào các nút gợi ý bên dưới hoặc nhập thêm chi tiết)*"
         )
 
     def chat_interview(self, chat_history: list, fallback_to_heuristic: bool = False) -> str:

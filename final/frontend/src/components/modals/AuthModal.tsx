@@ -5,18 +5,6 @@ import { ClientPortal } from "@/components/portals/ClientPortal";
 import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { translations, Language } from "@/lib/i18n";
-import {
-  X,
-  Lock,
-  User as UserIcon,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  EyeOff,
-  ShieldCheck,
-  Clock,
-} from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -65,234 +53,218 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
     rules.special &&
     rules.noSpace;
 
-  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMatch = !isLogin && password.length > 0 && password === confirmPassword;
 
   const strength = useMemo(() => {
-    if (!password) return { score: 0, percent: 0, label: "", color: "bg-slate-200 dark:bg-slate-700" };
-    let passed = 0;
-    if (rules.length) passed++;
-    if (rules.uppercase) passed++;
-    if (rules.lowercase) passed++;
-    if (rules.digit) passed++;
-    if (rules.special) passed++;
-    if (rules.noSpace && password.length >= 12) passed++;
-    const score = Math.min(passed, 5);
-    switch (score) {
-      case 1: return { score: 1, percent: 20, label: t.strength_very_weak, color: "bg-rose-500" };
-      case 2: return { score: 2, percent: 40, label: t.strength_weak, color: "bg-orange-500" };
-      case 3: return { score: 3, percent: 60, label: t.strength_fair, color: "bg-amber-500" };
-      case 4: return { score: 4, percent: 80, label: t.strength_strong, color: "bg-emerald-500" };
-      case 5: return { score: 5, percent: 100, label: t.strength_very_strong, color: "bg-brand-700 dark:bg-brand-500" };
-      default: return { score: 0, percent: 0, label: "", color: "bg-slate-200 dark:bg-slate-700" };
+    let score = 0;
+    if (rules.length) score++;
+    if (rules.uppercase) score++;
+    if (rules.lowercase) score++;
+    if (rules.digit) score++;
+    if (rules.special) score++;
+    if (rules.noSpace) score++;
+
+    if (score <= 2) {
+      return { label: lang === "vi" ? "Yếu" : "Weak", percent: 33, color: "bg-neutral-400" };
     }
-  }, [password, rules, t]);
+    if (score <= 4) {
+      return { label: lang === "vi" ? "Trung bình" : "Medium", percent: 66, color: "bg-neutral-600 dark:bg-neutral-400" };
+    }
+    return { label: lang === "vi" ? "Mạnh" : "Strong", percent: 100, color: "bg-black dark:bg-white" };
+  }, [rules, lang]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUser = username.trim();
-    const cleanPass = password;
-    const cleanFullName = fullName.trim();
-
-    if (lockoutSeconds > 0) {
-      setError(`${t.lockout_notice} ${lockoutSeconds}s`);
-      return;
-    }
-    if (!cleanUser || !cleanPass) {
-      setError(lang === "vi"
-        ? "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu."
-        : "Please enter username and password.");
-      return;
-    }
-    if (!isLogin) {
-      if (!allRulesPassed) {
-        setError(lang === "vi"
-          ? "Mật khẩu cần ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt."
-          : "Password must have at least 8 chars, 1 uppercase, 1 lowercase, 1 number and 1 special character.");
-        return;
-      }
-      if (cleanPass !== confirmPassword) {
-        setError(t.pass_match_err);
-        return;
-      }
-    }
-
-    setLoading(true);
+    if (lockoutSeconds > 0) return;
     setError("");
     setSuccessMsg("");
+    setLoading(true);
 
     try {
-      const res = isLogin
-        ? await api.login(cleanUser, cleanPass)
-        : await api.register(cleanUser, cleanPass, cleanFullName);
-
-      if (res.status === "success") {
-        const token = res.token || res.access_token;
-        if (token) {
-          storage.setToken(token);
-          onSuccess(res.username || cleanUser, res.full_name || cleanFullName);
+      if (isLogin) {
+        const res = await api.login(username, password);
+        if (res.access_token) {
+          const authUser = res.username || username;
+          storage.setToken(res.access_token);
+          storage.setUser(authUser, res.full_name);
+          onSuccess(authUser, res.full_name);
           onClose();
         } else {
-          setSuccessMsg(lang === "vi"
-            ? "Đăng ký thành công! Hãy đăng nhập."
-            : "Registered successfully! Please log in.");
-          setIsLogin(true);
-          setPassword("");
-          setConfirmPassword("");
+          setError(res.detail || res.message || (lang === "vi" ? "Đăng nhập thất bại" : "Login failed"));
         }
       } else {
-        const rawDetail = res.detail || res.message || "";
-        const matchSec = rawDetail.match(/(\d+)\s*(?:giây|seconds)/i);
-        if (matchSec && Number(matchSec[1])) {
-          setLockoutSeconds(Number(matchSec[1]));
-        } else if (rawDetail.includes("429") || rawDetail.includes("quá nhiều lần")) {
-          setLockoutSeconds(60);
+        if (!allRulesPassed) {
+          setError(lang === "vi" ? "Mật khẩu chưa đáp ứng đầy đủ chính sách bảo mật." : "Password does not meet complexity requirements.");
+          setLoading(false);
+          return;
         }
-        setError(rawDetail || (isLogin
-          ? (lang === "vi" ? "Đăng nhập thất bại" : "Login failed")
-          : (lang === "vi" ? "Đăng ký thất bại" : "Registration failed")));
+        if (password !== confirmPassword) {
+          setError(t.pass_match_err);
+          setLoading(false);
+          return;
+        }
+
+        const res = await api.register(username, password, fullName.trim() || undefined);
+        if (res.status === "success" || res.access_token || res.message) {
+          if (res.access_token) {
+            const authUser = res.username || username;
+            storage.setToken(res.access_token);
+            storage.setUser(authUser, res.full_name);
+            onSuccess(authUser, res.full_name);
+            onClose();
+          } else {
+            setSuccessMsg(res.message || (lang === "vi" ? "Đăng ký thành công" : "Registration successful"));
+            setTimeout(() => {
+              setIsLogin(true);
+              setSuccessMsg("");
+            }, 1200);
+          }
+        } else {
+          setError(res.detail || res.message || (lang === "vi" ? "Đăng ký thất bại" : "Registration failed"));
+        }
       }
     } catch (err: any) {
-      setError(typeof err?.message === "string" ? err.message : t.network_error);
+      const msg = err.message || "";
+      if (msg.includes("429") || msg.toLowerCase().includes("thử lại sau") || msg.toLowerCase().includes("lockout")) {
+        const match = msg.match(/(\d+)\s*giây/i) || msg.match(/(\d+)\s*seconds/i);
+        const secs = match ? parseInt(match[1], 10) : 300;
+        setLockoutSeconds(secs);
+        setError(msg);
+      } else {
+        setError(msg || (lang === "vi" ? "Lỗi kết nối máy chủ" : "Network connection error"));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <ClientPortal zIndex={60}>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-        <div className="relative w-full max-w-md bg-[#fbf8f1] dark:bg-[#302a25] rounded-xl p-6 shadow-xl border border-[#e2d8cb] dark:border-[#50453c] my-8">
-
+    <ClientPortal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto select-none font-sans">
+        <div className="relative w-full max-w-md bg-[#FAF7F2] rounded-xl p-6 shadow-2xl border border-neutral-300/80 my-8 text-neutral-900">
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            className="absolute top-4 right-4 px-2 py-0.5 text-xs font-mono font-bold uppercase rounded border border-neutral-300 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            [ĐÓNG]
           </button>
 
           <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded border border-neutral-300 bg-white text-neutral-800">
+              [TÀI KHOẢN]
+            </span>
+            <h2 className="text-lg font-bold font-mono uppercase tracking-wider text-neutral-900">
               {isLogin ? t.login : t.register}
             </h2>
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+          <p className="text-xs text-neutral-500 mb-5 font-mono">
             {isLogin ? t.auth_login_desc : t.auth_register_desc}
           </p>
 
           {/* Lockout Banner */}
           {lockoutSeconds > 0 && (
-            <div className="mb-4 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm flex items-center gap-2.5">
-              <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 animate-pulse" />
-              <div className="flex-1 font-semibold">
+            <div className="mb-4 p-3 rounded border border-amber-300 bg-amber-50 text-amber-900 text-xs font-mono flex items-center gap-2">
+              <span className="font-bold">[KHÓA TẠM THỜI]</span>
+              <div className="flex-1">
                 {t.lockout_notice}{" "}
-                <span className="font-mono text-base font-bold text-amber-900 dark:text-amber-100">
-                  {lockoutSeconds}s
-                </span>
+                <span className="font-bold">{lockoutSeconds}s</span>
               </div>
             </div>
           )}
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-4 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800/80 text-red-700 dark:text-red-300 text-sm flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-              <div className="flex-1 font-medium">{error}</div>
+            <div className="mb-4 p-3 rounded border border-red-300 bg-red-50 text-red-800 text-xs font-mono">
+              <span className="font-bold mr-1.5">[LỖI]:</span>
+              <span>{error}</span>
             </div>
           )}
 
           {/* Success Banner */}
           {successMsg && (
-            <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 text-sm flex items-start gap-2.5">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div className="flex-1 font-medium">{successMsg}</div>
+            <div className="mb-4 p-3 rounded border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-mono">
+              <span className="font-bold mr-1.5">[THÀNH CÔNG]:</span>
+              <span>{successMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 font-mono">
             {/* Full Name (Register Only) */}
             {!isLogin && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1.5">
                   {t.full_name}
                 </label>
-                <div className="relative">
-                  <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    autoComplete="name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder={t.full_name_placeholder}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder={t.full_name_placeholder}
+                  className="w-full px-3.5 py-2.5 rounded border border-neutral-300 bg-white text-neutral-900 text-xs focus:outline-none focus:border-neutral-900 transition-colors"
+                />
               </div>
             )}
 
             {/* Username */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1.5">
                 {t.username}
               </label>
-              <div className="relative">
-                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={t.username}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
+              <input
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder={t.username}
+                className="w-full px-3.5 py-2.5 rounded border border-neutral-300 bg-white text-neutral-900 text-xs focus:outline-none focus:border-neutral-900 transition-colors"
+              />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1.5">
                 {t.password}
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
                   type={showPassword ? "text" : "password"}
                   autoComplete={isLogin ? "current-password" : "new-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t.password}
-                  className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans"
+                  className="w-full px-3.5 pr-14 py-2.5 rounded border border-neutral-300 bg-white text-neutral-900 text-xs focus:outline-none focus:border-neutral-900 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-2.5 text-xs text-neutral-500 hover:text-black"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? "[Ẩn]" : "[Hiện]"}
                 </button>
               </div>
             </div>
 
             {/* Strength Meter & Checklist (Register Only) */}
             {!isLogin && password.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-3 pt-1">
                 <div>
-                  <div className="flex justify-between items-center text-xs mb-1.5 font-medium text-slate-600 dark:text-slate-300">
+                  <div className="flex justify-between items-center text-xs mb-1 font-bold text-neutral-600">
                     <span>{t.strength_meter_title}</span>
-                    <span className="font-semibold">{strength.label}</span>
+                    <span>{strength.label}</span>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                  <div className="w-full h-1.5 rounded bg-neutral-200 overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-300 rounded-full ${strength.color}`}
+                      className={`h-full transition-all duration-300 rounded ${strength.color}`}
                       style={{ width: `${strength.percent}%` }}
                     />
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-[#f1ece3] dark:bg-[#332c26] border border-[#e2d8cb] dark:border-[#50453c] space-y-1.5 text-xs">
+                <div className="p-3 rounded bg-white border border-neutral-300 space-y-1.5 text-xs">
                   <CheckItem passed={rules.length} label={t.rule_length} />
                   <CheckItem passed={rules.uppercase} label={t.rule_uppercase} />
                   <CheckItem passed={rules.lowercase} label={t.rule_lowercase} />
@@ -306,39 +278,29 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
             {/* Confirm Password (Register Only) */}
             {!isLogin && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1.5">
                   {t.confirm_password}
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={t.confirm_password_placeholder}
-                    className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fffdf8] dark:bg-[#28231f] text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans"
+                    className="w-full px-3.5 pr-14 py-2.5 rounded border border-neutral-300 bg-white text-neutral-900 text-xs focus:outline-none focus:border-neutral-900 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-2.5 text-xs text-neutral-500 hover:text-black"
                   >
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirmPassword ? "[Ẩn]" : "[Hiện]"}
                   </button>
                 </div>
                 {confirmPassword.length > 0 && (
-                  <div className={`mt-1.5 text-xs flex items-center gap-1.5 font-medium ${
-                    passwordsMatch
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-rose-600 dark:text-rose-400"
-                  }`}>
-                    {passwordsMatch ? (
-                      <><CheckCircle2 className="w-3.5 h-3.5" /><span>{t.pass_match_ok}</span></>
-                    ) : (
-                      <><XCircle className="w-3.5 h-3.5" /><span>{t.pass_match_err}</span></>
-                    )}
+                  <div className="mt-1.5 text-xs flex items-center gap-1.5 font-bold">
+                    <span>{passwordsMatch ? "[✓] " + t.pass_match_ok : "[x] " + t.pass_match_err}</span>
                   </div>
                 )}
               </div>
@@ -347,13 +309,13 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
             <button
               type="submit"
               disabled={loading || lockoutSeconds > 0 || (!isLogin && (!allRulesPassed || !passwordsMatch))}
-              className="w-full py-2.5 rounded-lg font-semibold text-white bg-brand-700 hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-700 shadow transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full py-2.5 rounded font-bold text-xs uppercase tracking-wider bg-neutral-900 text-white hover:bg-neutral-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-2 shadow-xs"
             >
-              {loading ? t.loading : isLogin ? t.login : t.register}
+              {loading ? t.loading : isLogin ? `[${t.login}]` : `[${t.register}]`}
             </button>
           </form>
 
-          <div className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
+          <div className="mt-5 text-center text-xs font-mono text-neutral-500">
             <span>{isLogin ? t.no_account : t.has_account}</span>{" "}
             <button
               type="button"
@@ -362,12 +324,11 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
                 setError("");
                 setSuccessMsg("");
               }}
-              className="font-bold text-brand-700 dark:text-brand-400 hover:underline"
+              className="font-bold underline text-neutral-900 hover:text-black"
             >
               {isLogin ? t.register_now : t.login_now}
             </button>
           </div>
-
         </div>
       </div>
     </ClientPortal>
@@ -377,15 +338,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, lang }: Props) {
 function CheckItem({ passed, label }: { passed: boolean; label: string }) {
   return (
     <div className={`flex items-center gap-2 transition-colors ${
-      passed
-        ? "text-emerald-700 dark:text-emerald-400 font-medium"
-        : "text-slate-400 dark:text-slate-500"
+      passed ? "text-black dark:text-white font-bold" : "text-neutral-400 dark:text-neutral-600"
     }`}>
-      {passed ? (
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-      ) : (
-        <XCircle className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600 shrink-0" />
-      )}
+      <span className="font-mono text-xs">{passed ? "[✓]" : "[•]"}</span>
       <span>{label}</span>
     </div>
   );

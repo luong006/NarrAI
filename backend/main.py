@@ -21,13 +21,35 @@ import json
 import os
 import re
 import uuid
+import base64
 from typing import Tuple, Optional, List, Dict, Any
 from dotenv import load_dotenv
 
 # Load .env from current directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
+# Partitioned Groq API Keys: Cross-populate missing keys from any provided key
+groq_key_candidates = [
+    os.environ.get("GROQ_API_KEY"),
+    os.environ.get("GROQ_API_KEY_BIBLE"),
+    os.environ.get("GROQ_API_KEY_STORY"),
+    os.environ.get("GROQ_API_KEY_COPILOT"),
+    os.environ.get("GROQ_API_KEY_COMIC"),
+    os.environ.get("GROQ_API_KEY_INTAKE"),
+]
+available_groq_key = next((k for k in groq_key_candidates if k and k.strip()), None)
+
+if available_groq_key:
+    for k in ["GROQ_API_KEY", "GROQ_API_KEY_BIBLE", "GROQ_API_KEY_STORY", "GROQ_API_KEY_COPILOT", "GROQ_API_KEY_COMIC", "GROQ_API_KEY_INTAKE"]:
+        if not os.environ.get(k):
+            os.environ[k] = available_groq_key
+
 app = FastAPI(title="NarrAI MVP")
+
+@app.get("/")
+@app.get("/health")
+async def root_health():
+    return {"status": "ok", "service": "NarrAI API", "version": "1.0.0"}
 
 REQUIRED_API_KEYS = {
     "GROQ_API_KEY": "Story Generator and Editor",
@@ -38,8 +60,8 @@ REQUIRED_API_KEYS = {
 def safe_generation_error(error, operation="sinh truyện"):
     message = str(error)
     if "413" in message or "rate_limit_exceeded" in message or "Request too large" in message:
-        return f"Yêu cầu {operation} vượt giới hạn token hiện tại. Hãy chọn nội dung ngắn hơn hoặc thử lại sau."
-    return f"Không thể {operation} lúc này. Vui lòng thử lại sau."
+        return f"Yêu cầu {operation} vượt giới hạn token tạm thời của nhà cung cấp. Hệ thống đang tự động tối ưu hóa, vui lòng thử lại."
+    return f"Không thể {operation} lúc này. Vui lòng thử lại sau ({message[:80]})."
 
 # CORS configuration
 app.add_middleware(
@@ -172,11 +194,14 @@ def get_db():
 from routers.coins_router import router as coins_router
 from routers.social_router import router as social_router, recommender_router
 from routers.messenger_router import router as messenger_router
+from routers.story_pipeline_router import router as story_pipeline_router, public_story_router
 
 app.include_router(coins_router, prefix="/api/coins", tags=["Coins"])
 app.include_router(social_router, prefix="/api/social", tags=["Social"])
 app.include_router(recommender_router)
 app.include_router(messenger_router, prefix="/api/messenger", tags=["Messenger"])
+app.include_router(story_pipeline_router, prefix="/api/admin/story-pipeline", tags=["AI Story Pipeline"])
+app.include_router(public_story_router, prefix="/api/stories", tags=["Published Stories"])
 
 
 # Banking Services
@@ -236,10 +261,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     cache_mgr = get_cache_manager()
     cached_user = cache_mgr.get_user_token(token)
     if cached_user and isinstance(cached_user, dict):
+        user_id = cached_user.get("id")
+        if user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                return user
         return User(
             id=cached_user.get("id"),
             username=cached_user.get("username"),
-            full_name=cached_user.get("full_name", "")
+            full_name=cached_user.get("full_name", ""),
+            coins=cached_user.get("coins", 0) or 0
         )
         
     payload = decode_access_token(token)
@@ -252,7 +283,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         cache_mgr.set_user_token(token, {
             "id": user.id,
             "username": user.username,
-            "full_name": getattr(user, "full_name", "") or ""
+            "full_name": getattr(user, "full_name", "") or "",
+            "coins": getattr(user, "coins", 0) or 0
         }, ttl=1800)
         
     return user
@@ -262,7 +294,7 @@ class ChatInterviewRequest(BaseModel):
     chat_history: list = []
     user_input: Optional[str] = None
     genre: Optional[str] = None
-    fallback_to_heuristic: bool = False
+    fallback_to_heuristic: bool = True
 
 class ChatRequest(BaseModel):
     story_text: str
@@ -452,6 +484,23 @@ def read_users_me(current_user: User = Depends(get_current_user)):
         "status": "success",
         "username": current_user.username,
         "full_name": current_user.full_name or current_user.username
+    }
+
+@app.get("/api/balance")
+def get_user_balance_alias(
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Chưa đăng nhập (Not logged in)")
+    user = db.query(User).filter(User.id == current_user.id).first()
+    coins = user.coins if user and user.coins is not None else (current_user.coins or 0)
+    return {
+        "status": "success",
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "coins": coins,
+        "balance": coins,
     }
 
 # ============ CORE ENDPOINTS ============
@@ -872,6 +921,14 @@ def _save_panels(db, comic, script_data, start_index=0):
         panels_response.append({
             'panel_id': panel.id,
             'panel_index': panel.panel_index,
+            'scene_id': item.get('scene_id', panel.panel_index),
+            'scene_summary': item.get('scene_summary', panel.dialogue_text[:120] if panel.dialogue_text else ""),
+            'characters': item.get('characters', []),
+            'setting': item.get('setting', ''),
+            'action': item.get('action', ''),
+            'continuity': item.get('continuity', ''),
+            'positive_prompt': item.get('positive_prompt', panel.image_prompt),
+            'negative_prompt': item.get('negative_prompt', ''),
             'image_url': panel.image_url,
             'image_prompt': panel.image_prompt,
             'dialogue_text': panel.dialogue_text,
@@ -964,7 +1021,6 @@ def extract_sentence_bounded_chunk(text: str, target_size: int = 5000, max_limit
 
 @app.post("/api/comic/generate")
 def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    deduct_ref = None
     try:
         if not current_user:
             return JSONResponse(
@@ -992,20 +1048,11 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
             db.commit()
             db.refresh(story)
 
-        # Server-authoritative coin deduction (16 xu)
-        deduct_ok, deduct_ref, bal_after = deduct_coins(
-            db=db,
-            user_id=current_user.id,
-            amount=COST_MANGA,
-            action_type=ACTION_COMIC_GENERATE,
-            description=f"Chuyển thể Manga - {COST_MANGA} xu",
-            raise_on_insufficient=True
-        )
-        
+        # 4-panel batching (First batch of 4 panels is FREE as part of 12-panel free tier)
         memory = _get_story_memory(story, db)
         
-        # Adapt first chunk of story using sentence boundaries (up to ~5000-6500 chars)
-        text_to_adapt, adapted_len = extract_sentence_bounded_chunk(request.story_text, target_size=5000, max_limit=6500)
+        # Adapt first chunk of story using sentence boundaries (up to ~1500-2500 chars for 4 panels)
+        text_to_adapt, adapted_len = extract_sentence_bounded_chunk(request.story_text, target_size=1500, max_limit=2500)
             
         from agents.comic_agent import ComicDirectorAgent
         director = ComicDirectorAgent()
@@ -1016,14 +1063,126 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
         db.commit()
         db.refresh(comic)
         
-        panels_response = _save_panels(db, comic, script_data)
+        # Save first 4 panels
+        panels_response = _save_panels(db, comic, script_data[:4])
         has_more = len(request.story_text) > adapted_len
             
         return {
             "status": "success",
             "comic_id": comic.id,
             "panels": panels_response,
+            "total_panels": len(panels_response),
+            "free_batches_left": 2,
+            "next_cost": 0,
             "adapted_offset": adapted_len,
+            "has_more": has_more
+        }
+    except HTTPException as he:
+        return JSONResponse(
+            status_code=he.status_code,
+            content={
+                "status": "error",
+                "message": he.detail,
+                "detail": he.detail,
+                "code": he.status_code
+            }
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": f"Lỗi tạo truyện tranh: {str(e)}"}
+
+@app.post("/api/comic/continue")
+def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    deduct_ref = None
+    try:
+        if not current_user:
+            return JSONResponse(
+                status_code=401,
+                content={"status": "error", "message": "Bạn chưa đăng nhập.", "code": 401}
+            )
+
+        comic = db.query(Comic).filter(
+            Comic.id == request.comic_id,
+            Comic.user_id == current_user.id,
+        ).first()
+        if not comic:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": "Không tìm thấy truyện tranh."}
+            )
+        
+        current_offset = comic.adapted_offset or 0
+        remaining_text = request.story_text[current_offset:]
+        
+        if len(remaining_text.strip()) < 50:
+            return {"status": "error", "message": "Nội dung truyện chữ chưa được viết thêm. Hãy quay lại viết tiếp truyện chữ trước khi tạo thêm truyện tranh.", "no_more_text": True}
+        
+        existing_panels = db.query(ComicPanel).filter(
+            ComicPanel.comic_id == comic.id
+        ).order_by(ComicPanel.panel_index).all()
+        
+        existing_count = len(existing_panels) if existing_panels else 0
+
+        # Quota and Monetization Rule:
+        # First 12 panels (3 batches of 4) are FREE.
+        # From batch 4 onward (existing_count >= 12), costs 100 coins for each 4-panel batch.
+        user_coins = (current_user.coins if (current_user and current_user.coins is not None) else 0)
+        if existing_count >= 12:
+            if user_coins < 100:
+                return JSONResponse(
+                    status_code=402,
+                    content={
+                        "status": "error",
+                        "code": 402,
+                        "error_code": "INSUFFICIENT_COINS",
+                        "message": f"Bạn đã dùng hết 12 khung tranh miễn phí (3 lần). Cần 100 xu để tạo tiếp 4 khung tranh. Số dư hiện tại: {user_coins} xu.",
+                        "required_coins": 100,
+                        "current_coins": user_coins
+                    }
+                )
+            
+            deduct_ok, deduct_ref, bal_after = deduct_coins(
+                db=db,
+                user_id=current_user.id,
+                amount=100,
+                action_type=ACTION_COMIC_GENERATE,
+                description=f"Tạo tiếp 4 khung tranh Manga (Khung {existing_count + 1}-{existing_count + 4}) - 100 xu",
+                raise_on_insufficient=True
+            )
+        
+        previous_summary = " -> ".join([
+            f"Panel {p.panel_index}: {p.dialogue_text}" 
+            for p in (existing_panels[-6:] if existing_panels else []) if p.dialogue_text
+        ])
+        max_index = max([p.panel_index for p in existing_panels]) if existing_panels else 0
+        
+        story = db.query(Story).filter(Story.id == comic.story_id).first()
+        memory = _get_story_memory(story, db)
+        
+        # Adapt continuation chunk using sentence boundaries (up to ~1500-2500 chars for 4 panels)
+        new_text, chunk_len = extract_sentence_bounded_chunk(remaining_text, target_size=1500, max_limit=2500)
+        
+        from agents.comic_agent import ComicDirectorAgent
+        director = ComicDirectorAgent()
+        script_data = director.generate_continuation(previous_summary, new_text, memory=memory)
+        
+        panels_response = _save_panels(db, comic, script_data[:4], start_index=max_index)
+        
+        comic.adapted_offset = current_offset + chunk_len
+        db.commit()
+        
+        total_panels_now = (existing_count or 0) + len(panels_response or [])
+        has_more = len(request.story_text) > (comic.adapted_offset or 0)
+        
+        return {
+            "status": "success",
+            "comic_id": comic.id,
+            "panels": panels_response,
+            "total_panels": total_panels_now,
+            "free_batches_left": max(0, 3 - ((total_panels_now or 0) // 4)),
+            "next_cost": 0 if (total_panels_now or 0) < 12 else 100,
+            "adapted_offset": comic.adapted_offset or 0,
             "has_more": has_more
         }
     except HTTPException as he:
@@ -1042,78 +1201,20 @@ def create_comic(request: ComicRequest, db: Session = Depends(get_db), current_u
                 refund_coins(
                     db=db,
                     user_id=current_user.id,
-                    amount=COST_MANGA,
+                    amount=100,
                     reason=ACTION_REFUND_FAILED,
                     reference_id=deduct_ref,
-                    description=f"Hoàn {COST_MANGA} xu do sự cố tạo truyện tranh: {str(e)[:100]}"
+                    description=f"Hoàn 100 xu do sự cố tạo tiếp truyện tranh: {str(e)[:100]}"
                 )
             except Exception as refund_err:
                 print(f"Compensating rollback error: {refund_err}")
-        import traceback
-        traceback.print_exc()
-        return {"status": "error", "message": f"Lỗi tạo truyện tranh: {str(e)}"}
-
-@app.post("/api/comic/continue")
-def continue_comic(request: ComicContinueRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    try:
-        if not current_user:
-            return {"status": "error", "message": "Bạn chưa đăng nhập."}
-
-        comic = db.query(Comic).filter(
-            Comic.id == request.comic_id,
-            Comic.user_id == current_user.id,
-        ).first()
-        if not comic:
-            return {"status": "error", "message": "Không tìm thấy truyện tranh."}
-        
-        current_offset = comic.adapted_offset or 0
-        remaining_text = request.story_text[current_offset:]
-        
-        if len(remaining_text.strip()) < 50:
-            return {"status": "error", "message": "Nội dung truyện chữ chưa được viết thêm. Hãy quay lại viết tiếp truyện chữ trước khi tạo thêm truyện tranh.", "no_more_text": True}
-        
-        existing_panels = db.query(ComicPanel).filter(
-            ComicPanel.comic_id == comic.id
-        ).order_by(ComicPanel.panel_index).all()
-        
-        previous_summary = " -> ".join([
-            f"Panel {p.panel_index}: {p.dialogue_text}" 
-            for p in existing_panels[-6:] if p.dialogue_text
-        ])
-        max_index = max([p.panel_index for p in existing_panels]) if existing_panels else 0
-        
-        story = db.query(Story).filter(Story.id == comic.story_id).first()
-        memory = _get_story_memory(story, db)
-        
-        # Adapt continuation chunk using sentence boundaries (up to ~5000-6500 chars)
-        new_text, chunk_len = extract_sentence_bounded_chunk(remaining_text, target_size=5000, max_limit=6500)
-        
-        from agents.comic_agent import ComicDirectorAgent
-        director = ComicDirectorAgent()
-        script_data = director.generate_continuation(previous_summary, new_text, memory=memory)
-        
-        panels_response = _save_panels(db, comic, script_data, start_index=max_index)
-        
-        comic.adapted_offset = current_offset + chunk_len
-        db.commit()
-        
-        has_more = len(request.story_text) > comic.adapted_offset
-        
-        return {
-            "status": "success",
-            "comic_id": comic.id,
-            "panels": panels_response,
-            "adapted_offset": comic.adapted_offset,
-            "has_more": has_more
-        }
-    except Exception as e:
         import traceback
         traceback.print_exc()
         return {"status": "error", "message": f"Lỗi tiếp tục truyện tranh: {str(e)}"}
 
 @app.get("/api/comic/image/{panel_id}")
 @app.get("/api/comics/panels/{panel_id}/image")
-def get_comic_image(panel_id: int, retry: int = 0, db: Session = Depends(get_db)):
+def get_comic_image(panel_id: int, retry: int = 0, refresh: bool = False, db: Session = Depends(get_db)):
     """Proxies comic panel image generation with local disk cache and image-provider fallback."""
     panel = db.query(ComicPanel).filter(ComicPanel.id == panel_id).first()
     if not panel:
@@ -1134,9 +1235,9 @@ def get_comic_image(panel_id: int, retry: int = 0, db: Session = Depends(get_db)
             cultural_tier=getattr(bible, "cultural_tier", None),
             narrative_mode=getattr(bible, "narrative_mode", None),
             genre=str(getattr(bible, "genre", "") or (story.genre if story else "") or ""),
-            force_refresh=retry > 0,
+            force_refresh=bool(refresh),
         )
-        headers = {"Cache-Control": "no-store"} if retry > 0 else None
+        headers = {"Cache-Control": "public, max-age=86400"}
         return Response(content=img_bytes, media_type=media_type, headers=headers)
     except Exception as e:
         print(f"[Comic Image] Generation failed for panel {panel_id}: {e}")
@@ -1145,6 +1246,205 @@ def get_comic_image(panel_id: int, retry: int = 0, db: Session = Depends(get_db)
             content={"detail": "Image generation failed. Retry to request a fresh render."},
             headers={"Cache-Control": "no-store"},
         )
+
+
+@app.get("/api/comic/comfyui/status")
+def get_comfyui_status():
+    """Returns the current connection status and available models of the ComfyUI instance."""
+    from services.comfyui_service import get_comfyui_service, KNOWN_LORAS_CATALOG
+    service = get_comfyui_service()
+    is_avail = service.is_available()
+    checkpoints = service.get_available_checkpoints() if is_avail else []
+    loras = service.get_available_loras() if is_avail else []
+    resolved = service.resolve_checkpoint() if is_avail else None
+    return {
+        "enabled": service.is_enabled(),
+        "available": is_avail,
+        "base_url": service.base_url,
+        "selected_checkpoint": resolved,
+        "available_checkpoints": checkpoints,
+        "available_loras": loras,
+        "known_loras_catalog": KNOWN_LORAS_CATALOG,
+        "sampler": service.sampler_name,
+        "scheduler": service.scheduler,
+        "steps": service.steps,
+        "cfg": service.cfg,
+    }
+
+
+@app.get("/api/comic/comfyui/loras")
+def get_comfyui_loras():
+    """Returns all discovered LoRAs in the ComfyUI loras/ directory and the known style catalog."""
+    from services.comfyui_service import get_comfyui_service, KNOWN_LORAS_CATALOG
+    service = get_comfyui_service()
+    is_avail = service.is_available()
+    loras = service.get_available_loras() if is_avail else []
+    return {
+        "status": "online" if is_avail else "offline",
+        "available_loras": loras,
+        "catalog": KNOWN_LORAS_CATALOG
+    }
+
+
+class ComfyUISetUrlRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/comic/comfyui/set-url")
+def set_comfyui_url(req: ComfyUISetUrlRequest):
+    """Dynamically updates the ComfyUI URL (e.g. active ngrok or tunnel URL) and tests connection."""
+    from services.comfyui_service import get_comfyui_service
+    service = get_comfyui_service()
+    success = service.set_base_url(req.url)
+    return {
+        "status": "success" if success else "warning",
+        "url": service.base_url,
+        "online": success,
+        "message": "ComfyUI kết nối thành công!" if success else f"Đã lưu URL {service.base_url} nhưng chưa kết nối được tới ComfyUI. Hãy kiểm tra xem ComfyUI và ngrok đã chạy chưa."
+    }
+
+
+class ComicPromptAgentRequest(BaseModel):
+    story_text: str
+    genre: Optional[str] = ""
+    setting_anchor: Optional[str] = None
+    character_dna_map: Optional[Dict[str, Any]] = None
+    narrative_mode: Optional[str] = None
+    cultural_tier: Optional[int] = None
+
+
+@app.post("/api/comic/prompt-agent/generate")
+def generate_comic_prompt(req: ComicPromptAgentRequest):
+    """Uses ComicPromptAgent to analyze story text, select matching LoRAs, and craft a rich manga prompt."""
+    from agents.comic_prompt_agent import ComicPromptAgent
+    agent = ComicPromptAgent()
+    result = agent.craft_panel_prompt(
+        story_text=req.story_text,
+        character_dna_map=req.character_dna_map,
+        setting_anchor=req.setting_anchor,
+        genre=req.genre or "",
+        narrative_mode=req.narrative_mode,
+        cultural_tier=req.cultural_tier
+    )
+    return {
+        "status": "success",
+        "data": result
+    }
+
+
+class ComicPromptAgentImageRequest(BaseModel):
+    story_text: str
+    genre: Optional[str] = ""
+    setting_anchor: Optional[str] = None
+    character_dna_map: Optional[Dict[str, Any]] = None
+    narrative_mode: Optional[str] = None
+    cultural_tier: Optional[int] = None
+    seed: Optional[int] = None
+    layout_type: Optional[str] = "square"
+    force_refresh: Optional[bool] = False
+    return_json: Optional[bool] = False
+
+
+@app.post("/api/comic/prompt-agent/generate-image")
+def generate_image_with_prompt_agent(req: ComicPromptAgentImageRequest):
+    """
+    AI Agent Pipeline: Analyzes story context, crafts an optimal manga prompt with LoRAs,
+    and directly invokes ComfyUI to render the comic illustration on GPU.
+    """
+    import base64
+    from agents.comic_prompt_agent import ComicPromptAgent
+    from services.comfyui_service import get_comfyui_service, generate_image_comfyui
+
+    agent = ComicPromptAgent()
+    prompt_data = agent.craft_panel_prompt(
+        story_text=req.story_text,
+        character_dna_map=req.character_dna_map,
+        setting_anchor=req.setting_anchor,
+        genre=req.genre or "",
+        narrative_mode=req.narrative_mode,
+        cultural_tier=req.cultural_tier
+    )
+
+    image_prompt = prompt_data.get("image_prompt", req.story_text)
+    negative_prompt_suffix = prompt_data.get("negative_prompt_suffix", "")
+    layout_type = req.layout_type or prompt_data.get("layout_type", "square")
+    recommended_loras = prompt_data.get("recommended_loras", [])
+
+    # Render image via ComfyUI (fallback to Cloudflare AI / Pollinations if ComfyUI offline)
+    try:
+        service = get_comfyui_service()
+        if service.is_available():
+            img_bytes = generate_image_comfyui(
+                prompt=image_prompt,
+                seed=req.seed or 123456,
+                negative_prompt_suffix=negative_prompt_suffix,
+                layout_type=layout_type,
+                loras=recommended_loras
+            )
+            media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
+        else:
+            from services.cloudflare_ai import generate_image_cf
+            img_bytes = generate_image_cf(
+                prompt=image_prompt,
+                seed=req.seed or 123456,
+                negative_prompt_suffix=negative_prompt_suffix,
+                cultural_tier=req.cultural_tier,
+                narrative_mode=req.narrative_mode,
+                genre=req.genre or ""
+            )
+            media_type = "image/jpeg"
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"Image generation failed: {str(e)}",
+                "prompt_metadata": prompt_data
+            }
+        )
+
+    if req.return_json:
+        b64_img = base64.b64encode(img_bytes).decode('utf-8')
+        return {
+            "status": "success",
+            "prompt_metadata": prompt_data,
+            "media_type": media_type,
+            "image_base64": f"data:{media_type};base64,{b64_img}"
+        }
+
+    return Response(content=img_bytes, media_type=media_type)
+
+
+class ComfyUITestRequest(BaseModel):
+    prompt: Optional[str] = "masterpiece monochrome Japanese manga illustration of a heroic protagonist"
+    layout_type: Optional[str] = "square"
+    loras: Optional[List[Dict[str, Any]]] = None
+
+
+@app.post("/api/comic/comfyui/test")
+def test_comfyui_generation(req: ComfyUITestRequest = ComfyUITestRequest()):
+    """Generates a test image using ComfyUI if available, with optional LoRAs."""
+    from services.comfyui_service import get_comfyui_service, generate_image_comfyui
+    service = get_comfyui_service()
+    if not service.is_available():
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "message": f"ComfyUI is not reachable at {service.base_url}. Please ensure ComfyUI is running."}
+        )
+    try:
+        img_bytes = generate_image_comfyui(
+            prompt=req.prompt or "masterpiece monochrome Japanese manga illustration",
+            layout_type=req.layout_type or "square",
+            loras=req.loras
+        )
+        media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
+        return Response(content=img_bytes, media_type=media_type)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"ComfyUI generation test failed: {str(e)}"}
+        )
+
 
 
 @app.post("/api/chat")

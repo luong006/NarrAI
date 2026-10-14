@@ -2,6 +2,10 @@ import os
 import json
 import re
 from typing import List, Tuple, Optional, Any
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+
 from llm.groq_client import GroqClient
 from agents.story_memory import StoryMemory
 
@@ -33,15 +37,15 @@ except ImportError:
         normalize_cultural_tier = lambda x: 1
 
 
-# STRICT style prefix and suffix to force Diffusion model attention to Modern Monochrome School Manga
+# STRICT style prefix and suffix to force Diffusion model attention to Authentic 2D Monochrome Anime Manga Lineart
 STYLE_PREFIX = (
-    "masterpiece monochrome Japanese manga illustration, professional manga comic art, "
-    "crisp clean black and white ink lineart, "
+    "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, "
+    "official anime comic art, sharp cel shaded line art, "
 )
 STYLE_SUFFIX = (
-    ", clean G-pen lineart, delicate screentone shading, fine dot pattern tones, "
-    "high contrast black ink on bright white paper, no color, pure monochrome, "
-    "studio quality 2D manga illustration, expressive anime aesthetic, sharp contours"
+    ", clean G-pen ink lineart, authentic manga screentone shading, fine dot pattern tones, "
+    "high contrast black ink on crisp white paper, pure monochrome, "
+    "2D anime manga drawing, expressive anime character design, sharp contours, single panel composition, no realistic portrait"
 )
 
 
@@ -134,41 +138,59 @@ Return ONLY a valid JSON object:
 """
 
 # ==================== BEAT-BY-BEAT MANGA DIRECTOR ====================
-BEAT_DIRECTOR_PROMPT = """You are a professional manga director and storyboard artist specializing in clear sequential storytelling, expressive acting, and readable panel composition.
+BEAT_DIRECTOR_PROMPT = """You are a master manga director and storyboard artist specializing in cohesive sequential storytelling, strict character continuity, and expressive anime manga panel composition.
 
-YOUR MISSION: Faithfully adapt the provided Vietnamese story text into a SEQUENTIAL, BEAT-BY-BEAT MANGA SCRIPT.
+YOUR MISSION: Faithfully adapt the provided Vietnamese story text into EXACTLY 4 SEQUENTIAL, COHESIVE MANGA PANELS that tell a single, continuous, connected scene.
 
-ABSOLUTE CRITICAL RULES:
-1. NO SKIPPING / NO SUMMARIZING: DO NOT summarize several paragraphs into one generic panel! Adapt EVERY significant exchange, dialogue line, reaction, and physical action into sequential panels.
-   - If Character A says something and Character B responds, that is AT LEAST 2 sequential panels (Speaker A -> Reaction/Reply B).
-   - If an action or dramatic gesture occurs (e.g. someone stands up, looks out the window, draws a breath, opens a door), give it its own panel.
-2. CHARACTER CONSISTENCY: Every panel featuring a character MUST name each visible character and describe their exact hair, face, and signature costume from the CHARACTER REGISTRY in `image_prompt`. Do NOT change character clothing, age, or hairstyle across panels. Do not add characters who are not in the story beat.
-3. SETTING & BACKGROUND CONSISTENCY: Identify the location of each individual story beat. Reuse the matching architecture, lighting, and persistent props from the SETTING REGISTRY for scenes in that location. For a different location, describe that location from the story instead of forcing the primary setting into the panel.
-4. IMAGE PROMPT (English): Under 65 words. Every prompt MUST describe the visible subject(s), their physical action and expression, camera framing, and concrete background/environment details. Avoid abstract-only prompts, empty establishing scenes where a character is acting, generic "manga scene", and details unsupported by the story.
-5. COMPLETE DIALOGUE & CAPTION TEXT (Vietnamese):
-   - TUYỆT ĐỐI CẤM SỬ DỤNG DẤU BA CHẤM (..., …, .....) VÀ CẮT XÉN: Nghiêm cấm tuyệt đối mọi dấu ba chấm hoặc chuỗi chấm lửng ở giữa câu hoặc cuối câu. Không được để câu nói cụt, đứt đoạn, hay lửng lơ.
-   - Mọi lời thoại và lời dẫn dưới mỗi khung tranh BẮT BUỘC là câu nói hoàn chỉnh, giàu cảm xúc, ngữ pháp trọn vẹn và kết thúc bằng dấu câu chuẩn mực: dấu chấm (.), dấu chấm than (!), hoặc dấu chấm hỏi (?).
-   - Nếu nhân vật ngập ngừng hay ngắt nhịp cảm xúc, sử dụng dấu gạch nối ( - ) hoặc dấu phẩy (,) để giữ trọn ý nghĩa và nhịp điệu cảm xúc mà không dùng dấu ba chấm.
-   - Định dạng chuẩn: `[Tên nhân vật]: "[Câu thoại trọn vẹn giàu cảm xúc]"` hoặc câu độc thoại/dẫn chuyện hoàn chỉnh.
-6. LAYOUT TYPE: Choose dynamically:
-   - "wide": for establishing rooms, wide action scenes, panoramic moments.
-   - "tall": for dramatic full-body poses, towering figures, intense emotional heights.
-   - "square": for dialogues, face-to-face exchanges, medium shots.
+ABSOLUTE CRITICAL RULES FOR VISUAL & CHARACTER CONSISTENCY:
+1. UNIFIED 2D ANIME MANGA ART STYLE:
+   - All panels MUST be generated in pure 2D Japanese anime manga style with clean ink lineart, delicate screentone shading, and cel shading.
+   - Absolutely NO realistic portraits, NO 3D, NO pencil sketch drawings, NO graphite portraits, NO collage or multi-frame layouts in a single panel.
+2. STRICT CHARACTER CONTINUITY:
+   - Identify the characters in the story (e.g. Duy, An, or the protagonist).
+   - In `image_prompt`, EVERY panel featuring a character MUST use their EXACT same physical DNA description from the CHARACTER REGISTRY (exact face, hair style/color, age, and signature outfit).
+   - NEVER switch outfits, hairstyles, or artistic styles between panels.
+3. SCENE & ENVIRONMENT CONTINUITY:
+   - The 4 panels MUST depict the sequential flow of the EXACT SAME story scene from the text (e.g. if it is a rainy night by the window with a contract, keep the rain on the window, the moody lighting, and the room environment consistent across all 4 panels).
+   - Panel 1: Establishing scene & mood (wide/medium shot introducing the character in their environment).
+   - Panel 2: Key action / gesture / focus (character holding document, looking intently, starting dialogue).
+   - Panel 3: Emotional dialogue / reaction / rising drama (medium close-up of intense facial expression, interacting).
+   - Panel 4: Impactful turning point / cliffhanger / resolution of this beat (dramatic angle, decisive posture, powerful closing thought).
+4. COMPLETE DIALOGUE & CONTEXT SUBTITLE (VIETNAMESE):
+   - NO TRUNCATION / NO ELLIPSES (...): Every dialogue and caption MUST be a complete, grammatically sound, expressive Vietnamese sentence ending with (.), (!), or (?).
+   - If there is a speaker, format clearly as: `[Tên nhân vật]: "[Câu thoại trọn vẹn giàu cảm xúc]"` (e.g. `Duy: "Tôi đã ký tên trên tờ giấy, không còn đường quay lại."`).
+   - If it is narrative description, provide a vivid, engaging narrator sentence (e.g. `Mưa rơi không ngớt bên ngoài khung cửa kính mờ, giam hãm mọi thanh âm trong sự tĩnh lặng nặng nề.`).
+5. IMAGE PROMPT (ENGLISH):
+   - Concise prompt under 55 words: `[Character Visual DNA], [Specific Action & Expression], [Environment details], [Camera framing], [2D manga lineart]`.
+   - Never use "realistic", "pencil sketch", "portrait drawing", "multi-panel".
 
 OUTPUT FORMAT:
-Return ONLY a valid JSON array of panel objects:
+Return ONLY a valid JSON array of 4 panel objects:
 [
   {
     "panel_index": 1,
-    "image_prompt": "wide establishing shot of a quiet sunlit classroom, wooden desks neatly arranged beside large glass windows, morning light casting soft diagonal shadows across the floor",
-    "dialogue_text": "Hôm nay là một ngày thật đặc biệt đối với tôi.",
+    "image_prompt": "young Vietnamese protagonist with neat dark hair and expressive dark eyes wearing casual jacket and white shirt, standing near large rain-streaked window looking out at gloomy storm, moody 2D anime manga screentone",
+    "dialogue_text": "Mưa rơi không ngớt, từng giọt va vào kính mờ tạo thành bức tường âm thanh ngăn cách với thế giới bên ngoài.",
     "layout_type": "wide"
   },
   {
     "panel_index": 2,
-    "image_prompt": "medium close-up shot of the young student turning around with a bright, curious smile, sitting at the wooden desk near the window",
-    "dialogue_text": "An: \\\\\"Chào bạn, chúng ta cùng nhau cố gắng nhé!\\\\\"",
+    "image_prompt": "young Vietnamese protagonist with neat dark hair and expressive dark eyes wearing casual jacket and white shirt, sitting at wooden desk holding pen over a signed document with resolute focused gaze, medium shot 2D manga lineart",
+    "dialogue_text": "Duy: \\\"Tôi đã ký tên trên tờ giấy, không còn đường quay lại.\\\"",
     "layout_type": "square"
+  },
+  {
+    "panel_index": 3,
+    "image_prompt": "young Vietnamese protagonist with neat dark hair and expressive dark eyes wearing casual jacket and white shirt, close-up intense profile view, sharp determined eyes, dramatic manga contrast",
+    "dialogue_text": "Duy: \\\"Nếu không có tôi, họ sẽ không bao giờ biết được sự thật phía sau bóng tối này.\\\"",
+    "layout_type": "square"
+  },
+  {
+    "panel_index": 4,
+    "image_prompt": "young Vietnamese protagonist with neat dark hair and expressive dark eyes wearing casual jacket and white shirt, standing tall against the night window, clenching fist with unyielding resolve, dramatic low angle 2D manga",
+    "dialogue_text": "Duy: \\\"Dù phải trả bất cứ giá nào, tôi cũng sẽ đi đến cùng con đường đã chọn!\\\"",
+    "layout_type": "tall"
+  }
 ]
 """
 
@@ -290,8 +312,13 @@ def resolve_spatial_enclosure(
         }
 
     if not matched_enc:
-        matched_enc = dict(SPATIAL_ENCLOSURES["classroom"])
-        matched_enc["key"] = "classroom"
+        dynamic_anchor = sdna.get("setting_anchor") or "detailed atmospheric story setting"
+        matched_enc = {
+            "key": "dynamic_scene",
+            "detection_keywords": [],
+            "anchor_description": dynamic_anchor,
+            "forbidden_spatial_tokens": sdna.get("forbidden_spatial_tokens", [])
+        }
 
     # If setting_dna provides specific forbidden tokens from DSGO, merge them in cleanly
     if sdna.get("forbidden_spatial_tokens"):
@@ -305,14 +332,14 @@ def resolve_spatial_enclosure(
 def sanitize_spatial_prompt(prompt: str, enclosure: dict = None) -> str:
     """
     Spatial Quarantine Filter:
-    Strips conflicting/outdoor/traffic/ancient/weapon keywords (street, road, highway, car, bus, traffic, palace, sword)
-    before rendering indoor classroom scenes, while strictly preserving subwords like 'classroom', 'cardigan', and 'scarf'.
+    Strips conflicting keywords for specific enclosures while strictly preserving valid subwords.
     Handles modifiers, prepositions, irregular plurals, and collapses consecutive commas cleanly.
     """
     if not prompt or not isinstance(prompt, str):
         return ""
-    if enclosure is None:
-        enclosure = SPATIAL_ENCLOSURES["classroom"]
+    if enclosure is None or enclosure.get("key") == "dynamic_scene":
+        # Keep clean story tokens for dynamic scenes
+        return re.sub(r'[,.\s]*,[,.\s]*', ', ', prompt).strip(' ,.-')
 
     clean = prompt
     forbidden = enclosure.get("forbidden_spatial_tokens", [])
@@ -348,6 +375,7 @@ def sanitize_spatial_prompt(prompt: str, enclosure: dict = None) -> str:
     clean = re.sub(r'\s{2,}', ' ', clean).strip(' ,.-')
     return clean
 
+
 # ==================== VIETNAMESE NEGATION & PROHIBITION GUARD ====================
 VIETNAMESE_NEGATION_WORDS = {
     "không", "chẳng", "chưa", "đừng", "cấm", "ngừng", "thôi", "chớ", "ko", "k"
@@ -358,67 +386,63 @@ def is_action_negated(text: str, match_start: int) -> bool:
     """
     Checks if a matched action phrase is preceded by a Vietnamese negation or prohibition word
     within the same clause (inspects up to 6 words preceding match_start).
-    Prevents negated actions (e.g., 'không nhìn ra cửa sổ') and dialogue reprimands
-    (e.g., 'đừng có quay sang nói chuyện') from triggering visual gestures.
     """
     pre_text = text[:match_start]
-    # Split by clause boundaries to isolate the immediate clause containing the match
     clause_parts = re.split(CLAUSE_DELIMITERS_PATTERN, pre_text, flags=re.IGNORECASE)
     immediate_clause = clause_parts[-1] if clause_parts else ""
-    # Extract preceding words in the immediate clause
     words = re.findall(r'\b\w+\b', immediate_clause.lower())
     window_words = words[-6:] if len(words) > 6 else words
     return any(w in VIETNAMESE_NEGATION_WORDS for w in window_words)
 
 # ==================== ACTION & GESTURE SEMANTIC MAPPING ====================
 ACTION_GESTURE_MAPPINGS = [
-    # 1. Viết bài, làm việc tại bàn (Strictly requires pairing with viết, chép, ghi, vẽ, làm bài, vở, bài)
+    # 1. Ký tên, viết lách, làm việc với giấy tờ / tài liệu
     (
-        r'(?:cúi đầu|cặm cụi|chăm chú|lúi húi)\s*(?:[\w\s]{0,15})\b(?:viết|chép|ghi|vẽ|làm bài|ghi chép|vở|bài)\b',
-        'sitting at wooden student desk, head gently bowed down, writing attentively in a notebook with pen',
+        r'(?:cúi đầu|cặm cụi|chăm chú|ký tên|ký|đặt bút)\s*(?:[\w\s]{0,15})\b(?:viết|chép|ghi|giấy|văn bản|hợp đồng|tờ giấy|bản cam kết|bút)\b',
+        'holding pen attentively, writing or signing signature on paper document with serious focused gaze',
         'medium close-up'
     ),
-    # 2. Nhìn ra ngoài cửa sổ
+    # 2. Nhìn ra ngoài cửa sổ, ngắm mưa, nhìn bầu trời
     (
-        r'(?:nhìn|ngắm|hướng mắt|dõi theo)\s*(?:ra|qua)?\s*(?:cửa sổ|bầu trời|mây)',
-        'sitting beside the large classroom window, cheek resting on palm, gazing pensively through the glass at sky',
+        r'(?:nhìn|ngắm|hướng mắt|dõi theo)\s*(?:ra|qua)?\s*(?:cửa sổ|bầu trời|mây|mưa|màn đêm)',
+        'standing or sitting near window, looking out through glass at the weather, contemplative dramatic mood',
         'medium shot'
     ),
-    # 3. Quay sang nói chuyện với bạn cùng bàn
+    # 3. Quay sang nói chuyện, biểu cảm đối thoại
     (
         r'(?:quay|ngoảnh|xoay)\s*(?:người|lại|sang)\s*(?:nhìn|cười|nói|hỏi|trò chuyện)',
-        'turning slightly in chair toward desk mate, gentle warm smile, engaging direct eye contact',
+        'turning toward companion with expressive engaged reaction, dramatic anime dialogue pose',
         'over-the-shoulder shot'
     ),
-    # 4. Đứng bật dậy, đập bàn (Strict physical action; removes internal feeling 'kinh ngạc' and standalone thoughts)
+    # 4. Đứng bật dậy, quả quyết, kiên định
     (
-        r'(?:đứng\s*bật\s*dậy|đập\s*tay\s*(?:xuống)?\s*bàn)',
-        'standing up abruptly from desk, hands braced against wooden desktop, wide eyes with sudden realization',
+        r'(?:đứng\s*bật\s*dậy|đập\s*tay|nắm\s*chặt\s*tay|kiên\s*quyết|dứt\s*khoát)',
+        'standing tall with resolute posture, clenched fist, intense determined gaze',
         'dramatic low angle'
     ),
-    # 5. Bước vào lớp học, mở cửa
+    # 5. Bước vào phòng, mở cửa
     (
-        r'(?:bước\s*vào|mở\s*cửa|đứng\s*ở\s*cửa)\s*(?:lớp|phòng)',
-        'standing in the open sliding classroom doorway, holding school backpack strap, stepping inside',
+        r'(?:bước\s*vào|mở\s*cửa|đứng\s*ở\s*cửa)\s*(?:phòng|nhà|sảnh)',
+        'stepping forward through doorway into room, dynamic entrance posture',
         'wide establishing shot'
     ),
-    # 6. Gục đầu xuống bàn (Requires pairing 'thở dài' with gục, bàn, nằm)
+    # 6. Suy tư, dằn vặt, thở dài
     (
-        r'(?:gục đầu|úp mặt|nằm gục)\s*(?:xuống)?\s*(?:bàn)?|(?:thở dài)\s*(?:[\w\s]{0,15})\b(?:gục|bàn|nằm)\b|\b(?:gục|bàn|nằm)\b\s*(?:[\w\s]{0,15})\b(?:thở dài)\b',
-        'resting head down on folded arms upon wooden desk, soft melancholic expression, delicate hair framing face',
+        r'(?:gục đầu|úp mặt|thở dài|dằn vặt|trầm ngâm|suy tư)',
+        'lowered head in deep contemplation, conflicted emotional expression, moody shadows',
         'close-up'
     ),
-    # 7. Chuyền giấy, đưa đồ vật
+    # 7. Đưa đồ vật, trao đổi tài liệu
     (
-        r'(?:chuyền|đưa|trao|gửi)\s*(?:tờ giấy|mẩu tin|cuốn vở|cây bút|mẩu giấy)',
-        'hand delicately passing a small folded note across the wooden desk space toward classmate',
-        'tight focus on hands and note'
+        r'(?:chuyền|đưa|trao|gửi|cầm)\s*(?:tờ giấy|hồ sơ|tài liệu|vật|bức thư|chìa khóa)',
+        'holding and extending document with focused hand gesture',
+        'tight focus on hands and object'
     ),
-    # 8. Nhìn lên bảng đen
+    # 8. Ánh mắt kiên định, trực diện cao trào
     (
-        r'(?:nhìn|ngước|chú ý)\s*(?:lên)?\s*(?:bảng đen|bài giảng|thầy|cô)',
-        'looking forward toward the classroom blackboard, attentive expression, sitting upright at desk',
-        'medium shot'
+        r'(?:ánh mắt|nhìn thẳng|quyết tâm|không lùi bước|đối mặt)',
+        'intense profile close-up, sharp piercing eyes, dramatic black and white manga screentone contrast',
+        'dramatic close-up'
     ),
 ]
 
@@ -592,12 +616,204 @@ def decompose_story_beats(story_text: str) -> list[str]:
 
     return beats
 
+
+def infer_fallback_character_dna(story_text: str) -> dict:
+    """Dynamically infer authentic character DNA from Vietnamese story context without modern classroom bias."""
+    text_lower = str(story_text).lower()
+
+    # 1. Legendary & Historical figures
+    if any(k in text_lower for k in ["thánh gióng", "phù đổng", "ngựa sắt", "roi sắt", "bụi tre"]):
+        return {
+            "Thánh Gióng": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "heroic legendary Vietnamese youth Thánh Gióng, powerful stature, wearing ancient iron battle armor and headband, fierce heroic eyes, wielding iron rod or bamboo clump",
+                "aliases": ["thánh gióng", "gióng", "phù đổng thiên vương", "cậu bé", "chàng trai", "tráng sĩ", "nghĩa sĩ"]
+            }
+        }
+    if any(k in text_lower for k in ["an dương vương", "âu lạc", "cổ loa", "nỏ thần"]):
+        return {
+            "An Dương Vương": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "legendary Vietnamese King An Dương Vương, stately regal presence, royal Đại Việt imperial headband and embroidered robes, majestic resolute expression",
+                "aliases": ["an dương vương", "nhà vua", "vua", "bệ hạ", "thục phán"]
+            }
+        }
+    if any(k in text_lower for k in ["trần hưng đạo", "trần quốc tuấn", "vạn kiếp", "bạch đằng"]):
+        return {
+            "Trần Hưng Đạo": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "venerable Đại Việt supreme commander Trần Hưng Đạo, weathered noble warrior face, sharp tactical gaze, wearing medieval Vietnamese general battle armor and flowing cape",
+                "aliases": ["trần hưng đạo", "quốc công tiết chế", "tiết chế", "hưng đạo vương", "tướng quân", "chủ tướng"]
+            }
+        }
+    if any(k in text_lower for k in ["quang trung", "nguyễn huệ", "tây sơn", "đống đa"]):
+        return {
+            "Quang Trung": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "emperor Quang Trung Nguyễn Huệ, fierce commanding warrior king, wearing battle-tested royal armor and crimson cloak, resolute fiery eyes",
+                "aliases": ["quang trung", "nguyễn huệ", "bắc bình vương", "vua quang trung", "hoàng đế"]
+            }
+        }
+    if any(k in text_lower for k in ["hai bà trưng", "trưng trắc", "mê linh"]):
+        return {
+            "Trưng Trắc": {
+                "gender": "female",
+                "role": "lead",
+                "dna": "heroic Vietnamese warrior queen Trưng Trắc, commanding fearless gaze, wearing ancient bronze-age warrior queen battle attire with yellow sash, tied hair",
+                "aliases": ["trưng trắc", "bà trưng", "nữ vương", "chủ tướng", "nàng"]
+            }
+        }
+    if any(k in text_lower for k in ["sơn tinh", "thủy tinh", "tản viên"]):
+        return {
+            "Sơn Tinh": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "noble mountain deity Sơn Tinh, powerful physique, ancient Vietnamese chieftain attire with sacred feather ornaments, calm commanding presence",
+                "aliases": ["sơn tinh", "tản viên", "chúa núi", "chàng"]
+            }
+        }
+    if any(k in text_lower for k in ["tấm cám", "cô tấm", "nàng tấm"]):
+        return {
+            "Tấm": {
+                "gender": "female",
+                "role": "lead",
+                "dna": "gentle beautiful Vietnamese folk maiden Tấm, kind dark eyes, wearing traditional rural Áo Tứ Thân with dark scarf and graceful belt, modest rustic grace",
+                "aliases": ["tấm", "cô tấm", "nàng tấm", "cô gái", "nàng", "cô bé"]
+            }
+        }
+    if any(k in text_lower for k in ["thạch sanh", "chằn tinh"]):
+        return {
+            "Thạch Sanh": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "brave Vietnamese folk hero Thạch Sanh, muscular woodcutter physique, simple loincloth and fabric wrap, wielding wooden axe or mythical bow, fearless honest eyes",
+                "aliases": ["thạch sanh", "chàng", "người dũng sĩ", "chàng trai"]
+            }
+        }
+
+    # 2. General Historical / Folklore Context
+    hist_cues = ["vua", "tướng", "quân", "giặc", "chiến thuyền", "sa trường", "triều đình", "hoàng cung", "đại việt", "chúa", "thần", "đền", "thôn dã"]
+    if any(k in text_lower for k in hist_cues):
+        is_female = any(k in text_lower for k in ["nàng", "cô gái", "công chúa", "hoàng hậu", "thiếu nữ", "bà"])
+        if is_female:
+            return {
+                "Nữ nhân vật": {
+                    "gender": "female",
+                    "role": "lead",
+                    "dna": "Vietnamese historical maiden, elegant posture, gentle expressive dark eyes, wearing traditional Áo Ngũ Thân or Áo Tứ Thân with tied hair",
+                    "aliases": ["nàng", "tiểu thư", "cô gái", "nữ nhân", "người", "she"]
+                }
+            }
+        return {
+            "Nhân vật lịch sử": {
+                "gender": "male",
+                "role": "lead",
+                "dna": "heroic Vietnamese historical figure, determined sharp gaze, wearing traditional Đại Việt historical robes or warrior armor with tied sash",
+                "aliases": ["chàng", "tướng quân", "nghĩa sĩ", "người", "chàng trai", "he"]
+            }
+        }
+
+    # 3. Modern School / Slice of Life
+    if any(k in text_lower for k in ["lớp", "học sinh", "trường học", "thầy giáo", "cô giáo", "bảng đen", "tiết học"]):
+        return {
+            "Học sinh": {
+                "gender": "unknown",
+                "role": "lead",
+                "dna": "young Vietnamese student, neat dark hair, expressive dark eyes, wearing clean school uniform with white collared shirt",
+                "aliases": ["học sinh", "bạn học", "cậu bé", "cô bé", "cậu ấy", "cô ấy", "nam sinh", "nữ sinh", "protagonist"]
+            }
+        }
+
+    # 4. Contemporary / Open Drama Default
+    return {
+        "Nhân vật chính": {
+            "gender": "unknown",
+            "role": "lead",
+            "dna": "young Vietnamese protagonist, neat dark hair, expressive dark eyes, wearing casual modern attire (jacket over collared shirt), natural posture",
+            "aliases": ["nhân vật chính", "người", "chàng trai", "cô gái", "tôi", "mình", "cậu ấy", "cô ấy", "protagonist"]
+        }
+    }
+
+
+def infer_fallback_setting_dna(story_text: str) -> dict:
+    """Dynamically infer authentic setting anchor from Vietnamese story context without classroom bias."""
+    text_lower = str(story_text).lower()
+
+    if any(k in text_lower for k in ["bạch đằng", "chiến trận", "chiến thuyền", "bãi cọc", "sa trường", "sông", "giặc"]):
+        return {
+            "location_name": "Chiến trường lịch sử Việt Nam",
+            "setting_anchor": "historic Vietnamese battlefield along the river, wooden stakes rising from swirling waters, historic battle boats, fluttering war banners, dynamic manga ink lineart",
+            "atmosphere": "epic dramatic historical battlefield screentone with wind and smoke"
+        }
+    if any(k in text_lower for k in ["hoàng cung", "kinh thành", "thăng long", "cung điện", "ngai vàng", "triều đình"]):
+        return {
+            "location_name": "Hoàng thành Đại Việt",
+            "setting_anchor": "grand historic Đại Việt imperial palace hall, carved wooden pillars, ornate dragon motifs, solemn royal court architecture",
+            "atmosphere": "majestic solemn imperial manga screentone"
+        }
+    if any(k in text_lower for k in ["làng", "cây đa", "bến nước", "mái đình", "thôn", "đồng ruộng", "bờ tre"]):
+        return {
+            "location_name": "Làng quê truyền thống Việt Nam",
+            "setting_anchor": "historic Vietnamese village, ancient mossy village gate, banyan tree by the river wharf, rustic thatched cottages and bamboo grove",
+            "atmosphere": "peaceful nostalgic Vietnamese rural screentone"
+        }
+    if any(k in text_lower for k in ["núi", "rừng", "sơn tinh", "hang", "thác"]):
+        return {
+            "location_name": "Vùng rừng núi hùng vĩ",
+            "setting_anchor": "majestic ancient Vietnamese mountain landscape, misty primeval forest, towering rocky crags, sacred natural aura",
+            "atmosphere": "mystical legendary nature lineart"
+        }
+    if any(k in text_lower for k in ["lớp", "trường", "phòng học", "bảng đen"]):
+        return {
+            "location_name": "Lớp học",
+            "setting_anchor": "bright high school classroom interior, neat student wooden desks, large chalkboard on front wall, window sunlight",
+            "atmosphere": "peaceful youth school manga screentone"
+        }
+
+    return {
+        "location_name": "Bối cảnh câu chuyện",
+        "setting_anchor": "atmospheric narrative setting matching the scene, cinematic composition, authentic screentone textures",
+        "atmosphere": "expressive high contrast manga screentone"
+    }
+
+
+def infer_fallback_action(beat: str, is_dialogue: bool = False) -> str:
+    """Extract realistic physical gesture and posture from Vietnamese beat text."""
+    b_lower = str(beat).lower()
+    if any(w in b_lower for w in ["cưỡi", "phi", "ngựa"]):
+        return "galloping forward heroically on steed with intense momentum, dramatic wide angle"
+    if any(w in b_lower for w in ["nhổ", "tre", "gậy sắt", "vung"]):
+        return "wielding weapon heroically with fierce strength, dynamic action manga lines"
+    if any(w in b_lower for w in ["chém", "đánh", "tiêu diệt", "tấn công", "chiến đấu", "xông"]):
+        return "lunging forward in fierce combat stance, dynamic motion blur and battle impact"
+    if any(w in b_lower for w in ["bay", "lên trời", "biến mất"]):
+        return "ascending gracefully into the open sky and clouds, awe-inspiring legendary farewell"
+    if any(w in b_lower for w in ["quỳ", "lạy", "tạ ơn"]):
+        return "kneeling solemnly with bowed head in profound reverence, emotional camera angle"
+    if any(w in b_lower for w in ["khóc", "nước mắt", "đau đớn", "ngậm ngùi"]):
+        return "tearful emotional face, hand clasped over chest, heart-wrenching close-up manga panel"
+    if any(w in b_lower for w in ["cười", "vui mừng", "reo hò"]):
+        return "joyful triumphant smile, arms raised in victory, uplifting manga screentone"
+    if any(w in b_lower for w in ["bước", "đi", "tiến", "chạy"]):
+        return "striding forward with resolute determination, dynamic diagonal perspective"
+    if any(w in b_lower for w in ["nhìn", "trông", "quan sát", "hướng mắt"]):
+        return "gazing resolutely into the distance, watchful focused expression, cinematic framing"
+    if is_dialogue:
+        return "speaking passionately with expressive emotion, intense facial reaction, dramatic angle"
+    return "standing attentively in scene, focused posture engaged with the surroundings"
+
+
 class ComicDirectorAgent:
     def __init__(self):
         api_key = os.environ.get("GROQ_API_KEY_COMIC") or os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise ValueError("Thiếu GROQ_API_KEY_COMIC hoặc GROQ_API_KEY")
-        self.llm = GroqClient(model_name="qwen/qwen3.8-27b", api_key=api_key)
+        comic_model = os.environ.get("GROQ_MODEL_COMIC", "qwen/qwen3.8-27b")
+        self.llm = GroqClient(model_name=comic_model, api_key=api_key)
 
     def sanitize_complete_dialogue(self, text: str) -> str:
         """Instance helper routing to module-level sanitize_complete_dialogue."""
@@ -747,7 +963,9 @@ class ComicDirectorAgent:
                 temperature=0.2,
                 max_tokens=1500
             )
-            cleaned = re.sub(r'```(?:json)?\s*', '', resp).strip()
+            cleaned = re.sub(r'<think>.*?</think>', '', resp, flags=re.DOTALL).strip()
+            cleaned = re.sub(r'```(?:json)?\s*', '', cleaned).strip()
+            cleaned = re.sub(r'```', '', cleaned).strip()
             match = re.search(r'\{.*\}', cleaned, re.DOTALL)
             if match:
                 parsed = json.loads(match.group(0))
@@ -809,19 +1027,9 @@ class ComicDirectorAgent:
         except Exception as e:
             print(f"[Comic] Character DNA extraction fallback ({e})")
 
-        # Guaranteed rich fallback if nothing extracted
+        # Guaranteed rich dynamic fallback if nothing extracted
         if not existing_dna:
-            existing_dna["Protagonist"] = {
-                "gender": "unknown",
-                "role": "lead",
-                "dna": "young Asian protagonist, neat dark hair, expressive dark eyes, sharp jawline, wearing crisp white collared shirt with small dark ribbon tie, dark navy jacket",
-                "aliases": [
-                    "protagonist", "nhân vật chính", "người", "học sinh", "cô bé", "cậu bé",
-                    "cậu ấy", "cô ấy", "anh bạn", "anh bạn cùng bàn", "bạn cùng bàn", "nữ sinh",
-                    "nam sinh", "chàng trai", "cô gái", "bạn cùng lớp", "bạn học", "người bạn",
-                    "student", "she", "he"
-                ]
-            }
+            existing_dna = infer_fallback_character_dna(story_text)
 
         return existing_dna
 
@@ -881,7 +1089,9 @@ class ComicDirectorAgent:
                 temperature=0.2,
                 max_tokens=800
             )
-            cleaned = re.sub(r'```(?:json)?\s*', '', resp).strip()
+            cleaned = re.sub(r'<think>.*?</think>', '', resp, flags=re.DOTALL).strip()
+            cleaned = re.sub(r'```(?:json)?\s*', '', cleaned).strip()
+            cleaned = re.sub(r'```', '', cleaned).strip()
             match = re.search(r'\{.*\}', cleaned, re.DOTALL)
             if match:
                 parsed = json.loads(match.group(0))
@@ -892,17 +1102,18 @@ class ComicDirectorAgent:
         except Exception as e:
             print(f"[Comic] Setting DNA extraction fallback ({e})")
             if not existing_setting:
-                existing_setting = {
-                    "location_name": "Bối cảnh chung",
-                    "setting_anchor": "detailed indoor room with wooden furniture and ambient window lighting",
-                    "atmosphere": "dramatic high contrast manga screentone"
-                }
+                existing_setting = infer_fallback_setting_dna(story_text)
 
         return existing_setting
 
     def _parse_json_array(self, raw_output):
         """Extract and parse a JSON array from LLM output."""
-        cleaned = re.sub(r'```(?:json)?\s*', '', raw_output).strip()
+        if not raw_output or not isinstance(raw_output, str):
+            raise ValueError("Empty LLM output")
+        # Strip potential reasoning/thinking blocks
+        cleaned = re.sub(r'<think>.*?</think>', '', raw_output, flags=re.DOTALL).strip()
+        cleaned = re.sub(r'```(?:json)?\s*', '', cleaned).strip()
+        cleaned = re.sub(r'```', '', cleaned).strip()
         match = re.search(r'\[.*\]', cleaned, re.DOTALL)
         if match:
             cleaned = match.group(0)
@@ -1194,22 +1405,44 @@ class ComicDirectorAgent:
 
             final_prompt = f"{STYLE_PREFIX}{assembled_prompt}{STYLE_SUFFIX}"
 
+            # Pre-flight quality verification: if cultural tier is historical, purge accidental modern leaks
+            is_historical = tier in (1, 2) or (mode and str(mode).lower() in ("chinh_su", "da_su", "strict_historical", "historical_fiction"))
+            if is_historical:
+                for modern_leak in ["school uniform", "schoolgirl", "schoolboy", "classroom", "student desk", "blackboard", "ribbon tie", "blazer", "modern jacket"]:
+                    final_prompt = re.sub(rf'\b{re.escape(modern_leak)}\b', '', final_prompt, flags=re.IGNORECASE)
+                final_prompt = re.sub(r'[,.\s]*,[,.\s]*', ', ', final_prompt).strip(' ,.-')
+
             raw_layout = str(item.get("layout_type") or "square").lower().strip()
             normalized_layout = LAYOUT_MAP.get(raw_layout, "square")
 
+            scene_summary = dialogue or (narrator if narrator else clean_prompt[:120])
+            char_names = [c["name"] for c in matched_chars] if matched_chars else ["Protagonist"]
+
+            # Structured Scene Data Contract
             panel_entry = {
                 "panel_index": i + 1,
+                "scene_id": i + 1,
+                "scene_summary": scene_summary,
+                "characters": char_names,
+                "setting": panel_setting_anchor or "atmospheric narrative setting",
+                "action": action_desc or (infer_fallback_action(dialogue, is_dialogue=True) if dialogue else "standing attentively in scene"),
+                "continuity": f"panel_{i}" if i > 0 else "initial_establishing_shot",
+                "positive_prompt": final_prompt,
                 "image_prompt": final_prompt,
                 "dialogue_text": dialogue,
+                "narrator_text": narrator,
                 "layout_type": normalized_layout
             }
 
-            if tier in (1, 2) or (mode and str(mode).lower() in ("chinh_su", "da_su", "strict_historical", "historical_fiction")):
+            if is_historical:
                 panel_entry["negative_prompt"] = MASTER_NEGATIVE_VIETNAMESE
                 panel_entry["master_negative"] = MASTER_NEGATIVE_VIETNAMESE
                 panel_entry["cultural_tier"] = tier or 1
             elif tier == 3:
                 panel_entry["cultural_tier"] = 3
+                panel_entry["negative_prompt"] = "bad anatomy, blurry, low quality, color, 3d, realistic portrait, deformed limbs"
+            else:
+                panel_entry["negative_prompt"] = "bad anatomy, blurry, low quality, color, 3d, realistic portrait, deformed limbs"
 
             validated.append(panel_entry)
         return validated
@@ -1252,13 +1485,15 @@ class ComicDirectorAgent:
         system_instruction = f"{BEAT_DIRECTOR_PROMPT}\n\nCHARACTER VISUAL REGISTRY (IMMUTABLE):\n{dna_context}\n\nSETTING VISUAL ANCHOR (IMMUTABLE):\n{setting_context}\n"
 
         words_count = len(story_text.split())
-        target_min = max(8, min(16, words_count // 50))
-        target_max = max(12, min(24, words_count // 30))
 
-        user_content = f"""Adapt this Vietnamese story text into sequential manga panels beat-by-beat.
+        user_content = f"""Adapt this Vietnamese story text into EXACTLY 4 sequential manga panels beat-by-beat.
 Treat the supplied character DNA registry and setting anchor as established story canon. Keep identities, appearance, costumes, location, and persistent fixtures consistent; do not invent replacements.
-DO NOT SKIP ANY DIALOGUE OR MAJOR ACTION. Ensure every character line and key reaction is depicted with expressive dialogue text.
-Aim for {target_min} to {target_max} detailed panels covering the entire excerpt.
+Structure the 4 panels with clear cinematic manga rhythm:
+- Panel 1: Establishing wide or medium shot setting the mood, location, and initial tension.
+- Panel 2: Key character focus / action / expressive dialogue.
+- Panel 3: Rising drama or interaction between characters.
+- Panel 4: Climax / cliffhanger / impactful transition of this scene beat.
+DO NOT SKIP ANY CRITICAL ACTION OR DIALOGUE.
 TUYỆT ĐỐI CẤM SỬ DỤNG DẤU BA CHẤM (..., …, .....) VÀ CẮT XÉN: Mọi câu thoại và lời dẫn dưới mỗi khung tranh PHẢI LÀ CÂU HOÀN CHỈNH, TRỌN Ý, KẾT THÚC BẰNG DẤU CHẤM (.), CHẤM THAN (!), HOẶC CHẤM HỎI (?).
 
 STORY TEXT:
@@ -1271,7 +1506,7 @@ STORY TEXT:
                     {"role": "user", "content": user_content}
                 ],
                 temperature=0.3,
-                max_tokens=4000
+                max_tokens=2500
             )
             panels_raw = self._parse_json_array(response)
             validated_panels = self._validate_panels(
@@ -1281,8 +1516,9 @@ STORY TEXT:
                 cultural_tier=c_tier,
                 narrative_mode=n_mode
             )
-            print(f"[Comic] Successfully created {len(validated_panels)} detailed beat-by-beat panels with background & character consistency.")
-            return validated_panels
+            final_panels = validated_panels[:4] if len(validated_panels) >= 4 else validated_panels
+            print(f"[Comic] Successfully created {len(final_panels)} detailed 4-panel batch.")
+            return final_panels
         except Exception as e:
             print(f"[Comic] Storyboard LLM failed ({e}), creating structured beat fallback...")
             return self._create_structured_beat_fallback(story_text, character_dna, setting_dna)
@@ -1310,8 +1546,9 @@ CHARACTER VISUAL REGISTRY (IMMUTABLE):
 SETTING VISUAL ANCHOR (IMMUTABLE):
 {setting_context}
 """
-        user_content = f"""Continue the comic from the previous progression with sequential panels adapting this new text beat-by-beat.
+        user_content = f"""Continue the comic from the previous progression with EXACTLY 4 new sequential manga panels adapting this new text beat-by-beat.
 Treat the supplied character DNA registry and setting anchor as established story canon. Keep identities, appearance, costumes, location, and persistent fixtures consistent with earlier panels.
+Structure the 4 new panels sequentially (Panel 1 -> Panel 2 -> Panel 3 -> Panel 4).
 DO NOT SKIP DIALOGUES OR ACTIONS. Keep dialogue text expressive, complete, and rich in meaning.
 TUYỆT ĐỐI CẤM SỬ DỤNG DẤU BA CHẤM (..., …, .....) VÀ CẮT XÉN: Mọi câu thoại và lời dẫn dưới mỗi khung tranh PHẢI LÀ CÂU HOÀN CHỈNH, TRỌN Ý, KẾT THÚC BẰNG DẤU CHẤM (.), CHẤM THAN (!), HOẶC CHẤM HỎI (?).
 
@@ -1325,11 +1562,12 @@ NEW STORY TEXT:
                     {"role": "user", "content": user_content}
                 ],
                 temperature=0.3,
-                max_tokens=4000
+                max_tokens=2500
             )
             panels_raw = self._parse_json_array(response)
             validated = self._validate_panels(panels_raw, character_dna_map=character_dna, setting_dna=setting_dna)
-            return validated
+            final_panels = validated[:4] if len(validated) >= 4 else validated
+            return final_panels
         except Exception as e:
             print(f"[Comic] Continuation failed ({e}), creating structured fallback...")
             return self._create_structured_beat_fallback(new_text, character_dna, setting_dna)
@@ -1342,11 +1580,14 @@ NEW STORY TEXT:
         """
         beats = decompose_story_beats(story_text)
 
-        lead_dna = "young Asian protagonist in casual clothes"
-        if character_dna:
-            first_val = list(character_dna.values())[0]
-            lead_dna = first_val.get("dna", first_val) if isinstance(first_val, dict) else str(first_val)
-        bg_anchor = setting_dna.get("setting_anchor", "detailed indoor room with wooden furniture") if setting_dna else "indoor room"
+        if not character_dna:
+            character_dna = infer_fallback_character_dna(story_text)
+        if not setting_dna:
+            setting_dna = infer_fallback_setting_dna(story_text)
+
+        first_val = list(character_dna.values())[0] if character_dna else {}
+        lead_dna = first_val.get("dna", first_val) if isinstance(first_val, dict) else str(first_val)
+        bg_anchor = setting_dna.get("setting_anchor", "atmospheric narrative setting") if setting_dna else "atmospheric narrative setting"
 
         if not beats:
             raw_fallback = [
@@ -1380,10 +1621,8 @@ NEW STORY TEXT:
             action_desc, suggested_shot = extract_action_from_prose(beat)
             if action_desc:
                 shot_desc = action_desc
-            elif is_dialogue:
-                shot_desc = "sitting at wooden desk, talking with expressive emotion"
             else:
-                shot_desc = "sitting attentively in classroom, natural posture"
+                shot_desc = infer_fallback_action(beat, is_dialogue=is_dialogue)
 
             scene_enclosure = resolve_spatial_enclosure(beat, setting_dna=setting_dna)
             scene_anchor = (
@@ -1399,5 +1638,8 @@ NEW STORY TEXT:
                 "dialogue_text": beat,
                 "layout_type": layout
             })
+            if len(raw_panels) >= 4:
+                break
 
-        return self._validate_panels(raw_panels, character_dna_map=character_dna, setting_dna=setting_dna)
+        validated = self._validate_panels(raw_panels, character_dna_map=character_dna, setting_dna=setting_dna)
+        return validated[:4]

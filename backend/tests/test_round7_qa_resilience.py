@@ -39,7 +39,7 @@ class TestRound7QARefinerResilience(unittest.TestCase):
         """Verify default models and key environment variable hierarchies."""
         self.assertEqual(
             self.refiner.MODELS,
-            ["qwen/qwen3.8-27b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+            ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
         )
         self.assertEqual(
             self.refiner.KEY_ENV_VARS,
@@ -98,17 +98,17 @@ class TestRound7QARefinerResilience(unittest.TestCase):
         self.assertNotIn("extra_field", call_messages[2])
 
     def test_multi_model_fallback_rate_limit_to_llama_70b(self):
-        """Primary qwen fails with 429 rate limit; system must seamlessly fall back to llama-70b."""
+        """Primary qwen fails with 429 rate limit; system must seamlessly fall back to gpt-oss-120b."""
         # 1. Primary client fails with 429
         self.refiner.llm.chat = MagicMock(side_effect=Exception("429 rate_limit_exceeded: TPM limit reached"))
 
-        # 2. Mock _get_client to simulate llama-70b succeeding
-        llama_70b_client = MagicMock()
-        llama_70b_client.chat = MagicMock(return_value="Phản hồi thành công từ Llama-3.3-70b.")
+        # 2. Mock _get_client to simulate gpt-oss-120b succeeding
+        gpt_120b_client = MagicMock()
+        gpt_120b_client.chat = MagicMock(return_value="Phản hồi thành công từ GPT-OSS-120b.")
 
         def mock_get_client(model, key):
-            if model == "llama-3.3-70b-versatile":
-                return llama_70b_client
+            if model == "openai/gpt-oss-120b":
+                return gpt_120b_client
             client = MagicMock()
             client.chat = MagicMock(side_effect=Exception(f"{model} rate limit"))
             return client
@@ -118,19 +118,19 @@ class TestRound7QARefinerResilience(unittest.TestCase):
         history = [{"role": "user", "content": "Viết truyện trinh thám tâm lý"}]
         result = self.refiner.chat_interview(history)
 
-        self.assertEqual(result, "Phản hồi thành công từ Llama-3.3-70b.")
-        self.assertEqual(self.refiner.last_model_used, "llama-3.3-70b-versatile")
+        self.assertEqual(result, "Phản hồi thành công từ GPT-OSS-120b.")
+        self.assertEqual(self.refiner.last_model_used, "openai/gpt-oss-120b")
 
     def test_multi_model_fallback_tertiary_to_llama_8b(self):
-        """Both qwen and llama-70b fail; system must fall back to tertiary llama-8b."""
+        """Both qwen and gpt-oss-120b fail; system must fall back to tertiary gpt-oss-20b."""
         self.refiner.llm.chat = MagicMock(side_effect=Exception("qwen 429 rate limit"))
 
-        llama_8b_client = MagicMock()
-        llama_8b_client.chat = MagicMock(return_value="Phản hồi thành công từ Llama-3.1-8b.")
+        gpt_20b_client = MagicMock()
+        gpt_20b_client.chat = MagicMock(return_value="Phản hồi thành công từ GPT-OSS-20b.")
 
         def mock_get_client(model, key):
-            if model == "llama-3.1-8b-instant":
-                return llama_8b_client
+            if model == "openai/gpt-oss-20b":
+                return gpt_20b_client
             client = MagicMock()
             client.chat = MagicMock(side_effect=Exception(f"{model} failed"))
             return client
@@ -140,8 +140,8 @@ class TestRound7QARefinerResilience(unittest.TestCase):
         history = [{"role": "user", "content": "Viết truyện kỳ ảo phương Đông"}]
         result = self.refiner.chat_interview(history)
 
-        self.assertEqual(result, "Phản hồi thành công từ Llama-3.1-8b.")
-        self.assertEqual(self.refiner.last_model_used, "llama-3.1-8b-instant")
+        self.assertEqual(result, "Phản hồi thành công từ GPT-OSS-20b.")
+        self.assertEqual(self.refiner.last_model_used, "openai/gpt-oss-20b")
 
     def test_multi_key_fallback_on_auth_quota_error(self):
         """Primary key GROQ_API_KEY_BIBLE fails with 401/quota; falls back to GROQ_API_KEY."""
