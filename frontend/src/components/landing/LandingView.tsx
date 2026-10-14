@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { translations, Language } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { VietnamFlagHeroBackground } from "@/components/canvas/VietnamFlagHeroBackground";
+import { DongSonDrum } from "@/components/intro/DongSonDrum";
 
 interface Props {
   lang: Language;
@@ -108,23 +108,87 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
 
   return (
     <main
-      className="landing-backdrop min-h-screen px-2.5 py-2.5 sm:px-6 sm:py-6 text-neutral-900 bg-[#F4EFE6] font-sans relative overflow-hidden"
+      className="landing-backdrop min-h-screen text-neutral-900 bg-[#F4EFE6] font-sans relative overflow-hidden"
       style={{ backgroundColor: "#F4EFE6" }}
     >
       <div
-        className="landing-shell relative mx-auto max-w-[1440px] overflow-hidden rounded-2xl border border-neutral-300/80 bg-[#FAF7F2] shadow-2xl backdrop-blur-sm"
+        className="landing-shell relative mx-auto w-full overflow-hidden border-0 bg-[#FAF7F2] shadow-2xl"
         style={{ backgroundColor: "#FAF7F2" }}
       >
-        
-        {/* ========================================================= */}
-        {/* VIETNAM FLAG LIGHT RIBBONS GENERATIVE HERO BACKGROUND */}
-        {/* ========================================================= */}
-        <VietnamFlagHeroBackground />
+
+        <header className="relative z-20 bg-[#9b1c1f] text-white">
+          <nav
+            aria-label={lang === "vi" ? "Điều hướng chính" : "Main navigation"}
+            className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8 lg:px-10"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.dispatchEvent(new CustomEvent("narrai:replay-intro"));
+              }}
+              className="font-sans text-lg font-black tracking-[0.18em] text-white"
+              aria-label="NarrAI Home"
+            >
+              NARRAI
+            </button>
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} />
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="rounded-full bg-black px-6 py-2.5 text-xs font-bold text-white transition-colors hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#9b1c1f]"
+              >
+                {t.login}
+              </button>
+            </div>
+          </nav>
+        </header>
+
+        <section
+          aria-labelledby="landing-brand"
+          className="relative isolate overflow-hidden bg-[#9b1c1f] px-4 pb-8 pt-2 text-center text-[#ffe15c] sm:pb-12 sm:pt-4"
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,_rgba(255,209,92,0.18),_transparent_65%)]"
+          />
+          <div className="relative mx-auto flex h-[220px] max-w-5xl items-center justify-center overflow-hidden sm:h-[300px] lg:h-[340px]">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#541315]/35 via-transparent to-[#541315]/30" />
+            <DongSonDrum
+              size={560}
+              progress={1}
+              pulseProgress={0}
+              glowIntensity={0.85}
+            />
+          </div>
+          <h1
+            id="landing-brand"
+            className="relative -mt-1 font-sans text-[clamp(4.5rem,18vw,14rem)] font-black leading-[0.86] tracking-[0.035em] text-[#ffe15c] sm:-mt-3"
+          >
+            NARRAI
+          </h1>
+        </section>
+
+        <section className="bg-[#ffe15c] px-5 py-9 text-[#8e1b1d] sm:py-12">
+          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 sm:flex-row">
+            <h2 className="text-center font-sans text-3xl font-extrabold leading-tight sm:text-left sm:text-4xl lg:text-5xl">
+              {lang === "vi" ? "Hãy bắt đầu ngay hôm nay" : "Start today"}
+            </h2>
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="shrink-0 rounded-full bg-black px-6 py-3 text-xs font-bold text-white transition-transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 focus:ring-offset-[#ffe15c]"
+            >
+              {lang === "vi" ? "Hợp tác với chúng tôi" : "Create with NarrAI"}
+            </button>
+          </div>
+        </section>
 
         {/* ========================================================= */}
         {/* HEADER / NAVIGATION BAR */}
         {/* ========================================================= */}
-        <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-[#FAF7F2]/90 backdrop-blur-md">
+        <header className="hidden">
           <nav
             aria-label={lang === "vi" ? "Điều hướng chính" : "Main navigation"}
             className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3.5 sm:px-8 lg:px-10"
@@ -221,7 +285,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
         {/* ========================================================= */}
         {/* HERO SECTION */}
         {/* ========================================================= */}
-        <section className="relative z-10 mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-8 sm:pb-20 sm:pt-12 lg:px-10 lg:pb-24 lg:pt-14">
+        <section className="hidden">
           <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
             
             {/* Left: Headline, Value Proposition, Action CTAs */}
