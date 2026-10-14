@@ -1,0 +1,63 @@
+{
+  "id": "ngo-quyen",
+  "title": "Ngô Quyền & Đại Thắng Bạch Đằng Giang (938)",
+  "slug": "ngo-quyen",
+  "topic": "Đại thắng lịch sử chấm dứt ngàn năm Bắc thuộc",
+  "category": "Truyện Lịch Sử",
+  "genre": [
+    "Lịch sử",
+    "Chiến trận",
+    "Bạch Đằng",
+    "Chấm dứt Bắc thuộc",
+    "Anh hùng dân tộc"
+  ],
+  "summary": "Chiến công hiển hách của Tiền Ngô Vương Ngô Quyền với trận địa cọc gỗ ngầm huyền thoại trên sông Bạch Đằng năm 938, chôn vùi thủy quân Nam Hán, mở ra kỷ nguyên độc lập tự chủ lâu dài cho dân tộc Việt Nam.",
+  "content": "Năm 937, hào trưởng Dương Đình Nghệ bị phản tướng Kiều Công Tiễn sát hại để cướp quyền bính. Kiều Công Tiễn hoảng sợ trước sự phẫn nộ của quân dân, liền sai sứ sang cầu cứu vua Nam Hán. Nhận được cơ hội xâm lược, vua Nam Hán phong con trai là Vạn Vương Hoằng Tháo làm Giao Chỉ quận vương, thống lĩnh đại thủy quân ồ ạt tiến sang xâm lược nước ta.\n\nLúc bấy giờ, Ngô Quyền - vị tướng tài ba xuất thân đất Đường Lâm, rể của Dương Đình Nghệ - đang cai quản Ái Châu (Thanh Hóa). Nghe tin giặc phản trắc, ông lập tức khởi binh tiến ra Đại La, tiêu diệt Kiều Công Tiễn trừ mối họa bên trong, rồi gấp rút chuẩn bị kháng chiến chống ngoại xâm.\n\nBiết thủy quân Nam Hán sẽ tiến vào theo cửa sông Bạch Đằng, Ngô Quyền đã đưa ra một kế sách quân sự thiên tài: lợi dụng quy luật thủy triều lên xuống mạnh mẽ của vùng cửa biển. Ông hạ lệnh cho quân dân đẵn gỗ lim, gỗ táu từ rừng rậm vạt nhọn đầu, bịt sắt rồi cắm ngầm xuống lòng sông Bạch Đằng ở những khúc hiểm yếu.\n\nCuối năm 938, đoàn thuyền chiến khổng lồ do Hoằng Tháo chỉ huy hùng hổ vượt biển tiến vào cửa ngõ Bạch Đằng. Khi thủy triều đang lên cao ngập kín bãi cọc nhọn, Ngô Quyền cử các thuyền nhẹ ra khiêu chiến rồi giả vờ thua chạy. Tướng giặc Hoằng Tháo kiêu ngạo đốc thúc đại quân thúc thuyền đuổi riết theo sau.\n\nĐợi khi thuyền giặc lọt hẳn vào khúc sông hiểm yếu và thủy triều bắt đầu rút xuống cực nhanh, Ngô Quyền phất cờ hiệu lệnh phản công dữ dội. Từ hai bên bờ lau sậy, chiến thuyền Đại Việt lao ra đánh tạt sườn quân địch, nỏ cứng và tên lửa bắn xối xả. Thủy quân Nam Hán hoảng loạn quay đầu bỏ chạy, nhưng lúc này thủy triều đã cạn, những mũi cọc nhọn bọc sắt nhô lên đâm thủng đáy hàng loạt chiến thuyền giặc. Thuyền giặc vỡ toang, va vào nhau đắm chìm vô số, binh lính chết đuối nghẽn cả khúc sông. Tướng giặc Hoằng Tháo trúng tên tử trận tại chỗ.\n\nĐại thắng Bạch Đằng năm 938 đã đè bẹp hoàn toàn mộng xâm lăng của phong kiến phương Bắc, chính thức chấm dứt hơn 1.000 năm Bắc thuộc đen tối, mở ra kỷ nguyên độc lập, tự chủ huy hoàng cho non sông đất nước Việt Nam. Mùa xuân năm 939, Ngô Quyền lên ngôi vua, đóng đô ở Cổ Loa, lập nên nhà Ngô vẻ vang.",
+  "characters": [
+    {
+      "name": "Ngô Quyền",
+      "role": "lead",
+      "gender": "male",
+      "dna": "legendary Vietnamese King, imposing heroic stature, brilliant piercing eyes, majestic bronze helmet and battle armor, holding command sword overlooking river"
+    },
+    {
+      "name": "Hoằng Tháo",
+      "role": "antagonist",
+      "gender": "male",
+      "dna": "arrogant young Southern Han prince general, ornate heavy Chinese armor, frantic terrified face as his war fleet crashes"
+    },
+    {
+      "name": "Tướng lĩnh Đại Việt",
+      "role": "supporting",
+      "gender": "male",
+      "dna": "rugged courageous Vietnamese naval warrior, shirtless muscular torso with martial tattoos and red headband firing fire arrows"
+    }
+  ],
+  "world_setting": "Cửa sông Bạch Đằng mùa đông năm 938 cuồn cuộn sóng nước, bãi cọc gỗ bịt sắt ngầm và khói lửa chiến trận rực trời.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Dưới sự chỉ huy của Ngô Quyền, quân dân ngày đêm đẵn gỗ lim, cắm trận địa cọc ngầm bịt sắt xuống lòng sông Bạch Đằng.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, ancient Vietnamese warriors erecting massive iron-tipped wooden stakes into riverbed at low tide, disciplined historical military preparations, dynamic angle manga lineart",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Thuyền chiến Đại Việt dũng cảm khiêu chiến rồi giả rút lui dụ đoàn chiến hạm Nam Hán lọt sâu vào bẫy hiểm.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, agile Vietnamese war canoes luring massive enemy armadas into treacherous estuary at high tide, dramatic oceanic perspective",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Thủy triều rút nhanh, cọc nhọn đâm thủng hàng loạt tàu giặc, Ngô Quyền phất cờ tổng phản công như sấm sét.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, catastrophic scene of enemy war galleys impaled and splintered on sharp iron stakes as tide recedes, smoke and fire raging, high contrast manga screentone",
+      "layout_type": "tall"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Chiến thắng Bạch Đằng vang dội, Tiền Ngô Vương Ngô Quyền đặt dấu chấm hết cho ngàn năm Bắc thuộc, mở kỷ nguyên độc lập dân tộc.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, victorious Vietnamese King Ngo Quyen standing proud atop commanding flagship banner waving in wind over pacified Bach Dang river, majestic historic conclusion 2D manga lineart",
+      "layout_type": "wide"
+    }
+  ]
+}

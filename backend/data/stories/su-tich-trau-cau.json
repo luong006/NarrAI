@@ -1,0 +1,63 @@
+{
+  "id": "su-tich-trau-cau",
+  "title": "Sự tích Trầu Cau",
+  "slug": "su-tich-trau-cau",
+  "topic": "Truyền thuyết đạo nghĩa & Tình cảm gia đình",
+  "category": "Truyện Cổ Tích",
+  "genre": [
+    "Cổ tích",
+    "Truyền thuyết",
+    "Gia đình",
+    "Nghĩa vợ chồng",
+    "Tình anh em"
+  ],
+  "summary": "Câu chuyện cảm động ngàn đời về tình anh em ruột thịt keo sơn và nghĩa vợ chồng thủy chung son sắt hóa thân thành cây cau, tảng đá vôi và dây trầu quấn quýt, khởi nguồn cho phong tục ăn trầu thắm đượm văn hóa Việt.",
+  "content": "Vào đời vua Hùng thứ tư, có hai anh em sinh đôi tên là Cao Tân và Cao Lang, giống nhau như hai giọt nước, người ngoài khó lòng phân biệt được. Cha mẹ mất sớm, hai anh em cùng theo học cụ đồ họ Lưu. Thầy Lưu có một cô con gái xinh đẹp, dịu dàng đem lòng mến mộ đức độ của hai chàng trai. Nàng muốn kén người anh làm chồng nhưng không biết ai là anh ai là em. Một hôm nàng dọn một bát cháo cùng một đôi đũa mời hai người. Thấy Cao Lang kính cẩn nhường đũa cho Cao Tân ăn trước, nàng liền nhận ra và xin cha gả cho người anh.\n\nSau ngày cưới, hai vợ chồng chung sống êm ấm. Nhưng Cao Tân vì mải chăm lo hạnh phúc riêng nên tình cảm đối với em có phần lạt lẽo hơn trước. Cao Lang cảm thấy tủi thân nhưng không dám hé răng than thở. Một hôm hai anh em cùng đi làm đồng về muộn, Cao Lang vào nhà trước. Người vợ trong bóng hoàng hôn nhập nhoạng tưởng là chồng liền chạy ra ôm chầm lấy. Vừa lúc đó Cao Tân bước vào cửa, thấy cảnh tượng ấy liền sinh lòng ngờ vực, giận dỗi em.\n\nCao Lang vô cùng đau xót và uất ức. Chàng không muốn gia đình chia rẽ, liền lặng lẽ ra đi trong đêm tối. Chàng đi mãi, đi mãi về phương Nam cho đến khi gặp một con sông lớn nước chảy cuồn cuộn không sao qua được. Kiệt sức vì đói và thương tâm, chàng ngồi bên bờ sông ôm mặt khóc cho đến chết, hóa thành một tảng đá vôi trắng muốt.\n\nỞ nhà không thấy em đâu, Cao Tân hối hận khôn xiết. Chàng từ biệt vợ rồi lần theo dấu vết em đi tìm. Đi mãi đến bờ sông, thấy tảng đá vôi lạ lùng, chàng ngồi tựa vào đó khóc than rồi kiệt sức qua đời, hóa thành một thân cây thẳng đứng vút lên trời, trên ngọn có chùm quả hình trứng, đó là cây cau.\n\nNgười vợ ở nhà chờ đợi mỏi mòn, lòng dạ như thiêu như đốt, cũng quyết định khăn gói đi tìm chồng. Nàng đến bờ sông, thấy cây cau mọc cạnh tảng đá vôi liền ngồi dưới gốc cây than khóc. Nàng chết đi và biến thành một dây leo xanh biếc quấn chặt lấy thân cây cau, lá có vị cay nồng, đó là cây trầu không.\n\nÍt lâu sau, vua Hùng vi hành qua vùng ấy, nghe dân chúng kể lại câu chuyện tình cảm éo le và thủy chung son sắt của ba người, vua vô cùng xúc động. Vua sai hái một quả cau cùng một lá trầu nhai thử, rồi nhổ nước xuống tảng đá vôi thì thấy một dòng nước đỏ tươi thắm đượm và mùi thơm ngát tỏa ra. Vua phán: \"Thật là thứ gắn kết tình nghĩa keo sơn của anh em, vợ chồng!\". Từ đó, vua truyền cho muôn dân trồng trầu cau và dùng trong mọi dịp cưới hỏi, giỗ chạp, mở đầu cho tục ăn trầu thắm đượm tình nghĩa của dân tộc Việt Nam.",
+  "characters": [
+    {
+      "name": "Cao Tân",
+      "role": "lead",
+      "gender": "male",
+      "dna": "traditional young Vietnamese husband, honest handsome countenance, wearing brown linen peasant robe with woven headband"
+    },
+    {
+      "name": "Cao Lang",
+      "role": "lead",
+      "gender": "male",
+      "dna": "twin brother of Cao Tan, delicate compassionate eyes, loyal sensitive expression, wearing traditional rustic farmer attire"
+    },
+    {
+      "name": "Nàng Lưu Thị",
+      "role": "lead",
+      "gender": "female",
+      "dna": "virtuous beautiful Vietnamese wife, tearful expressive eyes, traditional rustic purple ao tu than and silk kerchief"
+    }
+  ],
+  "world_setting": "Bờ sông hoang sơ thời các vua Hùng, tảng đá vôi trắng muốt, hàng cau cao vút và giàn trầu xanh biếc ngát hương.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Cao Lang ôm mặt nghẹn ngào bên bờ sông vắng, trút hơi thở cuối cùng hóa thành tảng đá vôi ngàn năm.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, sorrowful young Vietnamese man weeping by surging riverbank in twilight, collapsing beside waters, emotional dramatic composition manga style",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Tìm được dấu vết em, Cao Tân gục đầu bên tảng đá, hóa thành cây cau vươn thẳng hiên ngang giữa đất trời.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, remorseful brother embracing ancient white limestone rock, supernatural mist rising transforming into tall slender areca palm tree, dramatic screentone",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Người vợ tìm đến bờ sông, hóa thành dây trầu xanh biếc quấn chặt lấy thân cau trong tình nghĩa thủy chung son sắt.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, devoted Vietnamese maiden leaning against tall palm tree, betel vine entwining tenderly around trunk, spiritual emotional aura manga screentone",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Vua Hùng nâng lá trầu quả cau, xúc động ngợi ca biểu tượng tình nghĩa thiêng liêng lưu truyền muôn đời.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, ancient revered Vietnamese Hung King in ornate tribal bronze headdress inspecting betel leaf and areca nut, admiring crimson stain, regal historical manga lineart",
+      "layout_type": "wide"
+    }
+  ]
+}

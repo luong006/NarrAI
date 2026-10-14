@@ -2,30 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ClientPortal } from '@/components/portals/ClientPortal';
-import {
-  X,
-  Send,
-  Search,
-  MessageSquare,
-  User,
-  Check,
-  CheckCheck,
-  Sparkles,
-  Smile,
-  Shield,
-  Clock,
-} from 'lucide-react';
-
-/**
- * MessengerModal (Layer 3 Glassmorphism Open Messenger)
- *
- * Architecture:
- * - Free 1-1 Chat between ANY users in the system (Open Messenger)
- * - User Directory search with instant filter
- * - Conversation management, unread indicators, and sent timestamps
- * - Wrapped in ClientPortal with isolation: isolate & z-index: 60
- * - Multi-plane responsive layout (contact list + message thread)
- */
 
 export interface MessengerModalProps {
   isOpen: boolean;
@@ -58,43 +34,91 @@ const INITIAL_CONTACTS: ChatContact[] = [
     id: 'c1',
     username: 'hoang_nam',
     fullName: 'Hoàng Nam (Manga Artist)',
-    avatarColor: 'bg-[#805342]',
+    avatarColor: 'bg-neutral-800',
     status: 'online',
-    lastMessage: 'Nét vẽ khung tranh số 4 rất ấn tượng bạn nhé!',
-    lastTime: '10:32',
+    lastMessage: 'Tôi vừa xem 4 khung tranh vừa tạo, nét vẽ rất khớp với bản thảo!',
+    lastTime: '10:42',
     unreadCount: 1,
   },
   {
     id: 'c2',
-    username: 'mai_anh',
-    fullName: 'Mai Anh (Biên tập viên)',
-    avatarColor: 'bg-emerald-500',
+    username: 'minh_chau',
+    fullName: 'Minh Châu (Biên kịch Dã sử)',
+    avatarColor: 'bg-neutral-700',
     status: 'online',
-    lastMessage: 'Đoạn mở đầu In Medias Res đọc cuốn lắm!',
+    lastMessage: 'Cốt truyện Thánh Gióng ở hồi 2 nên đẩy cao trào trận địa.',
     lastTime: 'Hôm qua',
     unreadCount: 0,
   },
   {
     id: 'c3',
-    username: 'quoc_tuan',
-    fullName: 'Quốc Tuấn (Tác giả Light Novel)',
-    avatarColor: 'bg-amber-500',
+    username: 'tuan_anh_99',
+    fullName: 'Tuấn Anh',
+    avatarColor: 'bg-neutral-600',
     status: 'offline',
-    lastMessage: 'Bạn có tham gia sự kiện sáng tác tuần này không?',
-    lastTime: '2 ngày trước',
-    unreadCount: 0,
-  },
-  {
-    id: 'c4',
-    username: 'thu_ha',
-    fullName: 'Thu Hà (Độc giả)',
-    avatarColor: 'bg-rose-500',
-    status: 'offline',
-    lastMessage: 'Hóng chương mới của bộ truyện lịch sử ạ.',
+    lastMessage: 'Bạn có nhận hợp tác chuyển thể Light Novel thành truyện tranh không?',
     lastTime: '3 ngày trước',
     unreadCount: 0,
   },
 ];
+
+const INITIAL_MESSAGES: Record<string, MessageItem[]> = {
+  c1: [
+    {
+      id: 'm1',
+      sender: 'hoang_nam',
+      text: 'Chào bạn! Mình theo dõi bộ truyện chữ của bạn từ chương 1.',
+      timestamp: '10:30',
+      isMe: false,
+    },
+    {
+      id: 'm2',
+      sender: 'me',
+      text: 'Cảm ơn Nam nhé! Mình đang dùng Comic AI Agent để chuyển sang khung tranh.',
+      timestamp: '10:35',
+      isMe: true,
+    },
+    {
+      id: 'm3',
+      sender: 'hoang_nam',
+      text: 'Tôi vừa xem 4 khung tranh vừa tạo, nét vẽ rất khớp với bản thảo!',
+      timestamp: '10:42',
+      isMe: false,
+    },
+  ],
+  c2: [
+    {
+      id: 'm2_1',
+      sender: 'minh_chau',
+      text: 'Chào đồng nghiệp! Tư liệu lịch sử thời Tiền Lê bạn lấy từ đâu thế?',
+      timestamp: '14:20',
+      isMe: false,
+    },
+    {
+      id: 'm2_2',
+      sender: 'me',
+      text: 'Mình dùng kho dữ liệu lorebook và Story Bible tích hợp sẵn của NarrAI.',
+      timestamp: '14:25',
+      isMe: true,
+    },
+    {
+      id: 'm2_3',
+      sender: 'minh_chau',
+      text: 'Cốt truyện Thánh Gióng ở hồi 2 nên đẩy cao trào trận địa.',
+      timestamp: 'Hôm qua',
+      isMe: false,
+    },
+  ],
+  c3: [
+    {
+      id: 'm3_1',
+      sender: 'tuan_anh_99',
+      text: 'Bạn có nhận hợp tác chuyển thể Light Novel thành truyện tranh không?',
+      timestamp: '3 ngày trước',
+      isMe: false,
+    },
+  ],
+};
 
 export function MessengerModal({
   isOpen,
@@ -104,133 +128,108 @@ export function MessengerModal({
 }: MessengerModalProps) {
   const [contacts, setContacts] = useState<ChatContact[]>(INITIAL_CONTACTS);
   const [selectedContact, setSelectedContact] = useState<ChatContact>(INITIAL_CONTACTS[0]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [inputText, setInputText] = useState<string>('');
+  const [messagesMap, setMessagesMap] = useState<Record<string, MessageItem[]>>(INITIAL_MESSAGES);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [inputText, setInputText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<Record<string, MessageItem[]>>({
-    c1: [
-      {
-        id: 'm1',
-        sender: 'hoang_nam',
-        text: 'Chào bạn! Mình vừa xem qua bản thảo manga của bạn.',
-        timestamp: '10:28',
-        isMe: false,
-      },
-      {
-        id: 'm2',
-        sender: currentUser,
-        text: 'Chào bạn Nam, cảm ơn bạn đã quan tâm! Bạn thấy phần nét vẽ thế nào?',
-        timestamp: '10:30',
-        isMe: true,
-      },
-      {
-        id: 'm3',
-        sender: 'hoang_nam',
-        text: 'Nét vẽ khung tranh số 4 rất ấn tượng bạn nhé! Phối cảnh chiều sâu rất tốt.',
-        timestamp: '10:32',
-        isMe: false,
-      },
-    ],
-    c2: [
-      {
-        id: 'm4',
-        sender: 'mai_anh',
-        text: 'Đoạn mở đầu In Medias Res đọc cuốn lắm!',
-        timestamp: 'Hôm qua',
-        isMe: false,
-      },
-    ],
-  });
+  const activeMessages = messagesMap[selectedContact.id] || [];
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, selectedContact]);
+    if (isOpen) {
+      scrollToBottom();
+      setContacts((prev) =>
+        prev.map((c) => (c.id === selectedContact.id ? { ...c, unreadCount: 0 } : c))
+      );
+    }
+  }, [isOpen, selectedContact.id, activeMessages.length]);
 
   if (!isOpen) return null;
 
   const filteredContacts = contacts.filter(
     (c) =>
-      c.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+      c.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const activeMessages = messages[selectedContact.id] || [];
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = inputText.trim();
-    if (!trimmed) return;
+    if (!inputText.trim()) return;
 
     const newMsg: MessageItem = {
       id: `msg_${Date.now()}`,
       sender: currentUser,
-      text: trimmed,
+      text: inputText.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true,
     };
 
-    setMessages((prev) => ({
+    setMessagesMap((prev) => ({
       ...prev,
       [selectedContact.id]: [...(prev[selectedContact.id] || []), newMsg],
     }));
 
-    setInputText('');
-
-    // Update last message in contact list
     setContacts((prev) =>
       prev.map((c) =>
         c.id === selectedContact.id
-          ? { ...c, lastMessage: trimmed, lastTime: 'Vừa xong' }
+          ? {
+              ...c,
+              lastMessage: inputText.trim(),
+              lastTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }
           : c
       )
     );
+
+    setInputText('');
   };
 
   return (
     <ClientPortal zIndex={60}>
-      <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-md overflow-hidden">
+      <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-md overflow-hidden select-none font-sans">
         <div
           role="dialog"
           aria-modal="true"
           aria-label={lang === 'vi' ? 'Hộp thoại Open Messenger' : 'Open Messenger Dialog'}
-          className="relative w-full max-w-4xl h-[86vh] max-h-[720px] bg-[#fbf8f1] dark:bg-[#302a25] border border-[#e2d8cb] dark:border-[#50453c] rounded-xl shadow-xl overflow-hidden flex flex-col md:flex-row"
+          className="relative w-full max-w-4xl h-[86vh] max-h-[720px] bg-[#FAF7F2] border border-neutral-300/80 rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row text-neutral-900"
         >
           {/* Left Panel: Contact List & Directory Search */}
-          <div className="w-full md:w-80 border-r border-[#ded5c9] dark:border-[#50453c] flex flex-col shrink-0 bg-[#f4f0e8] dark:bg-[#28231f]">
+          <div className="w-full md:w-80 border-r border-neutral-300/80 flex flex-col shrink-0 bg-[#FAF7F2] font-mono">
             {/* Header */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="p-4 border-b border-neutral-300/80 flex items-center justify-between bg-[#FAF7F2]">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-[#805342] dark:text-[#dfb79b]" />
-                <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                <span className="px-1.5 py-0.5 rounded border border-neutral-300 bg-white text-xs font-bold uppercase text-neutral-800">
+                  [TIN NHẮN]
+                </span>
+                <h2 className="font-bold text-xs sm:text-sm uppercase tracking-wider text-neutral-900">
                   Open Messenger
                 </h2>
               </div>
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#eee4d7] text-[#704331] dark:bg-[#45352c] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-neutral-300 bg-[#F5EFE6] text-neutral-800">
                 {lang === 'vi' ? 'Toàn mạng' : 'Open'}
               </span>
             </div>
 
             {/* Search Box */}
-            <div className="p-3">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={lang === 'vi' ? 'Tìm tác giả, độc giả...' : 'Search creators, readers...'}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-slate-900 dark:text-white"
-                />
-              </div>
+            <div className="p-3 bg-[#FAF7F2]">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={lang === 'vi' ? 'Tìm tác giả, độc giả...' : 'Search creators, readers...'}
+                className="w-full px-3 py-1.5 rounded text-xs bg-white border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500"
+              />
             </div>
 
             {/* Contact List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+            <div className="flex-1 overflow-y-auto divide-y divide-neutral-200/80">
               {filteredContacts.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400">
-                  {lang === 'vi' ? 'Không tìm thấy người dùng phù hợp' : 'No users found'}
+                <div className="p-6 text-center text-xs text-neutral-500">
+                  {lang === 'vi' ? 'Không tìm thấy người dùng' : 'No users found'}
                 </div>
               ) : (
                 filteredContacts.map((contact) => {
@@ -242,37 +241,34 @@ export function MessengerModal({
                       onClick={() => setSelectedContact(contact)}
                       className={`w-full p-3 flex items-start gap-3 text-left transition-colors ${
                         isSelected
-                          ? 'bg-[#fbf8f1] dark:bg-[#302a25] border-l-4 border-[#805342] shadow-xs'
-                          : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
+                          ? 'bg-white font-bold border-l-4 border-l-neutral-900 shadow-xs'
+                          : 'hover:bg-[#F5EFE6]'
                       }`}
                     >
                       <div className="relative shrink-0">
                         <div
-                          className={`w-9 h-9 rounded-full ${contact.avatarColor} text-white font-bold flex items-center justify-center text-xs shadow-sm`}
+                          className={`w-8 h-8 rounded-full ${contact.avatarColor} text-white font-bold flex items-center justify-center text-xs shadow-xs`}
                         >
                           {contact.fullName.charAt(0)}
                         </div>
-                        {contact.status === 'online' && (
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-                        )}
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 truncate">
+                          <span className="text-xs truncate text-neutral-900 font-medium">
                             {contact.fullName}
                           </span>
-                          <span className="text-[10px] text-slate-400 shrink-0 ml-1">
+                          <span className="text-[10px] text-neutral-500 shrink-0 ml-1">
                             {contact.lastTime}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        <p className="text-[11px] text-neutral-500 truncate mt-0.5 font-sans">
                           {contact.lastMessage}
                         </p>
                       </div>
 
                       {contact.unreadCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-700 text-white shrink-0">
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-neutral-900 text-white shrink-0">
                           {contact.unreadCount}
                         </span>
                       )}
@@ -284,9 +280,9 @@ export function MessengerModal({
           </div>
 
           {/* Right Panel: Active Chat Thread */}
-          <div className="flex-1 flex flex-col h-full bg-[#fbf8f1] dark:bg-[#302a25] min-w-0">
+          <div className="flex-1 flex flex-col h-full bg-[#FAF7F2] min-w-0">
             {/* Thread Header */}
-            <div className="h-14 px-5 border-b border-[#ded5c9] dark:border-[#50453c] flex items-center justify-between shrink-0 bg-[#fbf8f1] dark:bg-[#302a25]">
+            <div className="h-14 px-5 border-b border-neutral-300/80 flex items-center justify-between shrink-0 bg-[#FAF7F2] font-mono">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className={`w-8 h-8 rounded-full ${selectedContact.avatarColor} text-white font-bold flex items-center justify-center text-xs shrink-0`}
@@ -294,23 +290,18 @@ export function MessengerModal({
                   {selectedContact.fullName.charAt(0)}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                  <div className="font-bold text-xs sm:text-sm text-neutral-900 truncate">
                     {selectedContact.fullName}
                   </div>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                    <span
-                      className={`inline-block w-1.5 h-1.5 rounded-full ${
-                        selectedContact.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'
-                      }`}
-                    />
+                  <div className="text-[10px] text-neutral-500 flex items-center gap-1.5">
                     <span>
                       {selectedContact.status === 'online'
                         ? lang === 'vi'
-                          ? 'Đang trực tuyến'
-                          : 'Online'
+                          ? '[Online]'
+                          : '[Online]'
                         : lang === 'vi'
-                        ? 'Ngoại tuyến'
-                        : 'Offline'}
+                        ? '[Offline]'
+                        : '[Offline]'}
                     </span>
                     <span>• @{selectedContact.username}</span>
                   </div>
@@ -320,32 +311,32 @@ export function MessengerModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                className="px-2 py-0.5 text-xs font-mono font-bold uppercase rounded border border-neutral-300 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
                 aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                [ĐÓNG]
               </button>
             </div>
 
             {/* Messages Thread */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/20">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FAF7F2]/60">
               {activeMessages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-xs ${
+                    className={`max-w-[78%] px-4 py-2.5 rounded text-xs sm:text-sm shadow-xs ${
                       msg.isMe
-                        ? 'bg-[#714033] text-[#fffaf0] rounded-tr-xs'
-                        : 'bg-[#f1ece3] dark:bg-[#3a312b] text-slate-900 dark:text-slate-100 border border-[#e2d8cb] dark:border-[#50453c] rounded-tl-xs'
+                        ? 'bg-neutral-900 text-white font-sans'
+                        : 'bg-white border border-neutral-300 text-neutral-900 font-sans'
                     }`}
                   >
                     <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
-                  <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400 px-1">
+                  <div className="flex items-center gap-1 mt-1 text-[10px] font-mono text-neutral-500 px-1">
                     <span>{msg.timestamp}</span>
-                    {msg.isMe && <CheckCheck className="w-3 h-3 text-[#9f684a]" />}
+                    {msg.isMe && <span>[✓✓]</span>}
                   </div>
                 </div>
               ))}
@@ -355,7 +346,7 @@ export function MessengerModal({
             {/* Message Input Box */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 border-t border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] flex items-center gap-2"
+              className="p-3 border-t border-neutral-300/80 bg-[#FAF7F2] flex items-center gap-2 font-mono"
             >
               <input
                 type="text"
@@ -366,15 +357,14 @@ export function MessengerModal({
                     ? `Nhắn tin cho @${selectedContact.username}...`
                     : `Message @${selectedContact.username}...`
                 }
-                className="flex-1 px-4 py-2 rounded-xl text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-slate-900 dark:text-white"
+                className="flex-1 px-4 py-2 rounded text-xs bg-white border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-500"
               />
               <button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="px-4 py-2 rounded-lg bg-[#714033] hover:bg-[#573229] text-[#fffaf0] font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-40 shadow-xs"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{lang === 'vi' ? 'Gửi' : 'Send'}</span>
+                [Gửi]
               </button>
             </form>
           </div>

@@ -1,0 +1,63 @@
+{
+  "id": "dinh-bo-linh",
+  "title": "Đinh Bộ Lĩnh & Cờ Lau Tập Trận Dẹp Loạn 12 Sứ Quân",
+  "slug": "dinh-bo-linh",
+  "topic": "Tuổi thơ cờ lau tập trận & Thống nhất đất nước",
+  "category": "Truyện Lịch Sử",
+  "genre": [
+    "Lịch sử",
+    "Đinh Bộ Lĩnh",
+    "Cờ lau tập trận",
+    "Đại Cồ Việt",
+    "Thống nhất"
+  ],
+  "summary": "Từ trò chơi cờ lau tập trận của cậu bé chăn trâu đất Hoa Lư đến chiến công dẹp yên loạn 12 sứ quân, thống nhất giang sơn, xưng Hoàng đế và lập nên nước Đại Cồ Việt độc lập tự chủ.",
+  "content": "Sau khi Ngô Quyền qua đời năm 944, triều đình Cổ Loa rơi vào cảnh tranh quyền đoạt vị hỗn loạn. Các thế lực hào trưởng nổi dậy khắp nơi, chia cắt giang sơn thành 12 vùng cát cứ, sử gọi là Loạn 12 Sứ quân. Đất nước lâm vào cảnh chiến tranh liên miên, ruộng đồng bỏ hoang, nhân dân lầm than cơ cực.\n\nLúc bấy giờ ở động Hoa Lư (Ninh Bình), có cậu bé Đinh Bộ Lĩnh, mồ côi cha từ nhỏ, ngày ngày cùng lũ trẻ trong làng đi chăn trâu. Ngay từ thuở nhỏ, Đinh Bộ Lĩnh đã bộc lộ tư chất thủ lĩnh thông minh, can đảm và có tài thao lược xuất chúng.\n\nCậu thường bẻ bông lau làm cờ hiệu, chia lũ trẻ chăn trâu thành hai đạo quân tập trận đánh nhau. Đạo quân do Đinh Bộ Lĩnh chỉ huy luôn giành chiến thắng nhờ mưu mẹo tài tình. Mỗi lần thắng trận, lũ trẻ lại khoanh tay làm kiệu công kênh Đinh Bộ Lĩnh trên vai, rước đi như rước vua. Nhận thấy tài năng và lòng nhân ái của cậu, thanh niên và hào kiệt trong khắp vùng lũ lượt tìm về dưới trướng.\n\nLớn lên, khi đất nước chìm trong loạn lạc, Đinh Bộ Lĩnh cùng các bạn thiếu thời như Đinh Điền, Nguyễn Bặc, Lưu Cơ, Trịnh Tú quyết chí dựng cờ khởi nghĩa tại căn cứ hiểm trở Thung Lau - Hoa Lư.\n\nNhờ địa hình đầm lầy, hang động hiểm trở của vùng non nước Tràng An cùng tài dụng binh khéo léo, kết hợp giữa thu phục nhân tâm và tấn công thần tốc, Đinh Bộ Lĩnh lần lượt đánh bại và quy phục từng sứ quân một. Đi đến đâu, quân của ông cũng được nhân dân ủng hộ, tiếp tế lương thảo nồng nhiệt. Ông đánh đâu thắng đó, được quân dân tôn xưng là Vạn Thắng Vương.\n\nChỉ trong một thời gian ngắn, Đinh Bộ Lĩnh đã dẹp yên hoàn toàn 12 sứ quân, thu non sông về một mối, chấm dứt thời kỳ loạn lạc đẫm máu.\n\nNăm 968, Vạn Thắng Vương lên ngôi Hoàng đế, lấy hiệu là Đinh Tiên Hoàng, đặt tên nước là Đại Cồ Việt, đóng đô tại Hoa Lư non nước hùng vĩ. Việc xưng Hoàng đế (ngang hàng với thiên tử phương Bắc) và đặt quốc hiệu riêng đã khẳng định ý chí tự cường, độc lập vững chắc của dân tộc Việt Nam.",
+  "characters": [
+    {
+      "name": "Đinh Bộ Lĩnh",
+      "role": "lead",
+      "gender": "male",
+      "dna": "young resolute Vietnamese hero, charismatic piercing eyes, athletic build, holding reed banner atop stone boulder surrounded by admiring childhood followers"
+    },
+    {
+      "name": "Đinh Điền",
+      "role": "supporting",
+      "gender": "male",
+      "dna": "loyal warrior brother of Dinh Bo Linh, strong muscular build, traditional ancient Vietnamese leather battle vest"
+    },
+    {
+      "name": "Quân sĩ Hoa Lư",
+      "role": "supporting",
+      "gender": "male",
+      "dna": "fierce loyal warrior of the limestone mountain redoubt, wielding iron sword and wooden shield"
+    }
+  ],
+  "world_setting": "Vùng thung lũng đá vôi Hoa Lư huyền thoại, rừng lau trắng bạt ngàn và kinh đô Hoa Lư đắp bằng vách núi tự nhiên kỳ vĩ.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Cậu bé Đinh Bộ Lĩnh cưỡi trâu, tay phất cờ lau chỉ huy lũ trẻ tập trận giữa cánh đồng thung lũng Hoa Lư.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, spirited young Vietnamese boy riding water buffalo waving white reed plume flag, childhood comrades playing war games among limestone karsts, charming historical manga style",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Lũ trẻ chăn trâu khoanh tay làm kiệu công kênh Đinh Bộ Lĩnh trong tiếng reo hò rộn rã non sông.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, village children carrying future emperor on their interlocked arms like a regal palanquin, majestic karst mountains backdrop, high contrast lineart",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Vạn Thắng Vương Đinh Bộ Lĩnh xuất trận dũng mãnh, đánh tan và quy phục các sứ quân chia cắt giang sơn.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, mature heroic commander Dinh Bo Linh in iron scale armor charging across battlefield leading disciplined army, uniting fractured lands, dynamic battle manga screentone",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Đinh Tiên Hoàng lên ngôi Hoàng đế, định đô Hoa Lư, lập nên nước Đại Cồ Việt thái bình thịnh trị.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, grand coronation of Emperor Dinh Tien Hoang in ancient stone mountain citadel of Hoa Lu, proudly proclaiming independence and Great Dai Co Viet empire, historic climax 2D manga lineart",
+      "layout_type": "wide"
+    }
+  ]
+}

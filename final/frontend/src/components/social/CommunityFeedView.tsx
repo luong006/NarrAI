@@ -7,27 +7,7 @@ import { api } from "@/lib/api";
 import { InteractiveTiltCard } from "@/components/cards/InteractiveTiltCard";
 import { LikeButtonMorphicon } from "@/components/morphicons/LikeButtonMorphicon";
 import { useToast } from "@/lib/toast";
-import { 
-  BookOpen, 
-  MessageSquare, 
-  Eye, 
-  Sparkles, 
-  RefreshCw, 
-  X, 
-  Send, 
-  Clock, 
-  Palette, 
-  ChevronRight,
-  ChevronLeft,
-  Search,
-  Maximize2,
-  Bookmark,
-  Share2,
-  Compass,
-  UserPlus,
-  UserCheck,
-  CornerDownRight
-} from "lucide-react";
+
 import { tfjsRecommender } from "@/services/tfjsRecommender";
 
 
@@ -558,34 +538,34 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
   }, [activePost?.comments]);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f2eee7] dark:bg-[#211d19] text-[#342722] dark:text-[#eee6d9]">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#FAF7F2] text-neutral-900">
 
       {/* Facebook-style top bar: search + genre chips */}
-      <div className="shrink-0 bg-[#faf7f0] dark:bg-[#28231f] border-b border-[#ded5c9] dark:border-[#50453c] px-4 py-2.5">
+      <div className="shrink-0 bg-[#FAF7F2]/90 backdrop-blur-md border-b border-neutral-300/80 px-4 py-2.5">
         {/* Row 1: search */}
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <div className="flex-1 relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <span className="text-[10px] font-mono text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">[TÌM]</span>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={lang === "vi" ? "Tìm theo tag, thể loại hoặc nội dung..." : "Search tags, genres, or story content..."}
-              className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#f2eee7] dark:bg-[#332c26] text-[#342722] dark:text-[#eee6d9] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9f684a]/30 transition-all"
+              className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-neutral-300/80 bg-white text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 shadow-xs transition-all"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white">
-                <X className="w-3.5 h-3.5" />
+              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700">
+                <span className="text-xs font-mono font-bold">[x]</span>
               </button>
             )}
           </div>
           <button
             onClick={() => fetchFeed(feedType)}
             disabled={loading}
-            className="p-2 rounded-lg bg-[#f2eee7] dark:bg-[#332c26] text-slate-500 hover:bg-[#e9dfd0] dark:hover:bg-[#45352c] transition-colors shrink-0"
+            className="p-2 rounded-lg bg-white border border-neutral-300/80 text-neutral-700 hover:bg-neutral-100 shadow-xs transition-colors shrink-0"
             title={lang === "vi" ? "Làm mới" : "Refresh"}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <span className="text-xs font-mono font-bold">[Làm mới]</span>
           </button>
         </div>
 
@@ -599,8 +579,8 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               onClick={() => setFeedType(tab.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                 feedType === tab.id
-                  ? "bg-[#714033] text-[#fffaf0] shadow-sm"
-                  : "bg-[#f2eee7] dark:bg-[#332c26] text-slate-600 dark:text-slate-400 hover:bg-[#e9dfd0] dark:hover:bg-[#45352c]"
+                  ? "bg-neutral-900 text-white shadow-xs"
+                  : "bg-white border border-neutral-300/80 text-neutral-700 hover:bg-neutral-100"
               }`}
             >
               {lang === "vi" ? tab.vi : tab.en}
@@ -614,36 +594,36 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               type="button"
               onClick={() => setIsGenreMenuOpen((open) => !open)}
               aria-expanded={isGenreMenuOpen}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#f2eee7] dark:bg-[#332c26] text-slate-700 dark:text-slate-200 hover:bg-[#e9dfd0] dark:hover:bg-[#45352c] flex items-center gap-2"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-neutral-300/80 text-neutral-800 hover:bg-neutral-100 shadow-xs flex items-center gap-2"
             >
               {lang === "vi" ? "Thể loại & tag" : "Genres & tags"}
               {selectedGenres.length > 0 && (
-                <span className="rounded-full bg-[#714033] text-white px-1.5 min-w-5 text-center">
+                <span className="rounded-full bg-neutral-900 text-white px-1.5 min-w-5 text-center">
                   {selectedGenres.length}
                 </span>
               )}
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isGenreMenuOpen ? "rotate-90" : ""}`} />
+              <span className="font-mono text-xs">{isGenreMenuOpen ? "[^]" : "[v]"}</span>
             </button>
             {selectedGenres.map((genre) => (
               <button
                 key={genre}
                 onClick={() => setSelectedGenres((prev) => prev.filter((item) => item !== genre))}
-                className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#eee4d7] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] flex items-center gap-1"
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FAF7F2] border border-neutral-300/80 text-neutral-800 flex items-center gap-1 shadow-xs"
               >
-                {genre}<X className="w-3 h-3" />
+                {genre} [x]
               </button>
             ))}
             {(searchQuery || selectedGenres.length > 0) && (
               <button
                 onClick={() => { setSearchQuery(""); setSelectedGenres([]); }}
-                className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-red-600 hover:bg-red-50"
               >
                 {lang === "vi" ? "Xóa bộ lọc" : "Clear filters"}
               </button>
             )}
           </div>
           {isGenreMenuOpen && (
-            <div className="absolute left-0 top-full z-30 mt-2 w-full max-w-xl max-h-[65vh] overflow-y-auto rounded-xl border border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] p-4 shadow-lg">
+            <div className="absolute left-0 top-full z-30 mt-2 w-full max-w-xl max-h-[65vh] overflow-y-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 shadow-lg">
               {genreGroups.map((group) => (
                 <fieldset key={group.labelEn} className="mb-4 last:mb-0">
                   <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -657,7 +637,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                           key={option.id}
                           className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs cursor-pointer transition-colors ${
                             checked
-                              ? "bg-[#eee4d7] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b]"
+                              ? "bg-[#eee4d7] dark:bg-[#45352c] text-black dark:text-white dark:text-black dark:text-white"
                               : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                           }`}
                         >
@@ -688,14 +668,14 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
         <div className="max-w-[680px] mx-auto">
           {loading && posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <RefreshCw className="w-8 h-8 animate-spin text-[#9f684a] mb-3" />
+              <div className="font-mono text-xs font-bold mb-3">[ĐANG TẢI DỮ LIỆU...]</div>
               <p className="text-sm font-medium">
                 {lang === "vi" ? "Đang tải các tác phẩm đề xuất..." : "Loading recommended stories..."}
               </p>
             </div>
           ) : posts.length === 0 ? (
             <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8">
-              <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <div className="font-mono text-sm font-bold text-neutral-400 mx-auto mb-3">[CHƯA CÓ TÁC PHẨM]</div>
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">
                 {feedType === "following"
                   ? (lang === "vi" ? "Bảng tin theo dõi đang trống" : "Your following feed is empty")
@@ -713,7 +693,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
             </div>
           ) : filteredPosts.length === 0 ? (
             <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8">
-              <Search className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <div className="font-mono text-sm font-bold text-neutral-400 mx-auto mb-3">[KHÔNG TÌM THẤY]</div>
               <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">
                 {lang === "vi"
                   ? `Không tìm thấy tác phẩm nào khớp với "${searchQuery}"`
@@ -726,7 +706,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               </p>
               <button
                 onClick={() => setSearchQuery("")}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-[#fffaf0] bg-[#714033] hover:bg-[#573229] transition-colors shadow-sm"
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-[#fffaf0] bg-black dark:bg-white hover:bg-[#573229] transition-colors shadow-sm"
               >
                 {lang === "vi" ? "Xóa tìm kiếm" : "Clear search"}
               </button>
@@ -736,24 +716,24 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               {filteredPosts.map((post) => (
                 <div
                   key={post.id}
-                  className="rounded-xl bg-[#fbf8f1] dark:bg-[#302a25] border border-[#e2d8cb] dark:border-[#50453c] shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                  className="rounded-xl bg-white border border-neutral-300/80 shadow-xs hover:shadow-md transition-shadow overflow-hidden text-neutral-900"
                 >
                   {/* Facebook-style Feed Post */}
 
                   {/* Post Header: avatar + author + follow */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-[#714033] text-[#fffaf0] flex items-center justify-center font-semibold text-sm shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-neutral-900 text-white flex items-center justify-center font-semibold text-sm shrink-0">
                         {(post.author?.full_name || post.author?.username || "A")[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                        <div className="text-sm font-bold text-neutral-950 truncate">
                           {post.author?.full_name || post.author?.username || "Tác giả"}
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
                           <span>{post.genre || "Tiểu thuyết"}</span>
-                          {post.is_fanfiction && <span className="px-1.5 py-0 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-semibold">Fanfic</span>}
-                          {post.is_cold_start_exploration && <span className="px-1.5 py-0 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-semibold">{lang === "vi" ? "Mới" : "New"}</span>}
+                          {post.is_fanfiction && <span className="px-1.5 py-0 rounded bg-purple-100 text-purple-700 font-semibold">Fanfic</span>}
+                          {post.is_cold_start_exploration && <span className="px-1.5 py-0 rounded bg-amber-100 text-amber-800 font-semibold">{lang === "vi" ? "Mới" : "New"}</span>}
                         </div>
                       </div>
                     </div>
@@ -765,14 +745,14 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                         disabled={followLoadingIds.has(post.author?.id || post.user_id || 0)}
                         className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all shrink-0 ${
                           followingAuthorIds.has(post.author?.id || post.user_id || 0)
-                            ? "text-[#704331] dark:text-[#dfb79b] bg-[#eee4d7] dark:bg-[#45352c] border border-[#ddc9b5] dark:border-[#665044]"
-                            : "text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-[#714033] hover:text-white border border-slate-200 dark:border-slate-700"
+                            ? "text-neutral-900 bg-[#FAF7F2] border border-neutral-300/80"
+                            : "text-neutral-700 bg-neutral-100 hover:bg-neutral-900 hover:text-white border border-neutral-200"
                         }`}
                       >
                         {followingAuthorIds.has(post.author?.id || post.user_id || 0) ? (
-                          <><UserCheck className="w-3 h-3" /><span>{lang === "vi" ? "Đang theo dõi" : "Following"}</span></>
+                          <span>[{lang === "vi" ? "Đang theo dõi" : "Following"}]</span>
                         ) : (
-                          <><UserPlus className="w-3 h-3" /><span>{lang === "vi" ? "Theo dõi" : "Follow"}</span></>
+                          <span>[{lang === "vi" ? "+ Theo dõi" : "+ Follow"}]</span>
                         )}
                       </button>
                     )}
@@ -780,7 +760,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
                   {/* Cover image (nếu có) */}
                   {post.cover_image_url && (
-                    <div className="w-full h-52 overflow-hidden bg-slate-950 cursor-pointer" onClick={() => handleOpenReader(post)}>
+                    <div className="w-full h-52 overflow-hidden bg-black cursor-pointer" onClick={() => handleOpenReader(post)}>
                       <img
                         src={post.cover_image_url}
                         alt={post.title}
@@ -793,11 +773,11 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   <div className="px-4 pt-3 pb-2">
                     <h3
                       onClick={() => handleOpenReader(post)}
-                      className="text-base font-bold text-slate-900 dark:text-white hover:text-[#805342] dark:hover:text-[#dfb79b] transition-colors cursor-pointer mb-1.5 leading-snug"
+                      className="text-base font-bold text-neutral-950 hover:underline transition-colors cursor-pointer mb-1.5 leading-snug"
                     >
                       {post.title}
                     </h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-serif line-clamp-3">
+                    <p className="text-sm text-neutral-700 leading-relaxed font-serif line-clamp-3">
                       {sanitizeDisplayProse(post.content_snippet)}
                     </p>
                   </div>
@@ -809,7 +789,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                         <button
                           key={idx}
                           onClick={() => setSearchQuery(tag)}
-                          className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#f1ece3] dark:bg-[#332c26] text-slate-500 dark:text-slate-400 hover:bg-[#eee4d7] dark:hover:bg-[#45352c] hover:text-[#704331] dark:hover:text-[#dfb79b]"
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#FAF7F2] text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
                         >
                           #{tag}
                         </button>
@@ -823,13 +803,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       className="px-4 pb-3 cursor-pointer"
                       onClick={() => { setComicReaderPost(post); setComicPanelIndex(0); setIsComicReaderOpen(true); }}
                     >
-                      <div className="flex gap-1.5 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                      <div className="flex gap-1.5 rounded-xl overflow-hidden border border-neutral-300/80">
                         {post.comic_panels.slice(0, 3).map((panel, idx) => (
-                          <div key={idx} className="flex-1 aspect-square bg-slate-950 overflow-hidden">
+                          <div key={idx} className="flex-1 aspect-square bg-black overflow-hidden">
                             <img src={panel.image_url} alt={`panel ${idx+1}`} className="w-full h-full object-cover filter grayscale" />
                           </div>
                         ))}
-                        <div className="flex-none w-12 bg-[#714033] flex items-center justify-center">
+                        <div className="flex-none w-12 bg-neutral-900 flex items-center justify-center">
                           <span className="text-white text-[10px] font-bold text-center leading-tight px-1">
                             {post.comic_panels.length}<br/>panels
                           </span>
@@ -839,7 +819,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   )}
 
                   {/* Action bar: like, comment, share, views, read */}
-                  <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="px-4 py-2.5 border-t border-neutral-200/80 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <LikeButtonMorphicon
                         liked={post.liked_by_me}
@@ -849,39 +829,39 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       />
                       <button
                         onClick={() => handleOpenReader(post)}
-                        className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-[#805342] dark:hover:text-[#dfb79b] transition-colors"
+                        className="flex items-center gap-1 text-xs text-neutral-600 hover:text-neutral-950 transition-colors"
                       >
-                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span className="font-mono text-[10px]">[BL]</span>
                         <span>{post.comments_count}</span>
                       </button>
                       <button
                         onClick={() => void handleSharePost(post)}
-                        className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-[#805342] dark:hover:text-[#dfb79b] transition-colors"
+                        className="flex items-center gap-1 text-xs text-neutral-600 hover:text-neutral-950 transition-colors"
                         aria-label={lang === "vi" ? "Chia sẻ bài viết" : "Share post"}
                       >
-                        <Share2 className="w-3.5 h-3.5" />
+                        <span className="font-mono text-[10px]">[Chia sẻ]</span>
                         <span>{lang === "vi" ? "Chia sẻ" : "Share"}</span>
                       </button>
-                      <div className="flex items-center gap-1 text-xs text-slate-400">
-                        <Eye className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-1 text-xs text-neutral-400">
+                        <span className="font-mono text-[10px]">[Xem]</span>
                         <span>{post.views_count}</span>
                       </div>
                     </div>
                     <button
                       onClick={() => handleOpenReader(post)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#704331] dark:text-[#dfb79b] hover:bg-[#eee4d7] dark:hover:bg-[#45352c] flex items-center gap-1 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-900 hover:bg-neutral-100 flex items-center gap-1 transition-colors"
                     >
                       <span>{lang === "vi" ? "Đọc tiếp" : "Read"}</span>
-                      <ChevronRight className="w-3 h-3" />
+                      <span className="font-mono text-xs">-&gt;</span>
                     </button>
                   </div>
                 </div>
               ))}
               {hasMore && (
-                <div ref={loadMoreSentinelRef} className="flex justify-center py-6 text-xs text-slate-400">
+                <div ref={loadMoreSentinelRef} className="flex justify-center py-6 text-xs text-neutral-400">
                   {loadingMore && (
                     <span className="flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span className="font-mono text-xs">[•••]</span>
                       {lang === "vi" ? "Đang tải thêm tác phẩm..." : "Loading more stories..."}
                     </span>
                   )}
@@ -894,21 +874,21 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
       {/* Reader Modal (Layer 3 Glassmorphism Overlay) */}
       {isReadingModalOpen && activePost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-scaleIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#FAF7F2] text-neutral-900 rounded-2xl shadow-2xl border border-neutral-300/80 flex flex-col overflow-hidden animate-scaleIn">
             
             {/* Modal Header */}
-            <div className="h-16 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-slate-900/70">
+            <div className="h-16 border-b border-neutral-300/80 px-6 flex items-center justify-between shrink-0 bg-[#FAF7F2]/90">
               <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-                <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#eee4d7] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044] shrink-0">
+                <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white text-neutral-800 border border-neutral-300/80 shrink-0">
                   {activePost.genre || "Tác phẩm"}
                 </span>
                 {activePost.is_fanfiction && (
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-600 text-white shrink-0">
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-700 text-white shrink-0">
                     Fanfiction
                   </span>
                 )}
-                <h2 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                <h2 className="text-base font-bold text-neutral-950 truncate">
                   {activePost.title}
                 </h2>
               </div>
@@ -920,16 +900,16 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       onReadInEditor(sanitizeDisplayProse(activePost.story_full_text || activePost.content_snippet), activePost.title);
                       handleCloseReader();
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-900 bg-white border border-neutral-300/80 hover:bg-neutral-100 shadow-xs transition-colors"
                   >
                     {lang === "vi" ? "Mở trong Editor" : "Open in Editor"}
                   </button>
                 )}
                 <button
                   onClick={handleCloseReader}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-950 hover:bg-white transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <span className="font-mono text-xs font-bold">[Đóng]</span>
                 </button>
               </div>
             </div>
@@ -963,18 +943,18 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                           disabled={followLoadingIds.has(activePost.author?.id || activePost.user_id || 0)}
                           className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all ${
                             followingAuthorIds.has(activePost.author?.id || activePost.user_id || 0)
-                              ? "bg-[#eee4d7] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] border border-[#ddc9b5] dark:border-[#665044]"
-                              : "bg-[#714033] text-[#fffaf0] hover:bg-[#573229]"
+                              ? "bg-[#eee4d7] dark:bg-[#45352c] text-black dark:text-white dark:text-black dark:text-white border border-[#ddc9b5] dark:border-[#665044]"
+                              : "bg-black text-white dark:bg-white dark:text-black hover:bg-[#573229]"
                           }`}
                         >
                           {followingAuthorIds.has(activePost.author?.id || activePost.user_id || 0) ? (
                             <>
-                              <UserCheck className="w-2.5 h-2.5" />
+                              
                               <span>{lang === "vi" ? "Đang theo dõi" : "Following"}</span>
                             </>
                           ) : (
                             <>
-                              <UserPlus className="w-2.5 h-2.5" />
+                              
                               <span>{lang === "vi" ? "Theo dõi" : "Follow"}</span>
                             </>
                           )}
@@ -995,13 +975,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   />
                   <button
                     onClick={() => void handleSharePost(activePost)}
-                    className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-[#eee4d7] dark:hover:bg-[#45352c] hover:text-[#704331] dark:hover:text-[#dfb79b] transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                    className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-[#eee4d7] dark:hover:bg-[#45352c] hover:text-black dark:text-white dark:hover:text-black dark:text-white transition-colors flex items-center gap-1.5 text-xs font-semibold"
                   >
-                    <Share2 className="w-4 h-4" />
+                    <span className="font-mono text-xs">[Chia sẻ]</span>
                     <span>{lang === "vi" ? "Chia sẻ" : "Share"}</span>
                   </button>
                   <div className="flex items-center gap-1.5">
-                    <Eye className="w-4 h-4 text-slate-400" />
+                    <span className="font-mono text-xs">[Xem]</span>
                     <span>{activePost.views_count} lượt xem</span>
                   </div>
                 </div>
@@ -1012,11 +992,11 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                 <div className="space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-[#805342]" />
+                      <span className="font-mono text-xs font-bold">[MANGA]</span>
                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                         {lang === "vi" ? "Chuyển thể Manga Comic" : "Manga Comic Adaptation"}
                       </h3>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#eee4d7] dark:bg-[#45352c] text-[#704331] dark:text-[#dfb79b] font-mono font-semibold">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#eee4d7] dark:bg-[#45352c] text-black dark:text-white dark:text-black dark:text-white font-mono font-semibold">
                         {activePost.comic_panels.length} {lang === "vi" ? "khung" : "panels"}
                       </span>
                     </div>
@@ -1027,10 +1007,10 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                         setComicPanelIndex(0);
                         setIsComicReaderOpen(true);
                       }}
-                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[#fffaf0] bg-[#714033] hover:bg-[#573229] shadow-sm flex items-center gap-1.5 transition-colors"
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[#fffaf0] bg-black dark:bg-white hover:bg-[#573229] shadow-sm flex items-center gap-1.5 transition-colors"
                       title={lang === "vi" ? "Đọc truyện tranh toàn màn hình" : "Open Fullscreen Comic Reader"}
                     >
-                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span className="font-mono text-xs font-bold">[TOÀN MÀN HÌNH]</span>
                       <span>{lang === "vi" ? "Đọc toàn màn hình" : "Fullscreen Reader"}</span>
                     </button>
                   </div>
@@ -1055,7 +1035,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                           />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/panel:opacity-100 flex items-center justify-center transition-opacity">
                             <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/95 text-slate-900 shadow-md flex items-center gap-1">
-                              <Maximize2 className="w-3 h-3" />
+                              <span className="font-mono text-xs font-bold">[+]</span>
                               <span>{lang === "vi" ? "Phóng to" : "Enlarge"}</span>
                             </span>
                           </div>
@@ -1074,13 +1054,13 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               {/* Prose Novel Text */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-brand-600" />
+                  <span className="font-mono text-xs font-bold">[BẢN THẢO]</span>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                     {lang === "vi" ? "Toàn văn tác phẩm" : "Full Story Prose"}
                   </h3>
                 </div>
 
-                <div className="bg-[#FAF8F5] dark:bg-slate-950/60 rounded-xl p-6 sm:p-8 border border-[#E8E4DC] dark:border-slate-800">
+                <div className="bg-neutral-100 dark:bg-neutral-900 rounded-xl p-6 sm:p-8 border border-neutral-200 dark:border-neutral-800">
                   <div className="font-serif text-slate-900 dark:text-slate-100 text-base sm:text-lg leading-[1.85] tracking-wide whitespace-pre-wrap">
                     {sanitizeDisplayProse(activePost.story_full_text || activePost.content_snippet)}
                   </div>
@@ -1090,7 +1070,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               {/* Reader Comments Section */}
               <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-5">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-[#805342]" />
+                  <span className="font-mono text-xs font-bold">[BÌNH LUẬN]</span>
                   <span>
                     {lang === "vi"
                       ? `Bình luận độc giả (${activePost.comments_count || 0})`
@@ -1100,9 +1080,9 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
 
                 {/* Replying Banner if user clicked reply */}
                 {replyingToComment && (
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#f1ece3] dark:bg-[#332c26] border border-[#e2d8cb] dark:border-[#50453c] rounded-lg text-xs text-[#704331] dark:text-[#dfb79b]">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-[#f1ece3] dark:bg-[#332c26] border border-[#e2d8cb] dark:border-[#50453c] rounded-lg text-xs text-black dark:text-white dark:text-black dark:text-white">
                     <div className="flex items-center gap-1.5">
-                      <CornerDownRight className="w-3.5 h-3.5" />
+                      <span className="font-mono text-xs">[↳]</span>
                       <span>
                         {lang === "vi"
                           ? `Đang trả lời @${replyingToComment.author}`
@@ -1114,7 +1094,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                       className="p-1 rounded-md hover:bg-[#eee4d7] dark:hover:bg-[#45352c] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                       title={lang === "vi" ? "Hủy trả lời" : "Cancel reply"}
                     >
-                      <X className="w-3 h-3" />
+                      <span className="font-mono text-xs font-bold">[x]</span>
                     </button>
                   </div>
                 )}
@@ -1134,14 +1114,14 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                             : "Leave your thoughts about this story...")
                     }
                     rows={2}
-                    className="flex-1 rounded-lg border border-[#ded5c9] dark:border-[#50453c] bg-[#fbf8f1] dark:bg-[#302a25] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-[#9f684a] transition-colors resize-none"
+                    className="flex-1 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-[#9f684a] transition-colors resize-none"
                   />
                   <button
                     onClick={handleAddComment}
                     disabled={!commentInput.trim() || commentSubmitting}
-                    className="px-4 py-3 rounded-lg bg-[#714033] hover:bg-[#573229] text-[#fffaf0] text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 shadow-sm"
+                    className="px-4 py-3 rounded-lg bg-black hover:bg-neutral-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 shadow-sm"
                   >
-                    <Send className="w-3.5 h-3.5" />
+                    <span className="font-mono text-xs font-bold">[Gửi]</span>
                     <span>{lang === "vi" ? "Gửi" : "Post"}</span>
                   </button>
                 </div>
@@ -1169,9 +1149,9 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                           <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/50 dark:border-slate-700/50">
                             <button
                               onClick={() => setReplyingToComment({ id: comm.id, author: comm.full_name || comm.username })}
-                              className="text-[11px] font-semibold text-[#805342] dark:text-[#dfb79b] hover:underline flex items-center gap-1"
+                              className="text-[11px] font-semibold text-black dark:text-white dark:text-black dark:text-white hover:underline flex items-center gap-1"
                             >
-                              <CornerDownRight className="w-3 h-3" />
+                              <span className="font-mono text-xs">[↳]</span>
                               <span>{lang === "vi" ? "Trả lời" : "Reply"}</span>
                             </button>
                           </div>
@@ -1237,7 +1217,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
               {/* Top Navigation Bar */}
               <div className="h-16 px-6 flex items-center justify-between border-b border-white/10 bg-black/60 shrink-0">
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#714033] text-[#fffaf0] shrink-0">
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-black text-white dark:bg-white dark:text-black shrink-0">
                     Manga Comic
                   </span>
                   <h2 className="text-sm sm:text-base font-bold text-white truncate max-w-md">
@@ -1262,7 +1242,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                     title={lang === "vi" ? "Đóng trình xem truyện (Esc)" : "Close reader (Esc)"}
                   >
                     <span className="hidden sm:inline text-xs text-white/50 font-mono">Esc</span>
-                    <X className="w-5 h-5" />
+                    <span className="font-mono text-xs font-bold">[Đóng]</span>
                   </button>
                 </div>
               </div>
@@ -1280,7 +1260,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   className="z-10 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/15 shadow-xl shrink-0"
                   title={lang === "vi" ? "Trang trước (←)" : "Previous page (←)"}
                 >
-                  <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
+                  <span className="font-mono text-sm font-bold">[&lt; Trước]</span>
                 </button>
 
                 {/* Single Panel Card with Transition */}
@@ -1315,7 +1295,7 @@ export function CommunityFeedView({ lang, currentUsername, onReadInEditor }: Pro
                   className="z-10 w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all backdrop-blur-sm border border-white/15 shadow-xl shrink-0"
                   title={lang === "vi" ? "Trang sau (→)" : "Next page (→)"}
                 >
-                  <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
+                  <span className="font-mono text-sm font-bold">[Sau &gt;]</span>
                 </button>
               </div>
 

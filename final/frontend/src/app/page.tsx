@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Coins, FileText, LogOut, MessageSquare, MoreHorizontal, Palette, PlusCircle, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { Language, translations } from "@/lib/i18n";
@@ -24,6 +23,9 @@ import { StoryEditor } from "@/components/editor/StoryEditor";
 import { AICopilotPanel } from "@/components/editor/AICopilotPanel";
 import { ComicViewer } from "@/components/comic/ComicViewer";
 import { NeuralVisualPreview } from "@/components/canvas/NeuralVisualPreview";
+import { StoryPipelineView } from "@/components/admin/StoryPipelineView";
+import { CharacterLoreStudio } from "@/components/lore/CharacterLoreStudio";
+import { MotionStudio } from "@/components/motion/MotionStudio";
 
 
 /**
@@ -174,7 +176,7 @@ export default function WorkspacePage() {
   const [user, setUser] = useState<{ username: string; fullName?: string } | null>(null);
   const [lang, setLang] = useState<Language>("vi");
   const [view, setView] = useState<"landing" | "workspace">("landing");
-  const [activeTab, setActiveTab] = useState<"setup" | "editor" | "comic" | "posts">("setup");
+  const [activeTab, setActiveTab] = useState<"setup" | "editor" | "comic" | "lore" | "motion" | "posts" | "pipeline">("setup");
 
   const t = translations[lang] || translations.vi;
   const { toast } = useToast();
@@ -184,6 +186,9 @@ export default function WorkspacePage() {
     if (/^\d+$/.test(params.get("post") || "") && params.get("tab") === "posts") {
       setView("workspace");
       setActiveTab("posts");
+    } else if (params.get("tab") === "pipeline") {
+      setView("workspace");
+      setActiveTab("pipeline");
     }
   }, []);
 
@@ -835,7 +840,7 @@ export default function WorkspacePage() {
     ]);
   };
 
-  // Adapt to Comic
+  // Adapt to Comic (First 4 panels - Free as part of 12-panel free tier)
   const handleAdaptToComic = async () => {
     if (!storyContent || storyContent.length < 10) {
       toast.warning(t.comic_need_content);
@@ -848,22 +853,11 @@ export default function WorkspacePage() {
       return;
     }
 
-    // Refresh số dư thực từ server trước khi trừ — tránh stale state
-    let freshBalance = coinBalance;
-    try {
-      const balRes = await api.getCoinsBalance();
-      if (typeof balRes.coins === "number") freshBalance = balRes.coins;
-      else if (typeof balRes.balance === "number") freshBalance = balRes.balance;
-      setCoinBalance(freshBalance);
-    } catch { /* giữ nguyên balance cũ */ }
-
-    if (freshBalance < 16) {
-      toast.error(lang === "vi"
-        ? `Số xu không đủ. Hiện có ${freshBalance} xu, cần 16 xu để chuyển thể Manga.`
-        : `Not enough coins. You have ${freshBalance}, need 16 for Manga.`);
-      setIsCoinModalOpen(true);
-      return;
-    }
+    // Refresh coin balance in background
+    api.getCoinsBalance().then((bal) => {
+      if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+      else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+    }).catch(() => {});
 
     setComicLoading(true);
     setActiveTab("comic");
@@ -874,11 +868,11 @@ export default function WorkspacePage() {
         setComicId(res.comic_id || null);
         setComicPanels(res.panels);
         setComicHasMore(!!res.has_more);
-        // Refresh balance sau khi trừ 16 xu
-        api.getCoinsBalance().then((b) => {
-          if (typeof b.coins === "number") setCoinBalance(b.coins);
-          else if (typeof b.balance === "number") setCoinBalance(b.balance);
-        });
+        toast.success(
+          lang === "vi" 
+            ? "Đã tạo thành công 4 khung tranh đầu tiên! (Miễn phí: 4/12 khung)" 
+            : "First 4 panels generated successfully! (Free: 4/12 panels)"
+        );
       } else {
         const errMsg = res.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Failed to adapt to comic");
         toast.error(errMsg);
@@ -895,9 +889,32 @@ export default function WorkspacePage() {
     }
   };
 
-  // Continue Comic
+  // Continue Comic (4 panels per batch; 100 coins per batch after 12 panels)
   const handleContinueComic = async () => {
     if (!comicId) return;
+
+    const existingCount = comicPanels.length;
+    // If user has reached 12 panels (3 batches of 4), enforce 100 coin check
+    if (existingCount >= 12) {
+      let freshBalance = coinBalance;
+      try {
+        const balRes = await api.getCoinsBalance();
+        if (typeof balRes.coins === "number") freshBalance = balRes.coins;
+        else if (typeof balRes.balance === "number") freshBalance = balRes.balance;
+        setCoinBalance(freshBalance);
+      } catch { /* retain existing */ }
+
+      if (freshBalance < 100) {
+        toast.error(
+          lang === "vi"
+            ? `Bạn đã dùng hết 12 khung tranh miễn phí. Cần 100 xu để tạo tiếp 4 khung tranh. Số dư hiện tại: ${freshBalance} xu.`
+            : `You have used all 12 free panels. 100 coins required for the next 4 panels. Current balance: ${freshBalance} coins.`
+        );
+        setIsCoinModalOpen(true);
+        return;
+      }
+    }
+
     setComicLoading(true);
     try {
       const res = await api.continueComic(comicId, storyContent);
@@ -905,11 +922,67 @@ export default function WorkspacePage() {
         toast.info(t.comic_no_new_text);
         setComicHasMore(false);
       } else if (res.status === "success" && res.panels) {
-        setComicPanels((prev) => [...prev, ...(res.panels || [])]);
+        const newPanels = [...comicPanels, ...(res.panels || [])];
+        setComicPanels(newPanels);
         setComicHasMore(!!res.has_more);
+        // Refresh balance if coins were spent
+        api.getCoinsBalance().then((bal) => {
+          if (typeof bal.coins === "number") setCoinBalance(bal.coins);
+          else if (typeof bal.balance === "number") setCoinBalance(bal.balance);
+        }).catch(() => {});
+
+        toast.success(
+          lang === "vi"
+            ? `Đã tạo thêm 4 khung tranh tiếp theo! (Tổng cộng: ${newPanels.length} khung)`
+            : `Generated next 4 panels! (Total: ${newPanels.length} panels)`
+        );
+      } else {
+        if ((res as any).code === 402 || (res as any).error_code === "INSUFFICIENT_COINS") {
+          toast.error(
+            res.message || (lang === "vi" ? "Số xu không đủ 100 xu để tạo tiếp 4 khung tranh." : "Insufficient coins (100 required).")
+          );
+          setIsCoinModalOpen(true);
+        } else {
+          toast.error(res.message || (lang === "vi" ? "Không thể tạo tiếp khung tranh." : "Failed to continue comic."));
+        }
       }
     } catch (e: any) {
       toast.error(e.message || t.unknown_error);
+    } finally {
+      setComicLoading(false);
+    }
+  };
+
+  const handleLoadStoryFromPipeline = (content: string, title?: string, id?: number | null) => {
+    setStoryContent(content);
+    if (id) setStoryId(id);
+    setActiveTab("editor");
+    toast.success(lang === "vi" ? `Đã mở "${title || 'tác phẩm'}" trong Bản thảo!` : `Loaded "${title || 'story'}" to Editor!`);
+  };
+
+  const handleAdaptStoryFromPipeline = async (content: string, title?: string, id?: number | null) => {
+    setStoryContent(content);
+    if (id) setStoryId(id);
+    setActiveTab("comic");
+    setComicLoading(true);
+    setComicPanels([]);
+    setComicId(null);
+    try {
+      const res = await api.generateComic(id || null, content.substring(0, 30000));
+      if (res.status === "success" && res.panels) {
+        setComicId(res.comic_id || null);
+        setComicPanels(res.panels);
+        setComicHasMore(!!res.has_more);
+        toast.success(
+          lang === "vi" 
+            ? `Đã khởi tạo truyện tranh "${title || 'tác phẩm'}" thành công!` 
+            : `Manga adapted successfully for "${title || 'story'}"!`
+        );
+      } else {
+        toast.warning(res.message || (lang === "vi" ? "Không thể chuyển thể truyện tranh lúc này" : "Failed to generate comic"));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || (lang === "vi" ? "Lỗi chuyển thể truyện tranh" : "Comic adaptation error"));
     } finally {
       setComicLoading(false);
     }
@@ -925,6 +998,10 @@ export default function WorkspacePage() {
           onOpenAuth={() => setIsAuthOpen(true)}
           onExploreCommunity={() => {
             setActiveTab("posts");
+            setView("workspace");
+          }}
+          onNavigateStudio={(studio) => {
+            setActiveTab(studio);
             setView("workspace");
           }}
         />
@@ -964,7 +1041,7 @@ export default function WorkspacePage() {
 
   // If on workspace view
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#f2eee7] dark:bg-[#211d19] text-[#342722] dark:text-[#eee6d9] relative z-10 lg:flex-row">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#FAF7F2] text-neutral-900 relative z-10 lg:flex-row">
       {/* Left Sidebar */}
       <Sidebar
         username={user?.username || ""}
@@ -1064,6 +1141,32 @@ export default function WorkspacePage() {
             onContinueComic={handleContinueComic}
             onAdaptToComic={handleAdaptToComic}
             loadingMore={comicLoading}
+            coinBalance={coinBalance}
+            onOpenCoinModal={() => setIsCoinModalOpen(true)}
+          />
+        )}
+
+        {activeTab === "lore" && (
+          <CharacterLoreStudio
+            lang={lang}
+            onSelectCharacterForPrompt={(desc) => {
+              setStoryContent((prev) => (prev ? prev + "\n\n" + desc : desc));
+              setActiveTab("editor");
+              toast.success(
+                lang === "vi"
+                  ? "Đã nạp thiết lập nhân vật vào Bản thảo Story!"
+                  : "Character profile loaded into Story Lab!"
+              );
+            }}
+            onBackToEditor={() => setActiveTab("editor")}
+          />
+        )}
+
+        {activeTab === "motion" && (
+          <MotionStudio
+            lang={lang}
+            onBackToManga={() => setActiveTab("comic")}
+            onBackToEditor={() => setActiveTab("editor")}
           />
         )}
 
@@ -1074,60 +1177,69 @@ export default function WorkspacePage() {
             onReadInEditor={handleReadStoryInEditor}
           />
         )}
+
+        {activeTab === "pipeline" && (
+          <div className="flex-1 flex min-h-0 min-w-0 overflow-y-auto">
+            <StoryPipelineView
+              lang={lang}
+              onLoadStoryToEditor={handleLoadStoryFromPipeline}
+              onAdaptStoryToComic={handleAdaptStoryFromPipeline}
+            />
+          </div>
+        )}
       </main>
 
       <nav
         aria-label={lang === "vi" ? "Điều hướng không gian sáng tác" : "Workspace navigation"}
-        className="grid h-16 shrink-0 grid-cols-5 border-t border-[#ded5c9] bg-[#faf7f0] px-1 pb-[env(safe-area-inset-bottom)] dark:border-[#50453c] dark:bg-[#28231f] lg:hidden"
+        className="grid h-16 shrink-0 grid-cols-5 border-t border-neutral-300/80 bg-[#FAF7F2] px-1 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
-        <button type="button" onClick={handleNewStory} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${activeTab === "setup" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
-          <PlusCircle className="h-4 w-4" />
+        <button type="button" onClick={handleNewStory} className={`flex flex-col items-center justify-center gap-1 text-[11px] font-mono ${activeTab === "setup" ? "font-bold text-neutral-900" : "text-neutral-500"}`}>
+          <span className="text-xs">[+]</span>
           {lang === "vi" ? "Tạo mới" : "Create"}
         </button>
-        <button type="button" onClick={() => { setActiveTab("editor"); setIsMobileCopilotOpen(false); }} disabled={!storyContent} className={`flex flex-col items-center justify-center gap-1 text-[10px] disabled:opacity-40 ${activeTab === "editor" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
-          <FileText className="h-4 w-4" />
+        <button type="button" onClick={() => { setActiveTab("editor"); setIsMobileCopilotOpen(false); }} disabled={!storyContent} className={`flex flex-col items-center justify-center gap-1 text-[11px] font-mono disabled:opacity-40 ${activeTab === "editor" ? "font-bold text-neutral-900" : "text-neutral-500"}`}>
+          <span className="text-xs">[ED]</span>
           {lang === "vi" ? "Bản thảo" : "Draft"}
         </button>
-        <button type="button" onClick={() => { setActiveTab("comic"); setIsMobileCopilotOpen(false); }} disabled={comicPanels.length === 0} className={`flex flex-col items-center justify-center gap-1 text-[10px] disabled:opacity-40 ${activeTab === "comic" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
-          <Palette className="h-4 w-4" />
+        <button type="button" onClick={() => { setActiveTab("comic"); setIsMobileCopilotOpen(false); }} disabled={comicPanels.length === 0} className={`flex flex-col items-center justify-center gap-1 text-[11px] font-mono disabled:opacity-40 ${activeTab === "comic" ? "font-bold text-neutral-900" : "text-neutral-500"}`}>
+          <span className="text-xs">[MG]</span>
           Manga
         </button>
-        <button type="button" onClick={() => { setActiveTab("posts"); setIsMobileCopilotOpen(false); }} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${activeTab === "posts" ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
-          <Users className="h-4 w-4" />
+        <button type="button" onClick={() => { setActiveTab("posts"); setIsMobileCopilotOpen(false); }} className={`flex flex-col items-center justify-center gap-1 text-[11px] font-mono ${activeTab === "posts" ? "font-bold text-neutral-900" : "text-neutral-500"}`}>
+          <span className="text-xs">[SOC]</span>
           {lang === "vi" ? "Cộng đồng" : "Community"}
         </button>
-        <button type="button" onClick={() => setIsMobileMenuOpen((open) => !open)} aria-expanded={isMobileMenuOpen} className={`flex flex-col items-center justify-center gap-1 text-[10px] ${isMobileMenuOpen ? "font-semibold text-[#714033] dark:text-[#dfb79b]" : "text-slate-500 dark:text-slate-400"}`}>
-          <MoreHorizontal className="h-4 w-4" />
+        <button type="button" onClick={() => setIsMobileMenuOpen((open) => !open)} aria-expanded={isMobileMenuOpen} className={`flex flex-col items-center justify-center gap-1 text-[11px] font-mono ${isMobileMenuOpen ? "font-bold text-neutral-900" : "text-neutral-500"}`}>
+          <span className="text-xs">[•••]</span>
           {lang === "vi" ? "Thêm" : "More"}
         </button>
       </nav>
 
       {isMobileMenuOpen && (
         <>
-        <button type="button" aria-label={lang === "vi" ? "Đóng menu" : "Close menu"} onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 z-30 bg-black/10 lg:hidden" />
-        <div className="fixed bottom-[4.5rem] right-3 z-40 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-[#e2d8cb] bg-[#fbf8f1] p-3 shadow-xl dark:border-[#50453c] dark:bg-[#302a25] lg:hidden">
-          <div className="mb-2 flex items-center justify-between border-b border-[#ded5c9] pb-2 dark:border-[#50453c]">
-            <span className="text-xs font-semibold text-[#342722] dark:text-[#eee6d9]">{user?.fullName || user?.username}</span>
-            <button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-[#eee4d7] dark:text-slate-300 dark:hover:bg-[#45352c]">
-              <LogOut className="h-3.5 w-3.5" />
-              {lang === "vi" ? "Đăng xuất" : "Log out"}
+        <button type="button" aria-label={lang === "vi" ? "Đóng menu" : "Close menu"} onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 z-30 bg-black/40 lg:hidden" />
+        <div className="fixed bottom-[4.5rem] right-3 z-40 w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-neutral-300/80 bg-[#FAF7F2] p-3 shadow-xl lg:hidden text-neutral-900">
+          <div className="mb-2 flex items-center justify-between border-b border-neutral-300/80 pb-2">
+            <span className="text-xs font-semibold text-neutral-900 font-mono">{user?.fullName || user?.username}</span>
+            <button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="rounded px-2 py-1 text-xs font-mono border border-neutral-300 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors">
+              Thoát
             </button>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => { setIsCoinModalOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-[#704331] dark:bg-[#332c26] dark:text-[#dfb79b]">
-              <Coins className="h-4 w-4" />
-              {coinBalance} {lang === "vi" ? "Xu" : "Coins"}
+            <button type="button" onClick={() => { setIsCoinModalOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded border border-neutral-300 bg-white p-2 text-[11px] font-mono text-neutral-900 shadow-xs">
+              <span className="font-bold">{coinBalance}</span>
+              <span>{lang === "vi" ? "Xu" : "Coins"}</span>
             </button>
-            <button type="button" onClick={() => { setIsHistoryOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-slate-700 dark:bg-[#332c26] dark:text-slate-200">
-              <BookOpen className="h-4 w-4" />
-              {lang === "vi" ? "Lịch sử" : "History"}
+            <button type="button" onClick={() => { setIsHistoryOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded border border-neutral-300 bg-white p-2 text-[11px] font-mono text-neutral-900 shadow-xs">
+              <span>[Sử]</span>
+              <span>{lang === "vi" ? "Lịch sử" : "History"}</span>
             </button>
-            <button type="button" onClick={() => { setIsMessengerOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded-lg bg-[#f1ece3] p-2 text-[11px] text-slate-700 dark:bg-[#332c26] dark:text-slate-200">
-              <MessageSquare className="h-4 w-4" />
-              {lang === "vi" ? "Tin nhắn" : "Messages"}
+            <button type="button" onClick={() => { setIsMessengerOpen(true); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-1 rounded border border-neutral-300 bg-white p-2 text-[11px] font-mono text-neutral-900 shadow-xs">
+              <span>[Tin]</span>
+              <span>{lang === "vi" ? "Tin nhắn" : "Messages"}</span>
             </button>
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex items-center justify-between pt-2 border-t border-neutral-300/80">
             <LanguageSwitcher currentLang={lang} onLanguageChange={handleLanguageChange} />
             <ThemeToggle lang={lang} />
           </div>

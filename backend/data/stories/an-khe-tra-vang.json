@@ -1,0 +1,69 @@
+{
+  "id": "an-khe-tra-vang",
+  "title": "Ăn Khế Trả Vàng (Cây Khế)",
+  "slug": "an-khe-tra-vang",
+  "topic": "Truyện cổ tích đạo đức & Nhân quả",
+  "category": "Truyện cổ tích & Thần thoại",
+  "genre": [
+    "Cổ tích",
+    "Đạo đức",
+    "Nhân quả",
+    "Bài học cuộc sống"
+  ],
+  "summary": "Truyện cổ tích về hai anh em chia gia tài, người em nhân hậu được chim thần chở đi lấy vàng nhờ cây khế, còn người anh tham lam phải nhận kết cục bi đát.",
+  "content": "Ngày xưa, có hai anh em mồ côi cha mẹ. Khi trưởng thành, người anh tham lam chiếm hết ruộng vườn nhà cửa trâu bò, chỉ chia cho người em một túp lều rách nát và một cây khế ngọt cằn cỗi ở góc vườn.\n\nVợ chồng người em không một lời oán thán, hằng ngày chăm chỉ cày thuê cuốc mướn và dốc lòng chăm sóc, tưới tắm cho cây khế. Đến mùa, cây khế trĩu trịt những chùm quả vàng óng, mọng nước ngọt lịm.\n\nBỗng một ngày, có một con chim phượng hoàng khổng lồ tuyệt đẹp bay đến đậu trên cành ăn khế. Thấy chim ăn nhiều quả chín, người em than thở: \"Chim ơi, gia tài tôi chỉ có mỗi cây khế này để bán kiếm gạo, chim ăn hết thì chúng tôi lấy gì sinh sống?\".\n\nChim phượng hoàng bỗng cất tiếng người êm ái:\n\"Ăn một quả, trả một cục vàng,\nMay túi ba gang, mang đi mà đựng.\"\n\nNgười em nghe lời chim, bảo vợ may chiếc túi vải đúng ba gang tay. Sáng hôm sau, chim phượng hoàng bay đến, cõng người em trên lưng rồi vỗ cánh bay qua muôn trùng biển cả đến một hòn đảo hoang ngập tràn vàng bạc châu báu lấp lánh. Người em chỉ nhặt đúng đầy chiếc túi ba gang rồi theo chim bay về. Từ đó, người em trở nên giàu có, mang của cải giúp đỡ bà con nghèo khó trong vùng.\n\nNgười anh thấy em giàu lên nhanh chóng bèn sang gặng hỏi. Người em thật thà kể hết mọi chuyện. Người anh liền nằng nặc đòi đổi toàn bộ gia sản đồ sộ của mình để lấy cây khế cằn cỗi.\n\nĐến mùa khế chín, chim phượng hoàng lại bay về ăn. Người anh giả vờ khóc lóc than thở, chim cũng đáp lại câu dặn may túi ba gang. Nhưng với lòng tham vô đáy, người anh đã may một chiếc túi to mười hai gang và dắt thêm bao tải quanh người.\n\nKhi chim cõng người anh đến đảo vàng, hắn điên cuồng vơ vét vàng bạc ngọc ngà nhét đầy túi mười hai gang, lại còn nhét thêm vào túi áo túi quần. Trên đường bay trở về qua biển lớn, gió to sóng dữ nổi lên, chim phượng hoàng quá nặng nhọc kiệt sức nghiêng cánh. Chiếc túi vàng nặng trĩu kéo người anh rơi tũm xuống đáy biển sâu, còn chim phượng hoàng bay vút lên bầu trời cao rộng.",
+  "characters": [
+    {
+      "name": "Người em",
+      "role": "lead",
+      "gender": "male",
+      "dna": "kind 20yo Vietnamese farmer, gentle sincere eyes, warm smile, wearing modest dark indigo traditional peasant clothing"
+    },
+    {
+      "name": "Người anh",
+      "role": "antagonist",
+      "gender": "male",
+      "dna": "greedy 30yo wealthy man, gluttonous heavy build, covetous sharp eyes, wearing opulent silk brocade robe"
+    },
+    {
+      "name": "Chim Phượng Hoàng Thần",
+      "role": "supporting",
+      "gender": "unknown",
+      "dna": "majestic giant mythical celestial bird, iridescent luminous feathers glowing with golden divine aura, majestic wingspan"
+    }
+  ],
+  "world_setting": "Mảnh vườn nghèo bên cây khế trĩu quả và hòn đảo vàng bí ẩn giữa đại dương bao la.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Dưới bóng cây khế sai trĩu quả vàng mọng, người em hiền hậu ngước nhìn chim phượng hoàng khổng lồ đáp xuống.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, kind humble Vietnamese farmer standing under lush starfruit tree heavy with ripe fruits looking up at giant mythical phoenix bird, peaceful village setting",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Chim phượng hoàng dang rộng đôi cánh rực rỡ, cõng người em bay qua biển lớn hướng về đảo vàng kỳ bí.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, majestic giant divine bird flying above vast ocean carrying humble youth on its back, clouds and waves screentone, epic fantasy composition",
+      "layout_type": "tall"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Trên đảo vàng hoang sơ, người em chỉ lấy vừa vặn chiếc túi ba gang đúng như lời chim thần dặn dò.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, honest youth picking moderate gold gems into a small modest three-span cloth bag on rocky treasure island, ethical restraint, medium close-up",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Giữa biển sâu sóng cuộn, người anh tham lam ôm bọc vàng quá nặng rơi xuống biển trong sự hối hận muộn màng.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, dramatic stormy ocean climax, greedy man falling into raging sea waves weighed down by enormous heavy bags of gold, divine bird soaring away into sky",
+      "layout_type": "wide"
+    }
+  ],
+  "metadata": {
+    "language": "vi",
+    "wordCount": 425,
+    "createdAt": "2026-10-11T02:55:55.255300+00:00",
+    "aiModel": "NarrAI-Engine-Pro",
+    "status": "published"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 123456,
+      "steps": 20,
+      "cfg": 7.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["4", 0],
+      "positive": ["10", 0],
+      "negative": ["10", 1],
+      "latent_image": ["5", 0]
+    },
+    "class_type": "KSampler"
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "animagineXLV31_v31.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "5": {
+    "inputs": {
+      "width": 768,
+      "height": 768,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "8": {
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEDecode"
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "NarrAI_Manga",
+      "images": ["8", 0]
+    },
+    "class_type": "SaveImage"
+  },
+  "10": {
+    "inputs": {
+      "clip": ["4", 1],
+      "story_text": "Một người lính Việt Nam kiên cường đứng trên chiến trường súng đạn khói lửa, tay cầm lá cờ đỏ sao vàng tung bay đã giành chiến thắng.",
+      "style_preset": "Manga Đơn Sắc (Animagine B&W)",
+      "camera_angle": "Tự động chọn (Auto)",
+      "backend_api_url": "http://127.0.0.1:8000",
+      "groq_api_key": "",
+      "extra_prompt": "",
+      "extra_negative": ""
+    },
+    "class_type": "NarrAIStoryAgentConditioning"
+  }
+}

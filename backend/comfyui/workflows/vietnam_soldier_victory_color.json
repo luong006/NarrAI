@@ -1,0 +1,107 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 777999,
+      "steps": 24,
+      "cfg": 7.0,
+      "sampler_name": "euler",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler Heroic Color"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "animagineXLV31_v31.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load SDXL Model"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 1024,
+      "height": 768,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent (Cinematic Landscape)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "masterpiece, high quality, full color, vivid vibrant colors, cinematic historical oil painting, heroic brave Vietnamese soldier standing triumphantly on top of a conquered battlefield bunker, holding high a large bright red national flag of Vietnam with a vibrant yellow gold five-pointed star waving proudly in the wind, dramatic victorious sunrise breaking through battlefield smoke, dramatic volumetric sunlight, dust particles, embers, destroyed tanks and ruined trench in the distant background, glorious victory, emotional triumphant expression, detailed military uniform, cinematic lighting, 8k resolution, artstation trending",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Color Positive Prompt)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "monochrome, grayscale, black and white, desaturated, sepia, bad anatomy, deformed hands, extra fingers, mutated limbs, blurry, low quality, worst quality, distorted face, wrong flag, deformed star, lowres, text, watermark, signature",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative Prompt)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "NarrAI_ChienThang_Color",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Color Image"
+    }
+  }
+}

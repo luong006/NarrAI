@@ -34,7 +34,7 @@ class TestComfyUIService(unittest.TestCase):
         mock_resp.status_code = 200
         mock_get.return_value = mock_resp
         self.assertTrue(self.service.is_available())
-        mock_get.assert_called_once_with("http://127.0.0.1:8188/system_stats", timeout=2.5)
+        mock_get.assert_called_once_with("http://127.0.0.1:8188/system_stats", headers=self.service._get_headers(), timeout=4.0)
 
     @patch("requests.get")
     def test_is_available_false_on_connection_error(self, mock_get):
@@ -330,6 +330,7 @@ class TestComfyUIIntegrationInPipeline(unittest.TestCase):
         self.assertIn(media_type, ["image/jpeg", "image/png"])
         mock_gen.assert_called_once()
 
+    @patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "mock_cf_token"})
     @patch("services.comfyui_service.is_comfyui_available", return_value=False)
     @patch("services.cloudflare_ai.generate_image_cf")
     def test_pipeline_falls_back_when_comfyui_offline(self, mock_cf, mock_avail):

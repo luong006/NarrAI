@@ -3,6 +3,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/lib/toast";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ThreeAmbientCanvas } from "@/components/canvas/ThreeAmbientCanvas";
+import { WeavesilkIntro } from "@/components/intro/WeavesilkIntro";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,8 +19,9 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <body className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen relative">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <ThreeAmbientCanvas />
+          <WeavesilkIntro />
           <ToastProvider>
             {children}
             <ToastContainer />

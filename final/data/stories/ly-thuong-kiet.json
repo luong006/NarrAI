@@ -1,0 +1,63 @@
+{
+  "id": "ly-thuong-kiet",
+  "title": "Lý Thường Kiệt & Bản Tuyên Ngôn Nam Quốc Sơn Hà (1077)",
+  "slug": "ly-thuong-kiet",
+  "topic": "Kháng chiến chống Tống & Bản tuyên ngôn độc lập đầu tiên",
+  "category": "Truyện Lịch Sử",
+  "genre": [
+    "Lịch sử",
+    "Quân sự",
+    "Chiến lược",
+    "Nam Quốc Sơn Hà",
+    "Đại Việt"
+  ],
+  "summary": "Thiên tài quân sự Lý Thường Kiệt với tư tưởng tiên phát chế nhân độc đáo và chiến công trên phòng tuyến sông Như Nguyệt, nơi bài thơ thần 'Nam quốc sơn hà' vang lên khẳng định chủ quyền bất khả xâm phạm của non sông đất Việt.",
+  "content": "Vào thời vua Lý Nhân Tông, nhà Tống ở phương Bắc đang lâm vào khủng hoảng nặng nề, tể tướng Vương An Thạch toan tính xua quân đánh chiếm Đại Việt để giải tỏa mâu thuẫn nội bộ. Đoán trước dã tâm của giặc, Thái úy Lý Thường Kiệt chủ trương: \"Ngồi yên đợi giặc không bằng đem quân đánh trước để chặn mũi nhọn của giặc\".\n\nNăm 1075, Lý Thường Kiệt táo bạo dẫn 10 vạn quân bất ngờ vượt biên giới tập kích các căn cứ hậu cần Ung Châu, Khâm Châu, Liêm Châu của nhà Tống, phá tan mọi chuẩn bị lương thảo của địch rồi rút êm về nước lập phòng tuyến chặn giặc. Đây là một đòn chiến lược phủ đầu xuất sắc chưa từng có trong lịch sử.\n\nTrở về nước, Lý Thường Kiệt chọn bờ nam sông Như Nguyệt (sông Cầu) làm phòng tuyến chiến lược quyết định. Ông cho đắp lũy đất cao, cắm cọc tre dày đặc nhiều tầng nhiều lớp dọc suốt trăm dặm chiến tuyến để ngăn chặn kỵ binh và bộ binh giặc tràn xuống kinh thành Thăng Long.\n\nNăm 1077, 30 vạn quân Tống do Quách Quỳ chỉ huy hùng hổ kéo sang, nhưng bị chặn đứng hoàn toàn trước phòng tuyến sông Như Nguyệt kiên cố. Nhiều lần quân Tống đóng bè vượt sông hòng chọc thủng lũy tre nhưng đều bị quân dân Đại Việt đánh tan tác, xác giặc trôi đầy mặt sông.\n\nTrong lúc thế trận giằng co căng thẳng, nhằm cổ vũ sĩ khí quân sĩ và bẻ gãy ý chí giặc, Lý Thường Kiệt đã cho người vào đền thờ thần Trương Hống, Trương Hát bên bờ sông, đêm khuya cất giọng ngâm vang bài thơ thần rền vang khắp sông nước:\n\n\"Nam quốc sơn hà Nam đế cư,\nTiệt nhiên định phận tại thiên thư.\nNhư hà nghịch lỗ lai xâm phạm,\nNhữ đẳng hành khan thủ bại hư!\"\n\n(Sông núi nước Nam vua Nam ở,\nVành vạnh định phận tại sách trời.\nCớ sao lũ giặc sang xâm phạm,\nChúng bay sẽ bị đánh tơi bời!)\n\nTiếng thơ hào sảng rung chuyển màn đêm khiến quân giặc rụng rời kinh hãi, ngỡ rằng trời đất Đại Việt đều nổi giận; trong khi quân ta nức lòng phấn khởi, sĩ khí ngút trời.\n\nNắm chắc thời cơ, Lý Thường Kiệt mở cuộc tổng phản công bất ngờ trong đêm tối, đánh tan các doanh trại quân Tống. Quách Quỳ đại bại thảm hại, chết hơn nửa số quân, tiến thoái lưỡng nan. Với tinh thần nhân đạo và tầm nhìn bang giao sâu rộng, Lý Thường Kiệt chủ động đề nghị giảng hòa để mở đường cho giặc rút lui giữ thể diện, bảo toàn xương máu cho nhân dân hai nước.\n\nChiến thắng sông Như Nguyệt và bài thơ thần \"Nam quốc sơn hà\" đã trở thành bản Tuyên ngôn Độc lập đầu tiên của dân tộc Việt Nam, khẳng định muôn đời chủ quyền thiêng liêng của giang sơn bờ cõi.",
+  "characters": [
+    {
+      "name": "Lý Thường Kiệt",
+      "role": "lead",
+      "gender": "male",
+      "dna": "esteemed Vietnamese Grand Marshall, commanding wise countenance, silver-streaked hair, wearing intricate royal Ly Dynasty bronze lamellar armor with dragon insignia and crimson cape"
+    },
+    {
+      "name": "Quách Quỳ",
+      "role": "antagonist",
+      "gender": "male",
+      "dna": "Song dynasty commanding general, grim despondent gaze, heavy northern imperial armor holding military command banner"
+    },
+    {
+      "name": "Chiến binh Đại Việt",
+      "role": "supporting",
+      "gender": "male",
+      "dna": "disciplined Ly dynasty soldier, leather armor, gripping long bronze spear defending bamboo ramparts"
+    }
+  ],
+  "world_setting": "Phòng tuyến sông Như Nguyệt năm 1077 mây mù khói lửa, chiến lũy tre bạt ngàn và đền thiêng vang vọng tiếng thơ thần trong đêm.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Thái úy Lý Thường Kiệt trực tiếp thị sát, chỉ huy xây dựng phòng tuyến lũy tre kiên cố bên bờ nam sông Như Nguyệt.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, wise Grand Marshall Ly Thuong Kiet overlooking fortification works of dense bamboo ramparts along misty river Nhu Nguyet, epic military panorama",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Quân Tống đóng bè vượt sông tấn công điên cuồng nhưng bị chiến binh Đại Việt kiên cường đánh lui.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, dramatic river battle, Song dynasty invaders on rafts repelled by fierce volley of arrows and spears from bamboo fortress, intense combat manga lineart",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Trong đêm tối tĩnh mịch, bài thơ thần Nam Quốc Sơn Hà vang lên từ đền thiêng chấn động trời đất, làm bạt vía quân giặc.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, mystical riverside shrine glowing with divine lightning as celestial voice echoes patriotic poem Nam Quoc Son Ha, terrified enemy sentries trembling in darkness, striking manga screentone",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Đại Việt tổng phản công thắng lợi rực rỡ, Lý Thường Kiệt mở lượng khoan hồng cho giặc rút quân, giữ vững nền thái bình muôn thuở.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, triumphant Vietnamese army celebrating sovereignty, Grand Marshall gesturing with nobility, historic masterpiece 2D manga lineart",
+      "layout_type": "wide"
+    }
+  ]
+}

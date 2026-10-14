@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Sparkles, RefreshCw, Play, Pause, Download, Palette, Zap, Layers } from "lucide-react";
 
 export type NeuralStyleMode = "manga_ink" | "dong_ho" | "cyber_neon" | "ethereal_novel";
 
@@ -11,7 +10,6 @@ interface StyleConfig {
   nameEn: string;
   descriptionVi: string;
   descriptionEn: string;
-  colorTheme: string;
   badge: string;
 }
 
@@ -22,8 +20,7 @@ export const STYLE_CONFIGS: Record<NeuralStyleMode, StyleConfig> = {
     nameEn: "Manga Monochrome & Screentone",
     descriptionVi: "Đơn sắc thuần túy, tương phản cao, nét viền và screentone chuẩn mực.",
     descriptionEn: "High-contrast monochrome lineart with halftone screentone shading.",
-    colorTheme: "from-zinc-900 via-neutral-700 to-zinc-400",
-    badge: "100% Monochrome",
+    badge: "[100% Monochrome]",
   },
   dong_ho: {
     id: "dong_ho",
@@ -31,8 +28,7 @@ export const STYLE_CONFIGS: Record<NeuralStyleMode, StyleConfig> = {
     nameEn: "Dong Ho Folk Woodblock",
     descriptionVi: "Họa sắc hoa dành dành, điệp xà cừ, chàm cổ phong Đại Việt.",
     descriptionEn: "Traditional Vietnamese mineral pigments, organic textures, and woodblock grain.",
-    colorTheme: "from-amber-700 via-emerald-800 to-rose-700",
-    badge: "Vietnamese Heritage",
+    badge: "[Vietnamese Heritage]",
   },
   cyber_neon: {
     id: "cyber_neon",
@@ -40,8 +36,7 @@ export const STYLE_CONFIGS: Record<NeuralStyleMode, StyleConfig> = {
     nameEn: "Cyberpunk Neon Matrix",
     descriptionVi: "Ma trận sóng nơ-ron điện toán, ánh sáng huỳnh quang và lưới điện tử.",
     descriptionEn: "Futuristic synthetic neural grid, cyan/magenta pulses, and scanlines.",
-    colorTheme: "from-cyan-500 via-purple-600 to-pink-500",
-    badge: "Synthetic Matrix",
+    badge: "[Synthetic Matrix]",
   },
   ethereal_novel: {
     id: "ethereal_novel",
@@ -49,8 +44,7 @@ export const STYLE_CONFIGS: Record<NeuralStyleMode, StyleConfig> = {
     nameEn: "Ethereal Light Novel",
     descriptionVi: "Khuếch tán màu nước dịu nhẹ, ánh sáng hoàng hôn và hạt sáng lơ lửng.",
     descriptionEn: "Dreamy watercolor diffusion with golden hour bloom and particulate dispersion.",
-    colorTheme: "from-indigo-400 via-rose-300 to-amber-200",
-    badge: "Dreamy Bloom",
+    badge: "[Dreamy Bloom]",
   },
 };
 
@@ -58,44 +52,29 @@ interface Props {
   lang?: "vi" | "en";
   className?: string;
   initialStyle?: NeuralStyleMode;
-  compact?: boolean;
+  resolution?: number;
+  onTextureGenerated?: (canvas: HTMLCanvasElement) => void;
 }
 
-/**
- * NeuralVisualPreview
- * Feature 30: Landing Page Neural Visual Effects
- *
- * Renders generative AI art textures and latent style previews on an isolated 2D canvas.
- * Explicitly avoids WebGL context initialization to prevent collision with Layer 0 ThreeAmbientCanvas.
- */
 export function NeuralVisualPreview({
   lang = "vi",
   className = "",
-  initialStyle = "cyber_neon",
-  compact = false,
+  initialStyle = "manga_ink",
+  resolution = 128,
+  onTextureGenerated,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [styleMode, setStyleMode] = useState<NeuralStyleMode>(initialStyle);
-  const [isAnimating, setIsAnimating] = useState(true);
-  const [seed, setSeed] = useState(1337);
-  const [resolution, setResolution] = useState<number>(compact ? 128 : 160);
+  const [seed, setSeed] = useState<number>(42);
+  const [isAnimating, setIsAnimating] = useState<boolean>(true);
   const animFrameRef = useRef<number | null>(null);
   const timeRef = useRef<number>(0);
 
-  // Deterministic seeded pseudorandom function
-  const prng = useCallback((s: number) => {
-    let t = (s += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  }, []);
+  const currentCfg = STYLE_CONFIGS[styleMode];
 
-  /**
-   * Generates a 2D procedural neural field slice on CPU.
-   * Simulates multi-frequency Perlin-Gabor style projection.
-   */
+  // Procedural cellular/neural wave simulation
   const renderNeuralFrame = useCallback(
-    (t: number) => {
+    (time: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -106,117 +85,74 @@ export function NeuralVisualPreview({
       const imgData = ctx.createImageData(w, h);
       const data = imgData.data;
 
-      const baseSeed = seed;
-      const s1 = prng(baseSeed);
-      const s2 = prng(baseSeed + 1);
-      const s3 = prng(baseSeed + 2);
-
-      const freqX = 3.5 + s1 * 2.0;
-      const freqY = 3.5 + s2 * 2.0;
+      const t = time * 0.001;
 
       for (let y = 0; y < h; y++) {
-        const ny = (y / h) * 2 - 1;
-        const rowOffset = y * w * 4;
-
         for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
           const nx = (x / w) * 2 - 1;
-          const idx = rowOffset + x * 4;
+          const ny = (y / h) * 2 - 1;
 
-          // Radial distance & angular coordinates
-          const r = Math.sqrt(nx * nx + ny * ny);
-          const theta = Math.atan2(ny, nx);
+          // Cellular wave formula
+          const wave1 = Math.sin(nx * 4.0 + t + seed * 0.1);
+          const wave2 = Math.cos(ny * 4.0 - t * 0.8 + seed * 0.2);
+          const wave3 = Math.sin((nx * nx + ny * ny) * 3.0 - t * 1.2);
+          const val = (wave1 + wave2 + wave3) / 3.0; // [-1, 1]
+          const norm = (val + 1) * 0.5; // [0, 1]
 
-          // Harmonic wave equation with temporal drift
-          const wave1 = Math.sin(nx * freqX + t * 0.8 + s1 * 6.28);
-          const wave2 = Math.cos(ny * freqY - t * 0.6 + s2 * 6.28);
-          const spiral = Math.sin(r * 8.0 - theta * 3.0 + t * 1.2);
-          const neuralNoise = Math.sin(nx * 14.0 + ny * 14.0 + t * 0.3) * 0.25;
-
-          // Composite neural activation potential in [-1.0, 1.0]
-          const potential = (wave1 * 0.4 + wave2 * 0.4 + spiral * 0.35 + neuralNoise) / 1.4;
-          const normPotential = Math.max(0, Math.min(1, (potential + 1) / 2));
-
-          let rVal = 0;
-          let gVal = 0;
-          let bVal = 0;
-
-          // Style Palette Mapping
           if (styleMode === "manga_ink") {
-            // Pure monochrome screentone & ink wash
-            const inkThreshold = 0.52 + Math.sin(x * 0.7) * Math.cos(y * 0.7) * 0.08;
-            const isDot = (x % 4 === 0 && y % 4 === 0 && normPotential > 0.4) ||
-                          (x % 2 === 0 && y % 2 === 0 && normPotential > 0.7);
-            const val = normPotential < inkThreshold ? 15 : isDot ? 50 : 240;
-            rVal = gVal = bVal = val;
+            // Screentone dot pattern
+            const dotGrid = (Math.sin(x * 1.2) * Math.cos(y * 1.2) + 1) * 0.5;
+            const threshold = norm > 0.55 ? 1 : (dotGrid > 0.7 ? 0.8 : 0.1);
+            const intensity = Math.floor(threshold * 255);
+            data[idx] = intensity;
+            data[idx + 1] = intensity;
+            data[idx + 2] = intensity;
+            data[idx + 3] = 255;
           } else if (styleMode === "dong_ho") {
-            // Woodblock pigment: Điệp xà cừ (seashell pearl), Chàm (indigo), Dành dành (ochre)
-            const grain = (prng(x * 37 + y * 97 + baseSeed) - 0.5) * 25;
-            if (normPotential < 0.35) {
-              // Deep Indigo
-              rVal = Math.max(0, 30 + grain);
-              gVal = Math.max(0, 50 + grain);
-              bVal = Math.max(0, 90 + grain);
-            } else if (normPotential < 0.65) {
-              // Cinnabar Red / Crimson
-              rVal = Math.min(255, 185 + grain);
-              gVal = Math.max(0, 55 + grain);
-              bVal = Math.max(0, 45 + grain);
-            } else {
-              // Warm Pearl Ochre
-              rVal = Math.min(255, 235 + grain);
-              gVal = Math.min(255, 205 + grain);
-              bVal = Math.min(255, 140 + grain);
-            }
+            // Earthy woodblock grain
+            data[idx] = Math.floor(norm * 180 + 40);
+            data[idx + 1] = Math.floor(norm * 140 + 30);
+            data[idx + 2] = Math.floor(norm * 100 + 20);
+            data[idx + 3] = 255;
           } else if (styleMode === "cyber_neon") {
-            // High-voltage Neon Cyan & Magenta with scanline pulses
-            const scanline = y % 3 === 0 ? 0.75 : 1.0;
-            const pulse = Math.sin(t * 2.0 + ny * 6.0) * 0.3;
-            const cyan = Math.pow(normPotential, 1.4);
-            const magenta = Math.pow(1 - normPotential, 1.6);
-
-            rVal = Math.min(255, (magenta * 240 + pulse * 40) * scanline);
-            gVal = Math.min(255, (cyan * 180 + magenta * 30) * scanline);
-            bVal = Math.min(255, (cyan * 255 + magenta * 150) * scanline);
+            // High contrast neon pulses
+            data[idx] = Math.floor((1 - norm) * 255);
+            data[idx + 1] = Math.floor(Math.sin(norm * Math.PI) * 240);
+            data[idx + 2] = Math.floor(norm * 255);
+            data[idx + 3] = 255;
           } else {
-            // Ethereal Light Novel: Pastel sunset & dreamy light dispersion
-            const glow = Math.exp(-r * 1.8) * 0.6;
-            rVal = Math.min(255, (normPotential * 220 + glow * 100));
-            gVal = Math.min(255, (Math.sin(normPotential * 3.14) * 160 + glow * 80));
-            bVal = Math.min(255, ((1 - normPotential) * 230 + glow * 120));
+            // Ethereal diffuse pastel
+            data[idx] = Math.floor(norm * 200 + 55);
+            data[idx + 1] = Math.floor(norm * 180 + 75);
+            data[idx + 2] = Math.floor(norm * 220 + 35);
+            data[idx + 3] = 255;
           }
-
-          data[idx] = rVal;
-          data[idx + 1] = gVal;
-          data[idx + 2] = bVal;
-          data[idx + 3] = 255;
         }
       }
 
       ctx.putImageData(imgData, 0, 0);
+
+      if (onTextureGenerated) {
+        onTextureGenerated(canvas);
+      }
     },
-    [prng, seed, styleMode]
+    [styleMode, seed, onTextureGenerated]
   );
 
-  // Animation Loop
   useEffect(() => {
     let active = true;
 
-    const loop = () => {
+    const loop = (timestamp: number) => {
       if (!active) return;
       if (isAnimating) {
-        timeRef.current += 0.025;
+        timeRef.current = timestamp;
+        renderNeuralFrame(timestamp);
       }
-      renderNeuralFrame(timeRef.current);
-      if (isAnimating) {
-        animFrameRef.current = requestAnimationFrame(loop);
-      }
+      animFrameRef.current = requestAnimationFrame(loop);
     };
 
-    if (isAnimating) {
-      animFrameRef.current = requestAnimationFrame(loop);
-    } else {
-      renderNeuralFrame(timeRef.current);
-    }
+    animFrameRef.current = requestAnimationFrame(loop);
 
     return () => {
       active = false;
@@ -226,36 +162,33 @@ export function NeuralVisualPreview({
     };
   }, [isAnimating, renderNeuralFrame]);
 
-  // Download snapshot
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `NarrAI_Neural_${styleMode}_${seed}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    const a = document.createElement("a");
+    a.download = `narr_neural_style_${styleMode}_${seed}.png`;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
   };
-
-  const currentCfg = STYLE_CONFIGS[styleMode];
 
   return (
     <div
-      className={`rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl overflow-hidden transition-all ${className}`}
+      className={`rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black font-sans shadow-sm overflow-hidden transition-all ${className}`}
     >
       {/* Header Bar */}
-      <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40">
+      <div className="px-5 py-3.5 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-neutral-50 dark:bg-neutral-900 font-mono text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-            <Sparkles className="w-4 h-4" />
-          </div>
+          <span className="px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-black font-bold text-black dark:text-white">
+            [AI LAB]
+          </span>
           <div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="font-bold text-black dark:text-white uppercase tracking-wider flex items-center gap-1.5 font-sans">
               <span>{lang === "vi" ? "AI Art & Neural Style Laboratory" : "AI Art & Neural Style Lab"}</span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                TF.js CPU
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white">
+                TF.js
               </span>
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] text-neutral-500 font-sans">
               {lang === "vi" ? currentCfg.nameVi : currentCfg.nameEn}
             </p>
           </div>
@@ -263,11 +196,7 @@ export function NeuralVisualPreview({
 
         {/* Status Badges */}
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-            <Zap className="w-3 h-3 text-indigo-500" />
-            <span>Isolated 2D</span>
-          </span>
-          <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/60 border border-brand-200/60 dark:border-brand-900 px-2 py-0.5 rounded">
+          <span className="text-[10px] font-bold text-black dark:text-white bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 px-2 py-0.5 rounded">
             {currentCfg.badge}
           </span>
         </div>
@@ -277,39 +206,37 @@ export function NeuralVisualPreview({
       <div className="p-5 flex flex-col md:flex-row items-center gap-6">
         {/* Canvas Display Viewport */}
         <div className="relative group shrink-0">
-          <div className="relative rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-inner bg-slate-950">
+          <div className="relative rounded overflow-hidden border border-neutral-300 dark:border-neutral-700 bg-black">
             <canvas
               ref={canvasRef}
               width={resolution}
               height={resolution}
               className="w-48 h-48 sm:w-56 sm:h-56 object-cover image-rendering-pixelated transform transition-transform duration-500 group-hover:scale-105"
             />
-            {/* Overlay Gradient Ring */}
-            <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-xl" />
           </div>
 
           {/* Quick Action Overlay */}
-          <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 font-mono text-xs">
             <button
               onClick={() => setIsAnimating(!isAnimating)}
-              className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-all"
+              className="px-2 py-1 rounded bg-black/80 hover:bg-black text-white border border-neutral-700 transition-all"
               title={isAnimating ? (lang === "vi" ? "Tạm dừng" : "Pause") : (lang === "vi" ? "Tiếp tục" : "Play")}
             >
-              {isAnimating ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {isAnimating ? "[Dừng]" : "[Chạy]"}
             </button>
             <button
               onClick={() => setSeed((s) => s + 1)}
-              className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-all"
+              className="px-2 py-1 rounded bg-black/80 hover:bg-black text-white border border-neutral-700 transition-all"
               title={lang === "vi" ? "Đổi mầm ngẫu nhiên" : "Randomize Seed"}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              [Mầm]
             </button>
             <button
               onClick={handleDownload}
-              className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-all"
+              className="px-2 py-1 rounded bg-black/80 hover:bg-black text-white border border-neutral-700 transition-all"
               title={lang === "vi" ? "Tải ảnh về máy" : "Download Texture"}
             >
-              <Download className="w-3.5 h-3.5" />
+              [Tải]
             </button>
           </div>
         </div>
@@ -317,9 +244,8 @@ export function NeuralVisualPreview({
         {/* Style Controls & Metadata */}
         <div className="flex-1 w-full space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
-              <Palette className="w-3.5 h-3.5 text-indigo-500" />
-              <span>{lang === "vi" ? "Trường phái mỹ thuật & Bộ lọc nơ-ron" : "Art Style & Neural Filter"}</span>
+            <label className="text-xs font-mono font-bold text-black dark:text-white uppercase flex items-center gap-1.5 mb-2">
+              <span>[{lang === "vi" ? "Trường phái mỹ thuật" : "Art Style"}]</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(STYLE_CONFIGS) as NeuralStyleMode[]).map((key) => {
@@ -329,19 +255,16 @@ export function NeuralVisualPreview({
                   <button
                     key={key}
                     onClick={() => setStyleMode(key)}
-                    className={`text-left p-2.5 rounded-xl border text-xs font-medium transition-all ${
+                    className={`text-left p-2.5 rounded border text-xs font-mono transition-all ${
                       isActive
-                        ? "border-brand-500 bg-brand-50/70 dark:bg-brand-950/40 text-brand-900 dark:text-brand-200 shadow-sm"
-                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300"
+                        ? "border-black dark:border-white bg-black text-white dark:bg-white dark:text-black font-bold"
+                        : "border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-900 text-black dark:text-white"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold truncate">{lang === "vi" ? cfg.nameVi : cfg.nameEn}</span>
-                      <span
-                        className={`w-2 h-2 rounded-full bg-gradient-to-r ${cfg.colorTheme}`}
-                      />
+                      <span className="truncate">{lang === "vi" ? cfg.nameVi : cfg.nameEn}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                    <p className="text-[10px] opacity-70 font-sans line-clamp-1">
                       {lang === "vi" ? cfg.descriptionVi : cfg.descriptionEn}
                     </p>
                   </button>
@@ -351,20 +274,11 @@ export function NeuralVisualPreview({
           </div>
 
           {/* Technical Specs Footer */}
-          <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 gap-2">
+          <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between text-[11px] font-mono text-neutral-500 gap-2">
             <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <Layers className="w-3 h-3 text-indigo-400" />
-                <span>Dim: 128 (L2 Norm)</span>
-              </span>
-              <span>Seed: #{seed}</span>
-              <span>Res: {resolution}px</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-slate-400">
-                {lang === "vi" ? "Không xung đột WebGL Layer 0" : "0% WebGL Clash"}
-              </span>
+              <span>[Lớp: 128]</span>
+              <span>[Seed: #{seed}]</span>
+              <span>[Độ phân giải: {resolution}px]</span>
             </div>
           </div>
         </div>
@@ -372,3 +286,4 @@ export function NeuralVisualPreview({
     </div>
   );
 }
+export default NeuralVisualPreview;

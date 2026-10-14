@@ -3,8 +3,18 @@ import re
 import requests
 import urllib.parse
 import io
+import threading
 
 from typing import Optional, Tuple, List, Dict, Any
+
+_panel_locks: Dict[int, threading.Lock] = {}
+_locks_gate = threading.Lock()
+
+def _get_panel_lock(panel_id: int) -> threading.Lock:
+    with _locks_gate:
+        if panel_id not in _panel_locks:
+            _panel_locks[panel_id] = threading.Lock()
+        return _panel_locks[panel_id]
 
 try:
     from PIL import Image, ImageOps
@@ -25,11 +35,13 @@ CF_MODELS = [
     "@cf/stabilityai/stable-diffusion-xl-base-1.0",
 ]
 
-# Universal Base Negative Prompt: Banning colors, photorealism, Western comics, speech bubbles, and text/watermarks
+# Universal Base Negative Prompt: Banning colors, photorealism, realistic graphite portraits, Western comics, collage frames, speech bubbles, and text/watermarks
 BASE_NEGATIVE_PROMPT = (
     "color, colorful, vibrant, saturated, hue, tint, red, blue, green, yellow, pink, purple, "
-    "photorealistic, photograph, photo, realistic, 3d render, CGI, digital painting, oil painting, "
-    "watercolor, warm skin tones, western comic, american comic book style, superhero art style, "
+    "photorealistic, photograph, photo, realistic portrait, realistic pencil sketch, graphite drawing, "
+    "charcoal drawing, hyperrealistic, 3d render, CGI, digital painting, oil painting, watercolor, "
+    "warm skin tones, western comic, american comic book style, superhero art style, "
+    "multiple frames, collage, split image, multi panel comic, comic strip layout, border frame, "
     "heavy crosshatching, grunge, text, watermark, signature, font, letters, speech bubble, "
     "dialog balloon, bad anatomy, deformed hands, extra fingers, missing fingers, mutated limbs, "
     "distorted face, blurry, low resolution, messy draft, sketch lines"
@@ -155,43 +167,6 @@ def generate_image_cf(
     raise Exception(f"All Cloudflare models failed. Last error: {last_error}")
 
 
-def format_pollinations_prompt(prompt: str, max_len: int = 500) -> str:
-    """
-    Prepares a clean, semantic-safe prompt for Pollinations fallback image generation.
-    - Slices cleanly at comma/sentence boundaries instead of arbitrary character cuts.
-    - Preserves setting anchor, action gesture, and character DNA without mid-word truncations.
-    - Fits within safe URL length limits for HTTP GET requests.
-    """
-    if not prompt or not isinstance(prompt, str):
-        return "black and white manga drawing, monochrome ink on white paper, Japanese manga style, screentone, no color"
-
-    clean_p = prompt.strip()
-    if len(clean_p) <= max_len:
-        target = clean_p
-    else:
-        # Keep character/action details early, but reserve room for the environment anchor.
-        setting_match = re.search(r'\bsetting:\s*[^,]+(?:,[^,]+){0,2}', clean_p, re.IGNORECASE)
-        setting_clause = setting_match.group(0).strip() if setting_match else ""
-        prompt_without_setting = clean_p
-        if setting_match:
-            prompt_without_setting = f"{clean_p[:setting_match.start()]}, {clean_p[setting_match.end():]}"
-        prompt_budget = max(120, max_len - len(setting_clause) - 2)
-        cutoff = prompt_without_setting[:prompt_budget]
-        last_delim = max(cutoff.rfind(','), cutoff.rfind('.'))
-        if last_delim > prompt_budget // 2:
-            target = cutoff[:last_delim].strip(' ,.-')
-        else:
-            last_space = cutoff.rfind(' ')
-            target = cutoff[:last_space].strip(' ,.-') if last_space > 0 else cutoff
-
-        if setting_clause:
-            target = f"{target}, {setting_clause}"
-
-    # Clean double commas and trailing punctuation
-    target = re.sub(r'[,.\s]*,[,.\s]*', ', ', target).strip(' ,.-')
-    return f"black and white manga drawing, monochrome ink on white paper, Japanese manga style, {target}, screentone, no color"
-
-
 def _is_valid_image_payload(image_bytes: Optional[bytes]) -> bool:
     if not image_bytes or len(image_bytes) <= 500:
         return False
@@ -221,122 +196,113 @@ def get_cached_or_generate_image(
 ) -> tuple[bytes, str]:
     """
     Fetches image from disk cache if available.
-    Otherwise attempts ComfyUI (if running locally/enabled) with dynamic LoRA chaining,
-    with fallback to Cloudflare Workers AI with a deterministic panel-specific seed,
-    with fallback to Pollinations B&W manga, then writes to disk cache.
+    Otherwise generates strictly via ComfyUI with dynamic LoRA chaining (or Cloudflare Workers AI if configured).
+    Pollinations is completely purged to guarantee high-quality 2D Anime Manga without watermark or distortions.
     Returns (image_bytes, media_type).
     """
     cache_path = os.path.join(CACHE_DIR, f"panel_{panel_id}.jpg")
-    
-    # A retry must not serve the image that just failed at the client, even if
-    # it happens to be a valid image payload in the local cache.
-    if force_refresh:
-        try:
-            os.remove(cache_path)
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            print(f"[Comic Cache] Could not clear cached panel_{panel_id} before retry: {e}")
 
-    # 1. Check local persistent disk cache unless the user explicitly retried.
-    if not force_refresh and os.path.isfile(cache_path) and os.path.getsize(cache_path) > 1000:
-        try:
-            with open(cache_path, "rb") as f:
-                img_bytes = f.read()
-            if _is_valid_image_payload(img_bytes):
-                media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
-                return img_bytes, media_type
-            print(f"[Comic Cache] Cached panel_{panel_id} is not a valid image; regenerating")
-            os.remove(cache_path)
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            print(f"[Comic Cache] Failed to read cached panel_{panel_id}: {e}")
-
-    # Keep a stable story-level seed while giving each panel a distinct composition.
-    if seed is not None:
-        story_seed = int(seed)
-    elif story_id is not None:
-        story_seed = get_deterministic_comic_seed(story_id)
-    else:
-        story_seed = get_deterministic_comic_seed(panel_id)
-    panel_seed = 100000 + ((story_seed - 100000 + panel_id * 7919) % 900000)
-    suffix = negative_prompt_suffix or custom_negative_prompt
-    img_bytes = None
-
-    # 2. Preferred: Attempt generation via local/remote ComfyUI if enabled and online
-    try:
-        from services.comfyui_service import is_comfyui_enabled, is_comfyui_available, generate_image_comfyui
-        if is_comfyui_enabled() and is_comfyui_available():
+    panel_lock = _get_panel_lock(panel_id)
+    with panel_lock:
+        # 1. ALWAYS check local persistent disk cache first.
+        # If a valid image already exists on disk (whether completed in background or cached),
+        # return it immediately (sub-second response) without overloading the GPU/tunnel.
+        if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 1000:
             try:
-                active_loras = loras
-                if active_loras is None:
-                    try:
-                        from agents.comic_prompt_agent import ComicPromptAgent
-                        active_loras = ComicPromptAgent().detect_scene_loras(prompt, genre=genre)
-                    except Exception:
-                        active_loras = None
+                with open(cache_path, "rb") as f:
+                    img_bytes = f.read()
+                if _is_valid_image_payload(img_bytes):
+                    media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
+                    return img_bytes, media_type
+                print(f"[Comic Cache] Cached panel_{panel_id} payload is corrupted; purging")
+                try:
+                    os.remove(cache_path)
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"[Comic Cache] Failed to read cached panel_{panel_id}: {e}")
 
-                print(f"[Comic Image] Attempting image generation for panel {panel_id} via ComfyUI (LoRAs: {len(active_loras or [])})...")
-                img_bytes = generate_image_comfyui(
-                    prompt=prompt,
-                    seed=panel_seed,
-                    negative_prompt_suffix=suffix,
-                    layout_type=layout_type,
-                    cultural_tier=cultural_tier,
-                    narrative_mode=narrative_mode,
-                    genre=genre,
-                    loras=active_loras
-                )
-                if img_bytes and _is_valid_image_payload(img_bytes):
-                    print(f"[Comic Image] Panel {panel_id} generated successfully via ComfyUI!")
-            except Exception as comfy_err:
-                print(f"[Comic Image] ComfyUI generation failed ({comfy_err}). Falling back to Cloudflare AI...")
-                img_bytes = None
-    except ImportError:
-        pass
+        # Keep a stable story-level seed while giving each panel a distinct composition.
+        if seed is not None:
+            story_seed = int(seed)
+        elif story_id is not None:
+            story_seed = get_deterministic_comic_seed(story_id)
+        else:
+            story_seed = get_deterministic_comic_seed(panel_id)
+        panel_seed = 100000 + ((story_seed - 100000 + panel_id * 7919) % 900000)
+        suffix = negative_prompt_suffix or custom_negative_prompt
+        img_bytes = None
 
-    # 3. Fallback to Cloudflare Workers AI
-    if not img_bytes or not _is_valid_image_payload(img_bytes):
+        # 2. Primary Provider: ComfyUI with GPU Acceleration & Dynamic LoRA Chaining
         try:
-            img_bytes = generate_image_cf(
-                prompt,
-                seed=panel_seed,
-                negative_prompt_suffix=suffix,
-                cultural_tier=cultural_tier,
-                narrative_mode=narrative_mode,
-                genre=genre
+            from services.comfyui_service import is_comfyui_enabled, is_comfyui_available, generate_image_comfyui
+            if is_comfyui_enabled() and is_comfyui_available(timeout=6.0, force_check=True):
+                try:
+                    active_loras = loras
+                    if active_loras is None:
+                        try:
+                            from agents.comic_prompt_agent import ComicPromptAgent
+                            active_loras = ComicPromptAgent().detect_scene_loras(prompt, genre=genre)
+                        except Exception:
+                            active_loras = None
+
+                    print(f"[Comic Image] Generating panel {panel_id} via ComfyUI (LoRAs: {len(active_loras or [])})...")
+                    img_bytes = generate_image_comfyui(
+                        prompt=prompt,
+                        seed=panel_seed,
+                        negative_prompt_suffix=suffix,
+                        layout_type=layout_type,
+                        cultural_tier=cultural_tier,
+                        narrative_mode=narrative_mode,
+                        genre=genre,
+                        loras=active_loras
+                    )
+                    if img_bytes and _is_valid_image_payload(img_bytes):
+                        print(f"[Comic Image] Panel {panel_id} generated successfully via ComfyUI!")
+                except Exception as comfy_err:
+                    print(f"[Comic Image] ComfyUI generation error: {comfy_err}")
+        except Exception as comfy_wrapper_err:
+            print(f"[Comic Image] ComfyUI provider error: {comfy_wrapper_err}")
+            img_bytes = None
+
+        # 3. Fallback to Cloudflare Workers AI only if token is configured
+        if not img_bytes or not _is_valid_image_payload(img_bytes):
+            cf_token = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
+            if cf_token:
+                try:
+                    print(f"[Comic Image] Falling back to Cloudflare Workers AI for panel {panel_id}...")
+                    img_bytes = generate_image_cf(
+                        prompt,
+                        seed=panel_seed,
+                        negative_prompt_suffix=suffix,
+                        cultural_tier=cultural_tier,
+                        narrative_mode=narrative_mode,
+                        genre=genre
+                    )
+                except Exception as cf_err:
+                    print(f"[Comic Image] Cloudflare AI failed: {cf_err}")
+
+        if not img_bytes or not _is_valid_image_payload(img_bytes):
+            raise RuntimeError(
+                f"Không thể tạo tranh cho khung {panel_id}: Máy chủ ComfyUI chưa phản hồi hoặc chưa được kết nối. "
+                "Vui lòng kiểm tra ComfyUI và đường dẫn Ngrok."
             )
+
+        # 2.5: Server-side Pillow monochrome enforcement — eliminates color leak from ANY source
+        try:
+            img_bytes = process_manga_monochrome(img_bytes)
+        except Exception as mono_err:
+            print(f"[Comic Image] Monochrome post-processing failed ({mono_err}), using raw bytes")
+
+        # 3. Save to disk cache
+        try:
+            with open(cache_path, "wb") as f:
+                f.write(img_bytes)
         except Exception as e:
-            print(f"[Comic Image] Cloudflare AI unavailable ({e}). Falling back to Pollinations...")
-            try:
-                bw_prompt = format_pollinations_prompt(prompt)
-                safe_prompt = urllib.parse.quote(bw_prompt)
-                fallback_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=800&nologo=true&seed={panel_seed}"
-                resp = requests.get(fallback_url, timeout=20)
-                if resp.status_code == 200 and _is_valid_image_payload(resp.content):
-                    img_bytes = resp.content
-            except Exception as p_err:
-                print(f"[Comic Image] Pollinations fallback also failed ({p_err})")
+            print(f"[Comic Cache] Failed to save panel_{panel_id}: {e}")
 
-    if not img_bytes or not _is_valid_image_payload(img_bytes):
-        raise RuntimeError(f"Could not render image for panel {panel_id}: all image providers failed")
-
-    # 2.5: Server-side Pillow monochrome enforcement — eliminates color leak from ANY source
-    try:
-        img_bytes = process_manga_monochrome(img_bytes)
-    except Exception as mono_err:
-        print(f"[Comic Image] Monochrome post-processing failed ({mono_err}), using raw bytes")
-
-    # 3. Save to disk cache
-    try:
-        with open(cache_path, "wb") as f:
-            f.write(img_bytes)
-    except Exception as e:
-        print(f"[Comic Cache] Failed to save panel_{panel_id}: {e}")
-
-    media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
-    return img_bytes, media_type
+        media_type = "image/jpeg" if img_bytes[:2] == b'\xff\xd8' else "image/png"
+        return img_bytes, media_type
 
 
 def process_manga_monochrome(image_bytes: bytes) -> bytes:

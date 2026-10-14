@@ -28,6 +28,7 @@ export interface StoryDetail {
 }
 
 export interface ComicPanel {
+  id?: number;
   panel_id?: number;
   panel_index: number;
   image_url: string;
@@ -54,6 +55,7 @@ export interface ChatMessage {
   is_offline_fallback?: boolean;
   error_message?: string;
   failed_prompt?: string;
+  suggestions?: string[];
 }
 
 export interface IntakeChatOptions {
@@ -225,3 +227,116 @@ export interface SocialPostDetailResponse {
   message?: string;
   detail?: string;
 }
+
+// ==================== AI STORY PIPELINE TYPES ====================
+
+export type PipelineStatus = 'pending' | 'researching' | 'writing' | 'validating' | 'pr_created' | 'merged' | 'failed';
+
+export interface PipelineStoryItem {
+  id: string;
+  title: string;
+  topic?: string;
+  category?: string;
+  genre?: string[];
+  language?: string;
+  sourceLanguages?: string[];
+  status: PipelineStatus;
+  createdAt?: string;
+  updatedAt?: string;
+  prUrl?: string | null;
+  prNumber?: number | null;
+  branchName?: string | null;
+  error?: string | null;
+}
+
+export interface PipelineOverview {
+  totalStories: number;
+  pending: number;
+  inProgress: number;
+  failed: number;
+  prCreated: number;
+  merged: number;
+  stories: PipelineStoryItem[];
+}
+
+export interface PipelineHistoricalNote {
+  claim: string;
+  type: 'historical_fact' | 'folklore_legend' | 'mythological_element' | 'unverified';
+  sources?: string[];
+}
+
+export interface PipelineSource {
+  provider?: string;
+  language?: string;
+  title: string;
+  url: string;
+  retrievedAt?: string;
+}
+
+export interface PipelineStoryCharacter {
+  name: string;
+  role?: string;
+  gender?: string;
+  dna?: string;
+}
+
+export interface PipelineStoryPanel {
+  panel_index: number;
+  dialogue_text: string;
+  image_prompt: string;
+  layout_type?: string;
+}
+
+export interface PipelineStoryDetail {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  genre: string[];
+  summary: string;
+  content: string;
+  topic?: string;
+  lesson?: string;
+  characters?: PipelineStoryCharacter[];
+  panels?: PipelineStoryPanel[];
+  world_setting?: string;
+  historicalNotes?: PipelineHistoricalNote[];
+  sources?: PipelineSource[];
+  metadata?: {
+    language?: string;
+    wordCount?: number;
+    createdAt?: string;
+    aiModel?: string;
+  };
+}
+
+export interface PipelineValidationResult {
+  passed: boolean;
+  errors: string[];
+  warnings: string[];
+  wordCount: number;
+  duplicateCandidates: string[];
+}
+
+export interface PipelinePullRequest {
+  id: string;
+  title: string;
+  topic?: string;
+  category?: string;
+  status: PipelineStatus;
+  prUrl?: string | null;
+  prNumber?: number | null;
+  branchName?: string | null;
+  updatedAt?: string;
+  liveState?: string;
+  isMerged?: boolean;
+}
+
+export interface PipelineLogEntry {
+  timestamp: string;
+  storyId: string;
+  level: 'info' | 'warn' | 'error' | 'success';
+  message: string;
+  details?: any;
+}
+

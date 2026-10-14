@@ -1,0 +1,69 @@
+{
+  "id": "cay-tre-tram-dot",
+  "title": "Cây Tre Trăm Đốt",
+  "slug": "cay-tre-tram-dot",
+  "topic": "Truyện cổ tích dân gian Việt Nam",
+  "category": "Truyện cổ tích & Thần thoại",
+  "genre": [
+    "Cổ tích",
+    "Dân gian",
+    "Công lý",
+    "Hài hước dân gian"
+  ],
+  "summary": "Truyện cổ tích về anh Khoai hiền lành, chịu thương chịu khó tìm được cây tre trăm đốt nhờ câu thần chú 'Khắc nhập, khắc xuất' nhiệm màu của ông Bụt, trừng trị phú ông gian xảo.",
+  "content": "Ngày xưa có một phú ông giàu nứt đố đổ vách nhưng tính tình vô cùng keo kiệt và tráo trở. Trong nhà có anh đầy tớ tên Khoai, khỏe mạnh, thật thà và chịu thương chịu khó.\n\nĐể bóc lột sức lao động của anh Khoai, phú ông hứa gả cô con gái út xinh đẹp cho anh sau ba năm làm lụng không công. Anh Khoai tin lời, ngày đêm cày sâu cuốc bẫm, đắp đập be bờ, giúp phú ông gặt hái lúa thóc đầy bồ, gia sản ngày càng hưng thịnh.\n\nHết hạn ba năm, phú ông lật lọng, ngấm ngầm nhận lời gả con gái cho con trai một phú hộ giàu có khác trong làng. Để tống khứ anh Khoai đi xa, phú ông bảo: \"Con muốn cưới con gái ta thì phải lên rừng tìm cho được cây tre trăm đốt đem về làm đũa ăn cưới, lúc đó ta mới cử hành hôn lễ\".\n\nAnh Khoai thật thà vác dao lên rừng sâu tìm kiếm. Anh trèo đèo lội suối, chặt hết bụi tre này đến bụi tre khác nhưng chỉ thấy những cây tre có vài chục đốt, chẳng có cây nào đủ một trăm đốt cả. Bất lực và tủi thân, anh Khoai ngồi bệt bên bìa rừng ôm mặt khóc nức nở.\n\nBụt hiện lên trong làn khói xanh thơm ngát, râu tóc bạc phơ, cất tiếng hỏi: \"Vì sao con khóc?\". Anh Khoai đem hết chuyện kể lại. Bụt cười hiền hậu bảo: \"Con hãy đi chặt cho đủ một trăm đốt tre rời xếp lại một chỗ, rồi đọc câu thần chú: 'Khắc nhập, khắc xuất!'\".\n\nAnh Khoai làm y lời. Khi anh hô \"Khắc nhập, khắc nhập!\", một trăm đốt tre lập tức dính chặt lại với nhau thành một cây tre dài sừng sững đúng một trăm đốt. Anh mừng rỡ muốn vác về nhưng cây tre quá dài không luồn qua rừng được. Anh liền đọc \"Khắc xuất, khắc xuất!\", cây tre lập tức rời ra thành một trăm đốt nhỏ như cũ. Anh hớn hở bó lại gánh về làng.\n\nVề đến nhà phú ông, anh thấy cỗ bàn linh đình, gia đình nhà gái đang chuẩn bị rước dâu gả cho tên nhà giàu. Phú ông thấy anh về liền cười nhạo: \"Ta bảo tìm cây tre trăm đốt chứ ai bảo mang một đống que củi về!\".\n\nAnh Khoai bình tĩnh đặt một trăm đốt tre xuống giữa sân rồi hô lớn: \"Khắc nhập, khắc nhập!\". Các đốt tre liền dính liền lại thành cây tre dài thẳng tắp. Phú ông kinh ngạc chạy lại sờ tay vào cây tre, anh Khoai liền hô tiếp: \"Khắc nhập, khắc nhập!\", phú ông bị dính chặt cứng vào thân tre không sao gỡ ra được. Tên thông gia và chú rể chạy lại kéo cũng bị dính luôn thành một chuỗi người quằn quại kêu van xin tha mạng.\n\nTrước sự chứng kiến của dân làng, phú ông phải van lạy anh Khoai và hứa lập tức gả con gái út cho anh. Anh Khoai mới thong thả đọc: \"Khắc xuất, khắc xuất!\". Cây tre rời ra và mọi người được thả tự do. Lễ cưới ấm cúng của anh Khoai và cô con gái út diễn ra trong tiếng chúc tụng hân hoan của khắp xóm làng.",
+  "characters": [
+    {
+      "name": "Anh Khoai",
+      "role": "lead",
+      "gender": "male",
+      "dna": "honest 22yo Vietnamese farmer youth, robust sun-tanned build, bright sincere eyes, wearing rustic dark brown peasant tunic and rolled pants, holding bamboo machete"
+    },
+    {
+      "name": "Phú ông",
+      "role": "antagonist",
+      "gender": "male",
+      "dna": "greedy 50yo wealthy landlord, plump physique, cunning eyes, wearing embroidered silk brown robe and traditional turban"
+    },
+    {
+      "name": "Ông Bụt",
+      "role": "supporting",
+      "gender": "male",
+      "dna": "mystical benevolent ancient Vietnamese fairy deity, long flowing snow-white beard and hair, gentle compassionate eyes, glowing celestial robes"
+    }
+  ],
+  "world_setting": "Làng quê đồng bằng Bắc Bộ, rừng tre xanh ngút ngàn và sân đình nhà phú ông.",
+  "panels": [
+    {
+      "panel_index": 1,
+      "dialogue_text": "Anh Khoai ngồi khóc bên bìa rừng rậm rạp khi không thể tìm thấy cây tre đủ một trăm đốt.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, honest 22yo Vietnamese farmer youth weeping beside dense bamboo forest, deep mystical mountain atmosphere, emotional screentone shading",
+      "layout_type": "wide"
+    },
+    {
+      "panel_index": 2,
+      "dialogue_text": "Bụt hiện lên nhân từ, truyền dạy câu thần chú kỳ diệu 'Khắc nhập, khắc xuất' cho chàng nông dân.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, glowing ancient deity with flowing white beard appearing in mystical mist to teach humble farmer, magical light particles 2D manga",
+      "layout_type": "square"
+    },
+    {
+      "panel_index": 3,
+      "dialogue_text": "Tại sân nhà phú ông, anh Khoai hô vang 'Khắc nhập!', một trăm đốt tre liền dính chặt phú ông gian ngoa.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, dramatic comedic scene, bamboo joints joining together magic energy sticking greedy rich landlord to giant tall bamboo pole, villagers laughing, dynamic angle",
+      "layout_type": "tall"
+    },
+    {
+      "panel_index": 4,
+      "dialogue_text": "Đám cưới hạnh phúc của anh Khoai và người con gái hiền thục diễn ra trong niềm hân hoan của xóm làng.",
+      "image_prompt": "masterpiece 2D Japanese anime manga illustration, clean monochrome black ink lineart, traditional joyful Vietnamese countryside wedding, smiling honest farmer and gentle bride in wedding robes, warm festive atmosphere",
+      "layout_type": "wide"
+    }
+  ],
+  "metadata": {
+    "language": "vi",
+    "wordCount": 565,
+    "createdAt": "2026-10-11T02:55:55.252276+00:00",
+    "aiModel": "NarrAI-Engine-Pro",
+    "status": "published"
+  }
+}
