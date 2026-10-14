@@ -4,9 +4,15 @@ NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành
 
 ## Thông tin dự án
 
-- Đội thi: Những ngôi sao mộng mơ
-- Đơn vị: Trường Quốc tế, Đại học Quốc gia Hà Nội (VNU-IS)
-- Cuộc thi: iStartup 2026
+- **Đội thi**: Những ngôi sao mộng mơ
+- **Đơn vị**: Trường Quốc tế, Đại học Quốc gia Hà Nội (VNU-IS)
+- **Cuộc thi**: iStartup 2026
+- **Định vị & Sứ mệnh**: Nền tảng đa phương tiện ứng dụng AI tạo sinh cá nhân hóa và quảng bá văn hóa, lịch sử Việt Nam.
+
+### Đối tượng người dùng mục tiêu
+- **Giới trẻ Gen Z (15–25 tuổi, Học sinh & Sinh viên)**: Có nhu cầu biểu đạt nghệ thuật số, viết truyện đời thường, chữa lành, viễn tưởng và chuyển thể truyện tranh thông qua trải nghiệm "Zero-Skill" không đòi hỏi kỹ năng prompt phức tạp.
+- **Người sáng tạo & Truyền bá Văn hóa - Lịch sử Việt Nam**: Học sinh, sinh viên thực hiện các dự án học tập Lịch sử - Ngữ văn; các tác giả tiểu thuyết dã sử, cổ phong cần công cụ gợi mở ý tưởng, kiểm chứng sự kiện và chuẩn hóa bối cảnh thời đại.
+- **Khách hàng B2B (Nhãn hàng F&B, thời trang, giáo dục)**: Doanh nghiệp có nhu cầu sản xuất các chiến dịch truyện tranh tiếp thị số (Branded Webtoon) lồng ghép thương hiệu và văn hóa bản địa.
 
 ## Tính năng
 
@@ -25,14 +31,20 @@ NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành
   - Chuyển bản thảo thành kịch bản truyện tranh.
   - Duy trì thông tin nhân vật và bối cảnh giữa các khung. Ảnh có thể tải lại khi gặp lỗi.
 
-### 2. Kiểm tra nội dung lịch sử và nhận diện IP
-- Bộ quy tắc lịch sử bao gồm các nhân vật và sự kiện Việt Nam qua nhiều giai đoạn.
-- Bộ kiểm tra phát hiện một số dạng xuyên tạc kết quả trận chiến và hình tượng nhân vật lịch sử, kể cả cách viết tiếng Việt không dấu.
-- Ba chế độ sáng tác:
-  - *Chính sử*: Ưu tiên tuân thủ các sự kiện và nhân vật lịch sử.
-  - *Dã sử*: Cho phép nhân vật hư cấu trong bối cảnh lịch sử.
-  - *Hư cấu tự do*: Không áp dụng các ràng buộc lịch sử.
-- Nhận diện một số thương hiệu có bản quyền và hiển thị thông tin tác phẩm phái sinh khi xuất bản.
+### 2. Phạm vi văn hóa - lịch sử và kiểm soát bản quyền IP
+- **Phạm vi bao phủ lịch sử dân tộc**:
+  - Bảo vệ và tái hiện chuẩn mực hình tượng **31 vị anh hùng dân tộc tiêu biểu** (Trần Hưng Đạo, Hai Bà Trưng, Ngô Quyền, Lý Thường Kiệt, Lê Lợi, Quang Trung, Hồ Chí Minh, Võ Nguyên Giáp...).
+  - Bao quát các triều đại lịch sử Việt Nam: thời dựng nước (Văn Lang, Âu Lạc), thời kỳ đấu tranh chống Bắc thuộc, thời kỳ độc lập tự chủ (Đinh, Tiền Lê, Lý, Trần, Hậu Lê, Tây Sơn, Nguyễn) và thời đại Hồ Chí Minh.
+- **Hàng rào bảo vệ bất biến vệ quốc (Historical Grounding Gatekeeper)**:
+  - Tự động phát hiện và ngăn chặn các hành vi bóp méo, xuyên tạc kết quả các trận đánh vệ quốc tiêu biểu (Bạch Đằng, Như Nguyệt, Chi Lăng, Rạch Gầm - Xoài Mút, Ngọc Hồi - Đống Đa, Điện Biên Phủ...), kể cả khi viết bằng tiếng Việt không dấu.
+- **Bản thể luận ngôn ngữ & Tôn ti xưng hô (Tri-Tier Ontology)**:
+  - Chuẩn hóa hệ thống danh xưng cổ phong thuần Việt (vua - tôi, tướng - quân, chức quan, gia đình), loại bỏ hoàn toàn các từ ngữ Hán Việt lai căng và các sáo ngữ phi văn hóa.
+- **Ba chế độ sáng tác phân vùng ranh giới rõ ràng**:
+  - *Chính sử*: Tuân thủ nghiêm ngặt 100% các mốc niên đại, sự kiện và nhân vật lịch sử có thật.
+  - *Dã sử*: Cho phép sáng tạo các tuyến nhân vật hư cấu hoạt động trong bối cảnh và quy chuẩn thời đại có thật.
+  - *Hư cấu tự do*: Dành riêng cho các tác phẩm hiện đại, viễn tưởng, kỳ ảo không áp dụng ràng buộc lịch sử.
+- **Nhận diện bản quyền thương hiệu và chính sách phái sinh (IP Fanfiction Policy)**:
+  - Tự động nhận diện các thương hiệu giải trí có bản quyền và đính kèm nhãn miễn trừ thương mại (Non-commercial Derivative Work Disclaimer) khi tác giả xuất bản tác phẩm phái sinh lên cộng đồng.
 
 ### 3. Cộng đồng sáng tác
 - Bảng tin đề xuất và bảng tin tác giả đang theo dõi.
@@ -40,7 +52,7 @@ NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành
 - Theo dõi tác giả, thích và chia sẻ bài viết; liên kết chia sẻ mở được tác phẩm tương ứng.
 - Bình luận theo luồng, tủ sách cá nhân, bảng xếp hạng và xu hướng.
 - Nhắn tin nội bộ, xuất bản thảo `.txt`, `.md` hoặc `.pdf`, và đọc truyện chữ hoặc truyện tranh.
-- Số dư Xu được lưu trên máy chủ; tính năng nạp Xu hiện ở chế độ demo MVP, cộng Xu trực tiếp và chưa xử lý thanh toán ngân hàng.
+- Hệ thống kinh tế vi mô (Coin Economy): Quản lý số dư Xu trên máy chủ (`banking_service.py`), tự động cấp 100 Xu khởi đầu khi đăng ký tài khoản; tính năng nạp Xu thử nghiệm ở chế độ demo MVP, định hướng tích hợp cổng thanh toán trực tuyến.
 
 ### 4. Khả năng phục hồi khi sinh nội dung
 - Luồng sinh truyện có thể tiếp tục khi nhà cung cấp dừng do giới hạn độ dài.
@@ -50,6 +62,17 @@ NarrAI là nền tảng đồng sáng tác văn học và mạng xã hội dành
 ### 5. Hạ tầng
 - TensorFlow.js hỗ trợ cá nhân hóa bảng tin phía trình duyệt và lưu dữ liệu đệm trong IndexedDB.
 - Backend sử dụng SQLite WAL và GZip middleware.
+
+### 6. Mô hình tài chính và kinh tế dự án (Financial Model & Monetization)
+- **Doanh thu theo dự án (Project-Based Pricing Model):**
+  - Hợp đồng B2B trọn gói theo chiến dịch tiếp thị nội dung số (Branded Webtoon / Marketing Storytelling) cho các nhãn hàng F&B, thời trang và giải trí tiếp cận tệp người dùng trẻ Gen Z.
+  - Gói giải pháp số hóa giáo dục cung cấp cho các trường học, câu lạc bộ văn hóa sử dụng NarrAI làm công cụ học tập tương tác môn Lịch sử - Ngữ văn theo từng học kỳ/dự án học sinh.
+- **Kinh tế Vi mô Người dùng B2C (Coin Micro-Economy):**
+  - Mô hình sáng tạo kết hợp (Freemium): Người dùng được cấp 100 Xu trải nghiệm toàn bộ quy trình từ ý tưởng đến truyện tranh hoàn chỉnh.
+  - Nạp Xu linh hoạt để mở rộng năng lực tác phẩm: sinh thêm khung tranh Manga độ phân giải cao, ưu tiên hàng đợi tạo sinh hoặc xuất bản thảo in ấn chuyên nghiệp.
+- **Cấu trúc chi phí tinh gọn (Lean Cost Structure):**
+  - Tối ưu hóa chi phí đám mây thông qua mô hình Serverless (Vercel) kết hợp Container (Render) và phần cứng tăng tốc suy luận Groq LPUs.
+  - Ứng dụng điện toán biên (Edge AI qua TensorFlow.js và IndexedDB) giúp giảm tải hơn 60% chi phí tính toán cho máy chủ backend.
 
 ---
 
