@@ -165,7 +165,23 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
           <h1
             id="landing-brand"
             className="relative -mt-1 font-sans text-[clamp(4.5rem,18vw,14rem)] font-black leading-[0.86] tracking-[0.035em] text-[#ffe15c] sm:-mt-3"
-            style={{ textShadow: "4px 8px 8px rgba(55, 0, 0, 0.55), 0 14px 18px rgba(55, 0, 0, 0.3)" }}
+            style={{
+              textShadow: [
+                "1px 1px 0 #a34b1e",
+                "2px 2px 0 #9b411b",
+                "3px 3px 0 #933919",
+                "4px 4px 0 #8b3117",
+                "5px 5px 0 #832916",
+                "6px 6px 0 #7b2215",
+                "7px 7px 0 #731c14",
+                "8px 8px 0 #6b1713",
+                "9px 9px 0 #631311",
+                "10px 10px 0 #5b1010",
+                "11px 11px 0 #530e0f",
+                "12px 12px 0 #4b0c0e",
+                "0 18px 20px rgba(45, 0, 0, 0.45)",
+              ].join(", "),
+            }}
           >
             NARRAI
           </h1>
