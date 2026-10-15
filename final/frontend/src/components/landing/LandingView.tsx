@@ -164,7 +164,7 @@ export function LandingView({ lang, onLanguageChange, onOpenAuth, onExploreCommu
           </div>
           <h1
             id="landing-brand"
-            className="relative -mt-1 font-sans text-[clamp(4.5rem,18vw,14rem)] font-black leading-[0.86] tracking-[0.035em] text-[#ffe15c] [text-shadow:0_8px_16px_rgba(65,12,8,0.45),0_2px_2px_rgba(65,12,8,0.35)] sm:-mt-3"
+            className="relative -mt-1 font-sans text-[clamp(4.5rem,18vw,14rem)] font-black leading-[0.86] tracking-[0.035em] text-[#ffe15c] [text-shadow:0_10px_0_rgba(92,12,10,0.9),0_18px_18px_rgba(55,0,0,0.7)] sm:-mt-3"
           >
             NARRAI
           </h1>
