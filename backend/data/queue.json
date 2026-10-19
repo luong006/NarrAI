@@ -16,13 +16,13 @@
         "vi",
         "en"
       ],
-      "status": "pending",
+      "status": "failed",
       "createdAt": "2026-10-11T00:00:00Z",
-      "updatedAt": "2026-10-11T02:10:55.242920+00:00",
+      "updatedAt": "2026-10-19T07:12:15.806313+00:00",
       "prUrl": null,
       "prNumber": null,
       "branchName": "ai-stories/tran-hung-dao",
-      "error": null
+      "error": "Cả Claude API và Groq API đều không thể biên soạn truyện. Vui lòng kiểm tra API Key."
     },
     {
       "id": "chu-dong-tu",
@@ -39,13 +39,13 @@
         "vi",
         "en"
       ],
-      "status": "pending",
+      "status": "failed",
       "createdAt": "2026-10-11T00:00:00Z",
-      "updatedAt": "2026-10-11T02:11:29.487616+00:00",
+      "updatedAt": "2026-10-19T07:12:18.430243+00:00",
       "prUrl": null,
       "prNumber": null,
       "branchName": "ai-stories/chu-dong-tu",
-      "error": null
+      "error": "Cả Claude API và Groq API đều không thể biên soạn truyện. Vui lòng kiểm tra API Key."
     },
     {
       "id": "hai-ba-trung",
@@ -62,13 +62,13 @@
         "vi",
         "en"
       ],
-      "status": "pending",
+      "status": "failed",
       "createdAt": "2026-10-11T00:00:00Z",
-      "updatedAt": "2026-10-11T00:00:00Z",
+      "updatedAt": "2026-10-19T07:12:21.200994+00:00",
       "prUrl": null,
       "prNumber": null,
       "branchName": null,
-      "error": null
+      "error": "Cả Claude API và Groq API đều không thể biên soạn truyện. Vui lòng kiểm tra API Key."
     },
     {
       "id": "son-tinh-thuy-tinh",
